@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Berth: host your app or your site</title>
-<meta name="description" content="Berth hosts your app or website on Mike's servers. You get a database, an API, HTTPS, and nightly backups. Private beta. Pricing when you request access.">
+<meta name="description" content="Berth runs your app or website on managed infrastructure. You get a database, an API, HTTPS, and nightly backups. Private beta. Pricing when you request access.">
 <link rel="canonical" href="https://atberth.com/">
 <meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
-<meta name="color-scheme" content="dark light">
+<meta name="color-scheme" content="light dark">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Berth">
 <meta property="og:url" content="https://atberth.com/">
@@ -28,7 +28,7 @@
 <link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
 <script>
-(function(){var d=document.documentElement;try{var t=localStorage.getItem("berth-theme");if(t==="light"||t==="dark")d.setAttribute("data-theme",t)}catch(e){}d.classList.add("js")})();
+(function(){var d=document.documentElement,t;try{t=localStorage.getItem("berth-theme")}catch(e){}if(t!=="light"&&t!=="dark")t=window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";d.setAttribute("data-theme",t);d.classList.add("js")})();
 </script>
 <link rel="stylesheet" href="/styles.css">
 </head>
@@ -54,7 +54,7 @@
         <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
       </button>
-      <a class="btn btn-sm btn-light" href="mailto:mikeshobes718@gmail.com?subject=Request%20a%20berth">Request a berth</a>
+      <a class="btn btn-sm btn-light" href="mailto:hello@atberth.com?subject=Request%20a%20berth">Request a berth</a>
     </div>
   </div>
 </header>
@@ -66,9 +66,9 @@
       <p class="eyebrow rise"><span class="dot" aria-hidden="true"></span>Private beta</p>
       <h1 class="rise r1">Host your app<br>or your site.</h1>
       <div class="hero-sub rise r2">
-        <p>Berth hosts it on Mike's servers. You get a database, an API, HTTPS, and nightly backups. This is paid hosting, in private beta. Pricing when you request access.</p>
+        <p>Berth runs your app on managed infrastructure. You get a database, an API, HTTPS, and nightly backups. Paid hosting, now in private beta. Pricing when you request access.</p>
         <div class="hero-cta">
-          <a class="btn btn-light" href="mailto:mikeshobes718@gmail.com?subject=Request%20a%20berth">Request a berth</a>
+          <a class="btn btn-light" href="mailto:hello@atberth.com?subject=Request%20a%20berth">Request a berth</a>
           <a class="btn btn-ghost" href="#how">How it works <span aria-hidden="true">&rarr;</span></a>
         </div>
       </div>
@@ -276,14 +276,14 @@
         <p class="lede">These already run on Berth. Yours can be next.</p>
       </div>
       <ul class="app-grid reveal">
-        <li><a href="https://mikeshobes718.github.io/berth/clip/"><span class="a-n">Clip</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
-        <li><a href="https://mikeshobes718.github.io/berth/spot/"><span class="a-n">Spot</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
-        <li><a href="https://mikeshobes718.github.io/berth/haul/"><span class="a-n">Haul</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
-        <li><a href="https://mikeshobes718.github.io/berth/riff/"><span class="a-n">Riff</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
-        <li><a href="https://mikeshobes718.github.io/berth/formforge/"><span class="a-n">FormForge</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
-        <li><a href="https://mikeshobes718.github.io/berth/heard/"><span class="a-n">Heard</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
-        <li><a href="https://mikeshobes718.github.io/berth/treze-luas/"><span class="a-n">13 Luas</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
-        <li><a class="a-all" href="mailto:mikeshobes718@gmail.com?subject=Request%20a%20berth"><span class="a-n">Your app</span><span class="a-l">Request a berth</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a href="/legal/clip/"><span class="a-n">Clip</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a href="/legal/spot/"><span class="a-n">Spot</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a href="/legal/haul/"><span class="a-n">Haul</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a href="/legal/riff/"><span class="a-n">Riff</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a href="/legal/formforge/"><span class="a-n">FormForge</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a href="/legal/heard/"><span class="a-n">Heard</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a href="/legal/treze-luas/"><span class="a-n">13 Luas</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a class="a-all" href="mailto:hello@atberth.com?subject=Request%20a%20berth"><span class="a-n">Your app</span><span class="a-l">Request a berth</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
       </ul>
     </div>
   </section>
@@ -293,8 +293,8 @@
       <div class="cta reveal">
         <div class="cta-glow" aria-hidden="true"></div>
         <h2>Request a berth.</h2>
-        <p>Berth is opening for other people. There is no public signup and no price list yet. Tell us what you want hosted, and you get pricing in the reply.</p>
-        <a class="btn btn-light" href="mailto:mikeshobes718@gmail.com?subject=Request%20a%20berth">Request a berth</a>
+        <p>Berth is opening to more apps. There is no public signup and no price list yet. Tell us what you want hosted, and you get pricing in the reply.</p>
+        <a class="btn btn-light" href="mailto:hello@atberth.com?subject=Request%20a%20berth">Request a berth</a>
       </div>
     </div>
   </section>
@@ -322,29 +322,30 @@
       <div>
         <p class="foot-h">Hosted</p>
         <ul>
-          <li><a href="https://mikeshobes718.github.io/berth/clip/">Clip</a></li>
-          <li><a href="https://mikeshobes718.github.io/berth/spot/">Spot</a></li>
-          <li><a href="https://mikeshobes718.github.io/berth/haul/">Haul</a></li>
-          <li><a href="https://mikeshobes718.github.io/berth/riff/">Riff</a></li>
-          <li><a href="https://mikeshobes718.github.io/berth/formforge/">FormForge</a></li>
-          <li><a href="https://mikeshobes718.github.io/berth/heard/">Heard</a></li>
-          <li><a href="https://mikeshobes718.github.io/berth/treze-luas/">13 Luas</a></li>
+          <li><a href="/legal/clip/">Clip</a></li>
+          <li><a href="/legal/spot/">Spot</a></li>
+          <li><a href="/legal/haul/">Haul</a></li>
+          <li><a href="/legal/riff/">Riff</a></li>
+          <li><a href="/legal/formforge/">FormForge</a></li>
+          <li><a href="/legal/heard/">Heard</a></li>
+          <li><a href="/legal/treze-luas/">13 Luas</a></li>
         </ul>
       </div>
       <div>
         <p class="foot-h">Access</p>
         <ul>
-          <li><a href="mailto:mikeshobes718@gmail.com?subject=Request%20a%20berth">Request a berth</a></li>
+          <li><a href="mailto:hello@atberth.com?subject=Request%20a%20berth">Request a berth</a></li>
           <li><a href="/docs">Docs</a></li>
           <li><a href="#how">How it works</a></li>
-          <li><a href="https://mikeshobes718.github.io/berth/">Pages for hosted apps</a></li>
+          <li><a href="/legal/">Pages for hosted apps</a></li>
         </ul>
       </div>
       <div>
         <p class="foot-h">Connect</p>
         <ul>
-          <li><a href="mailto:mikeshobes718@gmail.com?subject=Berth">Email</a></li>
-          <li><a href="https://github.com/mikeshobes718/atberth-site">Site source</a></li>
+          <li><a href="mailto:hello@atberth.com?subject=Berth">Email</a></li>
+          <li><a href="/privacy/">Privacy</a></li>
+          <li><a href="/terms/">Terms</a></li>
         </ul>
       </div>
     </div>

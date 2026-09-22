@@ -1,0 +1,2393 @@
+#!/usr/bin/env python3
+"""Berth command line. Talks to https://api.atberth.com/v1. Python 3.9+, no extra packages."""
+
+from __future__ import annotations
+
+import argparse
+import getpass
+from http import client as httpclient
+import json
+import mimetypes
+import os
+import re
+import shutil
+import signal
+import socket
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
+VERSION = "2.0.0"
+DEFAULT_API = "https://api.atberth.com/v1"
+FILTER_OPS = ("eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "in", "is", "cs")
+INT_TYPES = {"integer", "bigint", "int", "int2", "int4", "int8", "smallint"}
+NUM_TYPES = {"numeric", "double", "double precision", "real", "float4", "float8", "decimal"}
+NUMBER_RE = re.compile(r"^-?\d+(\.\d+)?([eE][-+]?\d+)?$")
+RAW_FILTER_RE = re.compile(r"^(not\.)?(" + "|".join(FILTER_OPS) + r")\.")
+NOBODY = object()
+
+JSON = False
+API_OVERRIDE = None
+IDEMPOTENCY_KEY = None
+_CFG = None
+
+
+# Output and errors
+
+def show_json(payload) -> None:
+    print(json.dumps(payload, indent=2, ensure_ascii=False), flush=True)
+
+
+def usage(message: str) -> None:
+    print(f"berth: {message}", file=sys.stderr)
+    raise SystemExit(2)
+
+
+def die(message: str, payload: dict | None = None) -> None:
+    if JSON:
+        show_json(payload or {"error": "cli", "message": message})
+    print(f"berth: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def note(message: str) -> None:
+    print(message, file=sys.stderr, flush=True)
+
+
+def emit(payload, human) -> None:
+    if JSON:
+        show_json(payload)
+    elif callable(human):
+        human()
+    elif human:
+        print(human)
+
+
+def cell(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, separators=(",", ":"), ensure_ascii=False)
+    return str(value)
+
+
+def clip(text: str, width: int) -> str:
+    text = text.replace("\r", " ").replace("\n", " ")
+    return text if len(text) <= width else text[: width - 3] + "..."
+
+
+def print_table(rows: list, columns: list | None = None, empty: str = "Nothing here yet.") -> None:
+    rows = [r if isinstance(r, dict) else {"value": r} for r in rows or []]
+    if not rows:
+        print(empty)
+        return
+    if columns is None:
+        columns = []
+        for row in rows:
+            for key in row:
+                if key not in columns:
+                    columns.append(key)
+    limit = max(12, min(60, shutil.get_terminal_size((120, 20)).columns // max(1, len(columns))))
+    data = [[clip(cell(row.get(col)), limit) for col in columns] for row in rows]
+    widths = [max([len(col)] + [len(line[i]) for line in data]) for i, col in enumerate(columns)]
+    print("  ".join(col.ljust(w) for col, w in zip(columns, widths)).rstrip())
+    for line in data:
+        print("  ".join(val.ljust(w) for val, w in zip(line, widths)).rstrip())
+
+
+def print_kv(obj: dict, indent: str = "", skip: tuple = ()) -> None:
+    for key, value in (obj or {}).items():
+        if key in skip:
+            continue
+        if isinstance(value, dict) and value:
+            print(f"{indent}{key}:")
+            print_kv(value, indent + "  ")
+        else:
+            print(f"{indent}{key}: {cell(value)}")
+
+
+def first_list(payload: dict, *keys: str) -> list:
+    for key in keys:
+        if isinstance(payload.get(key), list):
+            return payload[key]
+    for value in payload.values():
+        if isinstance(value, list):
+            return value
+    return []
+
+
+def plural(n: int, word: str) -> str:
+    return f"{n} {word}" + ("" if n == 1 else "s")
+
+
+# Config and credentials
+
+def config_path() -> Path:
+    env = os.environ.get("BERTH_CONFIG")
+    return Path(env).expanduser() if env else Path.home() / ".config" / "berth" / "config.json"
+
+
+def cfg() -> dict:
+    global _CFG
+    if _CFG is not None:
+        return _CFG
+    path = config_path()
+    data: dict = {}
+    if path.exists():
+        try:
+            data = json.loads(path.read_text(encoding="utf-8") or "{}")
+        except (OSError, ValueError):
+            die(f"Could not read {path}. Fix it or remove it and log in again.")
+        if not isinstance(data, dict):
+            die(f"Could not read {path}. Fix it or remove it and log in again.")
+    data.setdefault("api", DEFAULT_API)
+    data.setdefault("token", "")
+    if not isinstance(data.get("apps"), dict):
+        data["apps"] = {}
+    _CFG = data
+    return data
+
+
+def save_config() -> None:
+    data = cfg()
+    path = config_path()
+    existed = path.parent.exists()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not existed or path.parent.name == "berth":
+        os.chmod(path.parent, 0o700)
+    tmp = path.with_name(path.name + ".tmp")
+    fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(json.dumps(data, indent=2) + "\n")
+    os.chmod(tmp, 0o600)
+    tmp.replace(path)
+    os.chmod(path, 0o600)
+
+
+def api_base() -> str:
+    base = API_OVERRIDE or os.environ.get("BERTH_API") or cfg().get("api") or DEFAULT_API
+    return str(base).rstrip("/")
+
+
+def account_token(required: bool = True) -> str:
+    token = os.environ.get("BERTH_TOKEN") or cfg().get("token") or ""
+    if not token and required:
+        die("Not logged in. Run berth login, or set BERTH_TOKEN.")
+    return token
+
+
+def app_entry(app: str) -> dict:
+    value = cfg()["apps"].get(app)
+    if isinstance(value, str):
+        return {"secret": value}
+    return value if isinstance(value, dict) else {}
+
+
+def app_tokens(app: str) -> list:
+    out = []
+    for token in (app_entry(app).get("secret"), os.environ.get("BERTH_TOKEN"), cfg().get("token")):
+        if token and token not in out:
+            out.append(token)
+    if not out:
+        die(f"No key saved for {app} and not logged in. Run berth login.")
+    return out
+
+
+def save_app_keys(app: str, **keys) -> None:
+    entry = app_entry(app)
+    for name, value in keys.items():
+        if value:
+            entry[name] = value
+    cfg()["apps"][app] = entry
+    save_config()
+
+
+def forget_app(app: str) -> None:
+    data = cfg()
+    changed = data["apps"].pop(app, None) is not None
+    if data.get("default_app") == app:
+        data.pop("default_app")
+        changed = True
+    if changed:
+        save_config()
+
+
+def resolve_app(args) -> str:
+    app = getattr(args, "app", None) or os.environ.get("BERTH_APP") or cfg().get("default_app")
+    if not app:
+        usage("Pass --app APP, set BERTH_APP, or run berth use APP.")
+    return app
+
+
+def prompt(label: str, secret: bool = False) -> str:
+    if sys.stdin.isatty():
+        try:
+            if secret:
+                return getpass.getpass(label).strip()
+            print(label, end="", file=sys.stderr, flush=True)
+            return input().strip()
+        except EOFError:
+            return ""
+    return sys.stdin.readline().strip()
+
+
+# HTTP
+
+class Resp:
+    def __init__(self, status: int, headers, body: bytes = b"", stream=None):
+        self.status = status
+        self.headers = headers
+        self.body = body
+        self.stream = stream
+
+    @property
+    def ok(self) -> bool:
+        return 200 <= self.status < 300
+
+    def json(self):
+        if not self.body:
+            return {}
+        try:
+            return json.loads(self.body.decode("utf-8"))
+        except (ValueError, UnicodeDecodeError):
+            return None
+
+
+def seg(*parts) -> str:
+    return "/" + "/".join(urllib.parse.quote(str(p), safe="") for p in parts)
+
+
+def app_path(app: str, *parts) -> str:
+    return seg("apps", app, *parts)
+
+
+def http(method: str, path: str, token: str | None = None, *, body=NOBODY, data=None, ctype: str | None = None,
+         query: list | None = None, headers: dict | None = None, timeout: float | None = 60.0,
+         stream: bool = False) -> Resp:
+    url = api_base() + path
+    if query:
+        url += ("&" if "?" in url else "?") + urllib.parse.urlencode(query, quote_via=urllib.parse.quote)
+    for attempt in range(3):
+        hdrs = {"Accept": "application/json", "User-Agent": f"berth-cli/{VERSION}"}
+        if token:
+            hdrs["Authorization"] = "Bearer " + token
+        if IDEMPOTENCY_KEY and method != "GET":
+            hdrs["Idempotency-Key"] = IDEMPOTENCY_KEY
+        payload = None
+        fh = None
+        if body is not NOBODY:
+            payload = json.dumps(body).encode("utf-8")
+            hdrs["Content-Type"] = "application/json"
+        elif data is not None:
+            if isinstance(data, Path):
+                fh = data.open("rb")
+                payload = fh
+                hdrs["Content-Length"] = str(os.fstat(fh.fileno()).st_size)
+            else:
+                payload = data
+            hdrs["Content-Type"] = ctype or "application/octet-stream"
+        if headers:
+            hdrs.update(headers)
+        req = urllib.request.Request(url, data=payload, headers=hdrs, method=method)
+        try:
+            try:
+                res = urllib.request.urlopen(req, timeout=timeout)
+            except urllib.error.HTTPError as err:
+                res = err
+            status = res.getcode()
+            if stream and 200 <= status < 300:
+                return Resp(status, res.headers, stream=res)
+            raw = res.read()
+            res.close()
+        except (urllib.error.URLError, socket.timeout, httpclient.HTTPException, OSError) as err:
+            reason = getattr(err, "reason", None) or err
+            die(f"Could not reach {api_base()}: {reason}.", {"error": "network", "message": str(reason)})
+        finally:
+            if fh:
+                fh.close()
+        if status in (429, 503) and attempt < 2:
+            try:
+                wait = int(res.headers.get("Retry-After") or 2)
+            except ValueError:
+                wait = 2
+            if wait <= 10:
+                time.sleep(max(wait, 1))
+                continue
+        return Resp(status, res.headers, raw)
+    return Resp(0, {}, b"")
+
+
+def fail(resp: Resp) -> None:
+    data = resp.json()
+    if not isinstance(data, dict) or not data:
+        text = resp.body.decode("utf-8", "replace").strip() if resp.body else ""
+        data = {"error": f"http_{resp.status}", "message": clip(text, 200) if text else f"The API returned HTTP {resp.status}."}
+    message = data.get("message") or data.get("error") or f"The API returned HTTP {resp.status}."
+    rid = data.get("request_id") or (resp.headers.get("X-Request-Id") if resp.headers else None)
+    if resp.status >= 500 and rid:
+        message += f" (request {rid})"
+    if JSON:
+        show_json(data)
+    print(f"berth: {message}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def check(resp: Resp) -> dict:
+    if not resp.ok:
+        fail(resp)
+    data = resp.json()
+    if data is None:
+        return {"body": resp.body.decode("utf-8", "replace")}
+    return data if isinstance(data, dict) else {"data": data}
+
+
+def api(method: str, path: str, token: str | None, **kw) -> dict:
+    return check(http(method, path, token, **kw))
+
+
+def app_http(app: str, method: str, path: str, **kw) -> Resp:
+    tokens = app_tokens(app)
+    resp = None
+    for i, token in enumerate(tokens):
+        resp = http(method, path, token, **kw)
+        if resp.status != 401 or i == len(tokens) - 1:
+            return resp
+        if resp.stream:
+            resp.stream.close()
+    return resp
+
+
+def app_api(app: str, method: str, path: str, **kw) -> dict:
+    return check(app_http(app, method, path, **kw))
+
+
+def save_stream(resp: Resp, dest: str) -> int:
+    total = 0
+    src = resp.stream
+    if dest == "-":
+        out = sys.stdout.buffer
+        while True:
+            chunk = src.read(1 << 16)
+            if not chunk:
+                break
+            out.write(chunk)
+            total += len(chunk)
+        out.flush()
+        src.close()
+        return total
+    part = dest + ".part"
+    try:
+        with open(part, "wb") as fh:
+            while True:
+                chunk = src.read(1 << 16)
+                if not chunk:
+                    break
+                fh.write(chunk)
+                total += len(chunk)
+    except (OSError, httpclient.HTTPException) as err:
+        try:
+            os.remove(part)
+        except OSError:
+            pass
+        die(f"Download failed: {err}.")
+    finally:
+        src.close()
+    os.replace(part, dest)
+    return total
+
+
+def file_arg(path: str) -> Path:
+    p = Path(path).expanduser()
+    if not p.is_file():
+        usage(f"No such file: {path}")
+    return p
+
+
+# Values, filters, schema
+
+def table_schema(app: str, table: str) -> dict:
+    payload = app_api(app, "GET", app_path(app, "tables", table))
+    info = payload.get("table") or payload
+    return {c.get("name"): str(c.get("type") or "text") for c in info.get("columns") or []}
+
+
+def coerce(col: str, ctype: str, raw: str):
+    if raw == "null":
+        return None
+    t = ctype.lower().strip()
+    if t in INT_TYPES:
+        if not re.fullmatch(r"-?\d+", raw):
+            usage(f"Column {col} is {ctype}, so {raw!r} must be a whole number.")
+        return int(raw)
+    if t in NUM_TYPES:
+        if not NUMBER_RE.fullmatch(raw):
+            usage(f"Column {col} is {ctype}, so {raw!r} must be a number.")
+        return int(raw) if re.fullmatch(r"-?\d+", raw) else float(raw)
+    if t == "boolean":
+        if raw.lower() not in ("true", "false"):
+            usage(f"Column {col} is boolean, so use true or false.")
+        return raw.lower() == "true"
+    if t in ("jsonb", "json") or t.endswith("[]"):
+        try:
+            return json.loads(raw)
+        except ValueError:
+            if t.endswith("[]"):
+                return [] if raw == "" else raw.split(",")
+            return raw
+    return raw
+
+
+def parse_assignments(items: list, schema: dict | None) -> dict:
+    out = {}
+    for item in items:
+        if "=" not in item:
+            usage(f"Write values as column=value, not {item!r}.")
+        key, raw = item.split("=", 1)
+        if schema is not None:
+            if key not in schema:
+                usage(f"The table has no column {key!r}. Columns: {', '.join(schema)}.")
+            out[key] = coerce(key, schema[key], raw)
+        else:
+            out[key] = raw
+    return out
+
+
+def parse_where(items: list | None) -> list:
+    query = []
+    for item in items or []:
+        if "=" not in item:
+            usage(f"Write filters as column.op=value, for example age.gt=30. Got {item!r}.")
+        left, value = item.split("=", 1)
+        if "." not in left:
+            if RAW_FILTER_RE.match(value):
+                query.append((left, value))
+                continue
+            col, op = left, "eq"
+        else:
+            col, op = left.split(".", 1)
+        base = op[4:] if op.startswith("not.") else op
+        if base not in FILTER_OPS or not col:
+            usage(f"Unknown filter {op!r}. Use one of: {', '.join(FILTER_OPS)}, or not.OP.")
+        if base == "in" and not value.startswith("("):
+            value = f"({value})"
+        query.append((col, f"{op}.{value}"))
+    return query
+
+
+def json_input(data: str | None, file: str | None):
+    if data is not None and file is not None:
+        usage("Use --data or --file, not both.")
+    try:
+        if data is not None:
+            return json.loads(data)
+        if file == "-":
+            return json.loads(sys.stdin.read())
+        if file is not None:
+            return json.loads(file_arg(file).read_text(encoding="utf-8"))
+    except ValueError as err:
+        usage(f"That is not valid JSON: {err}.")
+    return None
+
+
+def default_literal(ctype: str | None, raw: str):
+    if raw in ("now()", "gen_random_uuid()", "current_date", "auth.uid()"):
+        return raw
+    if ctype:
+        return coerce("default", ctype, raw)
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return raw
+
+
+def split_csv(value: str | None) -> list | None:
+    if value is None:
+        return None
+    return [v.strip() for v in value.split(",") if v.strip()]
+
+
+def row_rows(payload: dict) -> list:
+    rows = payload.get("rows")
+    if isinstance(rows, list):
+        return rows
+    return [payload["row"]] if isinstance(payload.get("row"), dict) else []
+
+
+# Account commands
+
+def finish_email_login(email: str, code: str | None) -> None:
+    if not code:
+        code = prompt("Code from the email: ")
+    if not code:
+        usage("Enter the 6 digit code from the email, or pass --code.")
+    body = {"email": email, "code": code, "key_name": f"berth cli on {socket.gethostname()}"}
+    payload = api("POST", "/login", None, body=body)
+    key = payload.get("key")
+    if not key:
+        die("The API did not return a key.", payload)
+    cfg()["token"] = key
+    save_config()
+    email = (payload.get("account") or {}).get("email") or email
+    emit(payload, f"Logged in as {email}. Account key saved to {config_path()}.")
+
+
+def ask_email(args) -> str:
+    email = args.email or prompt("Email: ")
+    if not email or "@" not in email:
+        usage("Enter a valid email address.")
+    return email
+
+
+def cmd_signup(args) -> None:
+    email = ask_email(args)
+    if not args.code:
+        api("POST", "/signup", None, body={"email": email})
+        note(f"Sent a 6 digit code to {email}.")
+    finish_email_login(email, args.code)
+
+
+def cmd_login(args) -> None:
+    if args.token is not None or (not args.email and not sys.stdin.isatty()):
+        token = args.token
+        if token in (None, "-"):
+            token = sys.stdin.read()
+        token = (token or "").strip()
+        if not token:
+            usage("Pass a key with --token, or pipe one on stdin.")
+        payload = api("GET", "/me", token)
+        role = payload.get("role") or "unknown"
+        app = (payload.get("app") or {}).get("slug") or (payload.get("app") or {}).get("name")
+        if role in ("secret", "publishable") and app:
+            save_app_keys(app, **{role: token})
+            if not cfg().get("default_app"):
+                cfg()["default_app"] = app
+                save_config()
+            emit(payload, f"Saved the {role} key for {app} to {config_path()}.")
+            return
+        cfg()["token"] = token
+        save_config()
+        emit(payload, f"Logged in. role: {role}")
+        return
+    email = ask_email(args)
+    if not args.code:
+        api("POST", "/login", None, body={"email": email})
+        note(f"Sent a 6 digit code to {email}.")
+    finish_email_login(email, args.code)
+
+
+def cmd_logout(args) -> None:
+    data = cfg()
+    had = bool(data.get("token"))
+    data["token"] = ""
+    if args.all:
+        data["apps"] = {}
+        data.pop("default_app", None)
+    save_config()
+    msg = "Logged out." if had else "Already logged out."
+    if not args.all and data["apps"]:
+        msg += f" Kept saved keys for {plural(len(data['apps']), 'app')}. Use --all to remove them."
+    emit({"logged_out": True}, msg)
+
+
+def cmd_whoami(_args) -> None:
+    payload = api("GET", "/me", account_token())
+
+    def human():
+        print(f"role: {payload.get('role')}")
+        for part in ("account", "app", "user", "key"):
+            obj = payload.get(part)
+            if isinstance(obj, dict):
+                label = obj.get("email") or obj.get("slug") or obj.get("name") or obj.get("id")
+                print(f"{part}: {label}")
+        print(f"api: {api_base()}")
+    emit(payload, human)
+
+
+def cmd_status(_args) -> None:
+    payload = api("GET", "/status", None)
+    emit(payload, lambda: (print_kv(payload), print(f"api: {api_base()}")))
+
+
+def cmd_account_show(_args) -> None:
+    payload = api("GET", "/account", account_token())
+    emit(payload, lambda: print_kv(payload.get("account") or payload))
+
+
+def cmd_account_delete(args) -> None:
+    payload = api("DELETE", "/account", account_token(), query=[("confirm", args.confirm)])
+    cfg()["token"] = ""
+    cfg()["apps"] = {}
+    cfg().pop("default_app", None)
+    save_config()
+    emit(payload, f"Deleted the account {args.confirm} and all its apps.")
+
+
+def cmd_account_keys_list(_args) -> None:
+    payload = api("GET", "/account/keys", account_token())
+    emit(payload, lambda: print_table(first_list(payload, "keys"), empty="No account keys."))
+
+
+def cmd_account_keys_create(args) -> None:
+    payload = api("POST", "/account/keys", account_token(), body={"name": args.name})
+
+    def human():
+        key = payload.get("key") or {}
+        print(f"Created account key {key.get('name', args.name)} ({key.get('id', '')}).")
+        print("Save it now. It is shown once:")
+        print(payload.get("secret", ""))
+    emit(payload, human)
+
+
+def cmd_account_keys_revoke(args) -> None:
+    payload = api("DELETE", seg("account", "keys", args.key_id), account_token())
+    emit(payload, f"Revoked account key {args.key_id}.")
+
+
+# Admin commands
+
+def cmd_admin_accounts_list(_args) -> None:
+    payload = api("GET", "/admin/accounts", account_token())
+    emit(payload, lambda: print_table(first_list(payload, "accounts"), empty="No accounts."))
+
+
+def cmd_admin_accounts_show(args) -> None:
+    payload = api("GET", seg("admin", "accounts", args.account_id), account_token())
+    emit(payload, lambda: print_kv(payload.get("account") or payload))
+
+
+def cmd_admin_accounts_update(args) -> None:
+    body: dict = {}
+    if args.limit:
+        body["limits"] = {}
+        for item in args.limit:
+            if "=" not in item:
+                usage("Write limits as name=value, for example apps=10.")
+            key, raw = item.split("=", 1)
+            body["limits"][key] = int(raw) if re.fullmatch(r"-?\d+", raw) else raw
+    if args.disabled is not None:
+        body["disabled"] = args.disabled
+    if not body:
+        usage("Pass --limit NAME=VALUE, --disable, or --enable.")
+    payload = api("PATCH", seg("admin", "accounts", args.account_id), account_token(), body=body)
+    emit(payload, lambda: print_kv(payload.get("account") or payload))
+
+
+def cmd_admin_accounts_delete(args) -> None:
+    if not args.yes:
+        usage("Deleting an account removes all its apps. Add --yes to confirm.")
+    payload = api("DELETE", seg("admin", "accounts", args.account_id), account_token())
+    emit(payload, f"Deleted account {args.account_id}.")
+
+
+def cmd_admin_codes(args) -> None:
+    query = [("email", args.email)] + ([("app", args.app_slug)] if args.app_slug else [])
+    payload = api("GET", "/admin/codes", account_token(), query=query)
+    emit(payload, lambda: print_kv(payload))
+
+
+# Apps and keys
+
+def print_new_keys(slug: str, keys: dict) -> None:
+    print(f"Keys for {slug}, saved to {config_path()}. Shown once:")
+    if keys.get("secret"):
+        print(f"  secret:      {keys['secret']}  (server only, never ship it in an app)")
+    if keys.get("publishable"):
+        print(f"  publishable: {keys['publishable']}  (safe for phone and browser builds)")
+
+
+def remember_created(payload: dict, fallback: str) -> str:
+    app = payload.get("app") or {}
+    slug = app.get("slug") or app.get("name") or fallback
+    keys = payload.get("keys") or {}
+    save_app_keys(slug, secret=keys.get("secret"), publishable=keys.get("publishable"))
+    return slug
+
+
+def cmd_apps_list(_args) -> None:
+    payload = api("GET", "/apps", account_token())
+    default = cfg().get("default_app")
+
+    def human():
+        apps = first_list(payload, "apps")
+        rows = [{"slug": a.get("slug"), "name": a.get("name"), "created_at": a.get("created_at"),
+                 "default": "*" if a.get("slug") == default else ""} for a in apps]
+        print_table(rows, empty="No apps yet. Create one with berth apps create NAME.")
+    emit(payload, human)
+
+
+def cmd_apps_create(args) -> None:
+    payload = api("POST", "/apps", account_token(), body={"name": args.name})
+    slug = remember_created(payload, args.name)
+
+    def human():
+        print(f"Created app {slug}.")
+        url = (payload.get("app") or {}).get("api_url")
+        if url:
+            print(f"API: {url}")
+        print_new_keys(slug, payload.get("keys") or {})
+    emit(payload, human)
+
+
+def cmd_apps_show(args) -> None:
+    app = args.name or resolve_app(args)
+    payload = app_api(app, "GET", app_path(app))
+    emit(payload, lambda: print_kv(payload.get("app") or payload))
+
+
+def cmd_apps_delete(args) -> None:
+    if not args.yes:
+        usage(f"Deleting {args.name} removes its database, files, and functions. Add --yes to confirm.")
+    payload = api("DELETE", app_path(args.name), account_token())
+    forget_app(args.name)
+    emit(payload, f"Deleted app {args.name}.")
+
+
+def cmd_apps_usage(args) -> None:
+    app = args.name or resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "usage"))
+
+    def human():
+        usage_ = payload.get("usage") or {}
+        limits = payload.get("limits") or {}
+        rows = [{"metric": k, "used": v, "limit": limits.get(k, "")} for k, v in usage_.items()]
+        print_table(rows)
+        extra = {k: v for k, v in limits.items() if k not in usage_}
+        if extra:
+            print("limits:")
+            print_kv(extra, "  ")
+    emit(payload, human)
+
+
+def cmd_apps_export(args) -> None:
+    app = args.name or resolve_app(args)
+    dest = args.output or f"{app}.dump"
+    resp = app_http(app, "GET", app_path(app, "export"), stream=True, timeout=300,
+                    headers={"Accept": "application/octet-stream"})
+    if not resp.ok:
+        fail(resp)
+    size = save_stream(resp, dest)
+    if dest != "-":
+        emit({"app": app, "file": dest, "bytes": size}, f"Wrote {size} bytes to {dest}.")
+
+
+def cmd_apps_restore(args) -> None:
+    path = file_arg(args.file)
+    payload = api("POST", app_path(args.name, "restore"), account_token(), data=path,
+                  ctype="application/octet-stream", timeout=600)
+    slug = remember_created(payload, args.name)
+
+    def human():
+        print(f"Restored {path.name} into new app {slug}.")
+        print_new_keys(slug, payload.get("keys") or {})
+    emit(payload, human)
+
+
+def cmd_apps_config(args) -> None:
+    app = args.name or resolve_app(args)
+    if not args.cors:
+        usage("Pass one or more --cors ORIGIN values, or --cors '*' to allow any origin.")
+    payload = app_api(app, "PATCH", app_path(app), body={"cors_origins": args.cors})
+    emit(payload, lambda: print_kv(payload.get("app") or payload))
+
+
+def cmd_use(args) -> None:
+    data = cfg()
+    if args.clear:
+        data.pop("default_app", None)
+        save_config()
+        emit({"default_app": None}, "Cleared the default app.")
+        return
+    if not args.app_name:
+        current = os.environ.get("BERTH_APP") or data.get("default_app")
+        emit({"default_app": current}, f"Default app: {current}" if current else "No default app. Run berth use APP.")
+        return
+    data["default_app"] = args.app_name
+    save_config()
+    msg = f"Default app is now {args.app_name}."
+    if not app_entry(args.app_name).get("secret"):
+        msg += " No secret key is saved for it, so your account key will be used."
+    emit({"default_app": args.app_name}, msg)
+
+
+def cmd_keys_list(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "keys"))
+    cols = ["id", "name", "type", "prefix", "created_at", "last_used_at", "revoked_at"]
+    emit(payload, lambda: print_table(first_list(payload, "keys"), cols, empty="No keys."))
+
+
+def cmd_keys_create(args) -> None:
+    app = resolve_app(args)
+    name = args.name or f"{args.type} key"
+    payload = app_api(app, "POST", app_path(app, "keys"), body={"name": name, "type": args.type})
+    secret = payload.get("secret")
+    key = payload.get("key") or {}
+    if secret:
+        save_app_keys(app, **{args.type: secret, f"{args.type}_id": key.get("id")})
+
+    def human():
+        print(f"Created {args.type} key {key.get('name', name)} ({key.get('id', '')}) for {app}.")
+        print(f"Saved to {config_path()}. Shown once:")
+        print(secret or "")
+        if args.type == "secret":
+            print("Keep secret keys on servers only. Ship publishable keys in apps.")
+    emit(payload, human)
+
+
+def cmd_keys_revoke(args) -> None:
+    app = resolve_app(args)
+    entry = app_entry(app)
+    drop = [t for t in ("secret", "publishable") if entry.get(f"{t}_id") == args.key_id]
+    if not drop:
+        listing = app_http(app, "GET", app_path(app, "keys"))
+        if listing.ok:
+            for key in first_list(listing.json() or {}, "keys"):
+                prefix = key.get("prefix") or ""
+                if key.get("id") == args.key_id and len(prefix) >= 8:
+                    drop = [t for t in ("secret", "publishable") if str(entry.get(t) or "").startswith(prefix)]
+    payload = app_api(app, "DELETE", app_path(app, "keys", args.key_id))
+    if drop:
+        for t in drop:
+            entry.pop(t, None)
+            entry.pop(f"{t}_id", None)
+        cfg()["apps"][app] = entry
+        save_config()
+    emit(payload, f"Revoked key {args.key_id}." + (" Removed it from the saved config." if drop else ""))
+
+
+# Schema
+
+def parse_column_spec(spec: str) -> dict:
+    parts = spec.split(":")
+    if len(parts) < 2 or not parts[0] or not parts[1]:
+        usage(f"Write columns as name:type, for example title:text. Got {spec!r}.")
+    col = {"name": parts[0], "type": parts[1]}
+    for flag in parts[2:]:
+        flag = flag.lower().replace("-", "").replace("_", "")
+        if flag == "notnull":
+            col["not_null"] = True
+        elif flag == "unique":
+            col["unique"] = True
+        else:
+            usage(f"Unknown column flag {flag!r}. Use notnull or unique.")
+    return col
+
+
+def policy_body(read: str | None, write: str | None, current: dict | None = None) -> dict:
+    base = dict(current or {"read": "secret", "write": "secret"})
+    if read:
+        base["read"] = read
+    if write:
+        base["write"] = write
+    return base
+
+
+def cmd_tables_list(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "tables"))
+
+    def human():
+        rows = []
+        for t in first_list(payload, "tables"):
+            cols = t.get("columns")
+            policy = t.get("policy") or {}
+            rows.append({
+                "name": t.get("name"),
+                "columns": ", ".join(f"{c.get('name')}:{c.get('type')}" for c in cols) if isinstance(cols, list) else cols,
+                "read": policy.get("read"),
+                "write": policy.get("write"),
+                "rows": t.get("row_estimate"),
+            })
+        print_table(rows, empty="No tables yet.")
+    emit(payload, human)
+
+
+def cmd_tables_create(args) -> None:
+    app = resolve_app(args)
+    body: dict = {"name": args.table, "columns": [parse_column_spec(c) for c in args.columns]}
+    if args.read or args.write:
+        body["policy"] = policy_body(args.read, args.write)
+    if args.no_timestamps:
+        body["timestamps"] = False
+    if args.updated_at:
+        body["updated_at"] = True
+    payload = app_api(app, "POST", app_path(app, "tables"), body=body)
+    emit(payload, f"Created table {args.table} in {app}.")
+
+
+def print_table_info(info: dict) -> None:
+    print(f"table: {info.get('name')}")
+    if info.get("primary_key"):
+        print(f"primary_key: {cell(info.get('primary_key'))}")
+    policy = info.get("policy") or {}
+    if policy:
+        print(f"policy: read={policy.get('read')} write={policy.get('write')}")
+    if info.get("row_estimate") is not None:
+        print(f"row_estimate: {info.get('row_estimate')}")
+    print()
+    cols = []
+    for c in info.get("columns") or []:
+        ref = c.get("references")
+        cols.append({
+            "column": c.get("name"),
+            "type": c.get("type"),
+            "not_null": c.get("not_null"),
+            "unique": c.get("unique"),
+            "default": c.get("default"),
+            "references": (f"{ref.get('table')}.{ref.get('column', 'id')}" if isinstance(ref, dict) else ref),
+        })
+    print_table(cols, empty="No columns.")
+    idx = info.get("indexes") or []
+    if idx:
+        print()
+        print_table(idx)
+    fks = info.get("foreign_keys") or []
+    if fks:
+        print()
+        print_table(fks)
+
+
+def cmd_tables_show(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "tables", args.table))
+    emit(payload, lambda: print_table_info(payload.get("table") or payload))
+
+
+def cmd_tables_rename(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "PATCH", app_path(app, "tables", args.old), body={"name": args.new})
+    emit(payload, f"Renamed table {args.old} to {args.new}.")
+
+
+def cmd_tables_drop(args) -> None:
+    if not args.yes:
+        usage(f"Dropping {args.table} deletes all its rows. Add --yes to confirm.")
+    app = resolve_app(args)
+    payload = app_api(app, "DELETE", app_path(app, "tables", args.table))
+    emit(payload, f"Dropped table {args.table}.")
+
+
+def cmd_tables_policy(args) -> None:
+    app = resolve_app(args)
+    current = app_api(app, "GET", app_path(app, "tables", args.table))
+    info = current.get("table") or current
+    if not args.read and not args.write:
+        policy = info.get("policy") or {}
+        emit({"policy": policy}, f"read: {policy.get('read')}\nwrite: {policy.get('write')}")
+        return
+    body = {"policy": policy_body(args.read, args.write, info.get("policy"))}
+    payload = app_api(app, "PATCH", app_path(app, "tables", args.table), body=body)
+    p = body["policy"]
+    emit(payload, f"Policy for {args.table}: read={p['read']} write={p['write']}.")
+
+
+def cmd_columns_add(args) -> None:
+    app = resolve_app(args)
+    col = parse_column_spec(args.column)
+    if args.default is not None:
+        col["default"] = default_literal(col["type"], args.default)
+    if args.not_null:
+        col["not_null"] = True
+    if args.unique:
+        col["unique"] = True
+    if args.references:
+        table, _, column = args.references.partition(".")
+        ref: dict = {"table": table}
+        if column:
+            ref["column"] = column
+        if args.on_delete:
+            ref["on_delete"] = args.on_delete.replace("-", " ")
+        col["references"] = ref
+    elif args.on_delete:
+        usage("--on-delete needs --references TABLE.")
+    payload = app_api(app, "POST", app_path(app, "tables", args.table, "columns"), body=col)
+    emit(payload, f"Added column {col['name']} to {args.table}.")
+
+
+def cmd_columns_rename(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "PATCH", app_path(app, "tables", args.table, "columns", args.old), body={"name": args.new})
+    emit(payload, f"Renamed column {args.old} to {args.new}.")
+
+
+def cmd_columns_alter(args) -> None:
+    app = resolve_app(args)
+    body: dict = {}
+    if args.type:
+        body["type"] = args.type
+    if args.default is not None and args.drop_default:
+        usage("Use --default or --drop-default, not both.")
+    if args.default is not None:
+        ctype = args.type or table_schema(app, args.table).get(args.column)
+        body["default"] = default_literal(ctype, args.default)
+    if args.drop_default:
+        body["drop_default"] = True
+    if args.not_null is not None:
+        body["not_null"] = args.not_null
+    if not body:
+        usage("Nothing to change. Pass --type, --default, --drop-default, --not-null, or --nullable.")
+    payload = app_api(app, "PATCH", app_path(app, "tables", args.table, "columns", args.column), body=body)
+    emit(payload, f"Changed column {args.column}.")
+
+
+def cmd_columns_drop(args) -> None:
+    if not args.yes:
+        usage(f"Dropping {args.column} deletes its data. Add --yes to confirm.")
+    app = resolve_app(args)
+    payload = app_api(app, "DELETE", app_path(app, "tables", args.table, "columns", args.column))
+    emit(payload, f"Dropped column {args.column} from {args.table}.")
+
+
+def cmd_indexes_list(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "tables", args.table, "indexes"))
+    emit(payload, lambda: print_table(first_list(payload, "indexes"), empty="No indexes."))
+
+
+def cmd_indexes_create(args) -> None:
+    app = resolve_app(args)
+    body: dict = {"columns": args.columns}
+    if args.unique:
+        body["unique"] = True
+    if args.name:
+        body["name"] = args.name
+    payload = app_api(app, "POST", app_path(app, "tables", args.table, "indexes"), body=body)
+    name = (payload.get("index") or {}).get("name") or args.name
+    label = f"index {name}" if name else "an index"
+    emit(payload, f"Created {label} on {args.table} ({', '.join(args.columns)}).")
+
+
+def cmd_indexes_drop(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "DELETE", app_path(app, "tables", args.table, "indexes", args.name))
+    emit(payload, f"Dropped index {args.name}.")
+
+
+# Rows
+
+def rows_path(app: str, table: str, *rest) -> str:
+    return app_path(app, "tables", table, "rows", *rest)
+
+
+def cmd_rows_list(args) -> None:
+    app = resolve_app(args)
+    query = parse_where(args.where)
+    if args.select:
+        query.append(("select", args.select))
+    if args.order:
+        query.append(("order", args.order))
+    limit = args.limit if args.limit is not None else (1000 if args.all else None)
+    if limit is not None:
+        query.append(("limit", str(limit)))
+    if args.offset is not None:
+        query.append(("offset", str(args.offset)))
+    if args.count:
+        query.append(("count", "exact"))
+    path = rows_path(app, args.table)
+    if args.all:
+        rows: list = []
+        cursor = args.cursor
+        count = None
+        while True:
+            page = app_api(app, "GET", path, query=query + ([("cursor", cursor)] if cursor else []))
+            rows.extend(page.get("rows") or [])
+            count = page.get("count", count)
+            cursor = page.get("next_cursor")
+            if not cursor:
+                break
+        payload: dict = {"rows": rows, "next_cursor": None}
+        if count is not None:
+            payload["count"] = count
+    else:
+        if args.cursor:
+            query.append(("cursor", args.cursor))
+        payload = app_api(app, "GET", path, query=query)
+
+    def human():
+        print_table(payload.get("rows") or [], empty="No rows.")
+        if payload.get("count") is not None:
+            print(f"count: {payload['count']}")
+        if payload.get("next_cursor"):
+            note(f"More rows. Next page: --cursor {payload['next_cursor']}  (or use --all)")
+    emit(payload, human)
+
+
+def insert_body(args, app: str, table: str):
+    body = json_input(args.data, args.file)
+    if body is not None:
+        if args.values:
+            usage("Use column=value pairs or --data/--file, not both.")
+        if not isinstance(body, (dict, list)):
+            usage("--data must be a JSON object or an array of objects.")
+        return body
+    if not args.values:
+        usage("Pass column=value pairs, --data JSON, or --file rows.json.")
+    return parse_assignments(args.values, table_schema(app, table))
+
+
+def send_rows(app: str, table: str, body, query: list | None = None) -> dict:
+    path = rows_path(app, table)
+    if isinstance(body, list) and len(body) > 1000:
+        out: list = []
+        for start in range(0, len(body), 1000):
+            page = app_api(app, "POST", path, body=body[start:start + 1000], query=query)
+            out.extend(page.get("rows") or [])
+        return {"rows": out}
+    return app_api(app, "POST", path, body=body, query=query)
+
+
+def show_written(payload: dict, verb: str) -> None:
+    rows = row_rows(payload)
+    print(f"{verb} {plural(len(rows), 'row')}.")
+    if len(rows) == 1:
+        print_kv(rows[0])
+    elif rows and len(rows) <= 20:
+        print_table(rows)
+
+
+def cmd_rows_add(args) -> None:
+    app = resolve_app(args)
+    body = insert_body(args, app, args.table)
+    payload = send_rows(app, args.table, body)
+    emit(payload, lambda: show_written(payload, "Inserted"))
+
+
+def cmd_rows_upsert(args) -> None:
+    app = resolve_app(args)
+    body = insert_body(args, app, args.table)
+    payload = send_rows(app, args.table, body, query=[("upsert", "true"), ("on_conflict", args.on_conflict)])
+    emit(payload, lambda: show_written(payload, "Upserted"))
+
+
+def cmd_rows_get(args) -> None:
+    app = resolve_app(args)
+    query = [("select", args.select)] if args.select else None
+    payload = app_api(app, "GET", rows_path(app, args.table, args.id), query=query)
+    emit(payload, lambda: print_kv(payload.get("row") or payload))
+
+
+def cmd_rows_update(args) -> None:
+    app = resolve_app(args)
+    items = list(args.values or [])
+    row_id = items.pop(0) if items and "=" not in items[0] else None
+    if row_id and args.where:
+        usage("Use a row ID or --where, not both.")
+    if not row_id and not args.where:
+        usage("Pass a row ID or at least one --where filter.")
+    args.values = items
+    body = insert_body(args, app, args.table)
+    if not isinstance(body, dict):
+        usage("An update takes one JSON object.")
+    if row_id:
+        payload = app_api(app, "PATCH", rows_path(app, args.table, row_id), body=body)
+    else:
+        payload = app_api(app, "PATCH", rows_path(app, args.table), body=body, query=parse_where(args.where))
+    emit(payload, lambda: show_written(payload, "Updated"))
+
+
+def cmd_rows_rm(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "DELETE", rows_path(app, args.table, args.id))
+    emit(payload, f"Deleted row {args.id}.")
+
+
+def cmd_rows_delete(args) -> None:
+    if not args.where:
+        usage("Pass at least one --where filter. To delete one row use berth rows rm.")
+    if not args.yes:
+        usage("This deletes every matching row. Add --yes to confirm.")
+    app = resolve_app(args)
+    payload = app_api(app, "DELETE", rows_path(app, args.table), query=parse_where(args.where))
+    emit(payload, f"Deleted {plural(int(payload.get('deleted') or 0), 'row')}.")
+
+
+def cmd_import(args) -> None:
+    app = resolve_app(args)
+    path = file_arg(args.file)
+    ctype = args.content_type
+    if not ctype:
+        ext = path.suffix.lower()
+        if ext == ".csv":
+            ctype = "text/csv"
+        elif ext in (".ndjson", ".jsonl"):
+            ctype = "application/x-ndjson"
+        else:
+            usage("Use a .csv, .ndjson, or .jsonl file, or pass --content-type.")
+    payload = app_api(app, "POST", app_path(app, "tables", args.table, "import"), data=path, ctype=ctype, timeout=300)
+    emit(payload, f"Imported {plural(int(payload.get('inserted') or 0), 'row')} into {args.table}.")
+
+
+def print_event(event: str, data: str) -> None:
+    if JSON:
+        try:
+            print(json.dumps(json.loads(data), ensure_ascii=False), flush=True)
+        except ValueError:
+            print(json.dumps({"event": event, "data": data}), flush=True)
+        return
+    try:
+        obj = json.loads(data)
+    except ValueError:
+        print(f"{event} {data}", flush=True)
+        return
+    if not isinstance(obj, dict):
+        print(f"{event} {cell(obj)}", flush=True)
+        return
+    kind = obj.get("type") or event
+    record = obj.get("record") if obj.get("record") is not None else obj.get("old_record")
+    rid = (record or {}).get("id", "") if isinstance(record, dict) else ""
+    at = str(obj.get("at") or time.strftime("%Y-%m-%dT%H:%M:%S"))
+    print(f"{at}  {kind:<6}  {obj.get('table', '')}  {rid}  {cell(record)}", flush=True)
+
+
+def cmd_watch(args) -> None:
+    app = resolve_app(args)
+    signal.signal(signal.SIGINT, signal.default_int_handler)
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
+    query = [("events", args.events)] if args.events else None
+    path = app_path(app, "tables", args.table, "stream")
+    last_id = None
+    announced = False
+    try:
+        while True:
+            headers = {"Accept": "text/event-stream", "Cache-Control": "no-cache"}
+            if last_id:
+                headers["Last-Event-ID"] = last_id
+            resp = app_http(app, "GET", path, query=query, headers=headers, timeout=None, stream=True)
+            if not resp.ok:
+                fail(resp)
+            if not announced:
+                note(f"Watching {args.table} in {app}. Press Ctrl-C to stop.")
+                announced = True
+            event, lines = "message", []
+            try:
+                for raw in resp.stream:
+                    line = raw.decode("utf-8", "replace").rstrip("\r\n")
+                    if not line:
+                        if lines:
+                            print_event(event, "\n".join(lines))
+                        event, lines = "message", []
+                        continue
+                    if line.startswith(":"):
+                        continue
+                    field, _, value = line.partition(":")
+                    value = value[1:] if value.startswith(" ") else value
+                    if field == "event":
+                        event = value
+                    elif field == "data":
+                        lines.append(value)
+                    elif field == "id":
+                        last_id = value
+            except (OSError, httpclient.HTTPException):
+                pass
+            finally:
+                resp.stream.close()
+            note("The stream closed. Reconnecting.")
+            time.sleep(2)
+    except KeyboardInterrupt:
+        raise SystemExit(0)
+
+
+# End-user auth
+
+def auth_path(app: str, *rest) -> str:
+    return app_path(app, "auth", *rest)
+
+
+def public_key(app: str, given: str | None) -> str:
+    entry = app_entry(app)
+    return given or entry.get("publishable") or app_tokens(app)[0]
+
+
+def print_session(payload: dict) -> None:
+    user = payload.get("user") or {}
+    print(f"user: {user.get('email', '')} ({user.get('id', '')})")
+    for key in ("access_token", "refresh_token", "token_type", "expires_in"):
+        if key in payload:
+            print(f"{key}: {payload[key]}")
+
+
+def auth_password(args) -> str:
+    password = args.password or prompt("Password: ", secret=True)
+    if not password:
+        usage("Pass --password, or type it when asked.")
+    return password
+
+
+def cmd_auth_signup(args) -> None:
+    app = resolve_app(args)
+    body: dict = {"email": args.email, "password": auth_password(args)}
+    if args.data:
+        body["data"] = json_input(args.data, None)
+    payload = api("POST", auth_path(app, "signup"), public_key(app, args.key), body=body)
+    emit(payload, lambda: print_session(payload))
+
+
+def cmd_auth_login(args) -> None:
+    app = resolve_app(args)
+    body = {"email": args.email, "password": auth_password(args)}
+    payload = api("POST", auth_path(app, "login"), public_key(app, args.key), body=body)
+    emit(payload, lambda: print_session(payload))
+
+
+def cmd_auth_code(args) -> None:
+    app = resolve_app(args)
+    payload = api("POST", auth_path(app, "code"), public_key(app, args.key), body={"email": args.email})
+    emit(payload, f"Sent a sign-in code to {args.email}.")
+
+
+def cmd_auth_verify(args) -> None:
+    app = resolve_app(args)
+    code = args.code or prompt("Code from the email: ")
+    payload = api("POST", auth_path(app, "verify"), public_key(app, args.key), body={"email": args.email, "code": code})
+    emit(payload, lambda: print_session(payload))
+
+
+def cmd_auth_refresh(args) -> None:
+    app = resolve_app(args)
+    payload = api("POST", auth_path(app, "refresh"), public_key(app, args.key), body={"refresh_token": args.refresh_token})
+    emit(payload, lambda: print_session(payload))
+
+
+def user_headers(app: str, key: str | None) -> dict:
+    pk = key or app_entry(app).get("publishable")
+    return {"apikey": pk} if pk else {}
+
+
+def cmd_auth_me(args) -> None:
+    app = resolve_app(args)
+    body = NOBODY
+    method = "GET"
+    if args.password or args.data:
+        method = "PATCH"
+        body = {}
+        if args.password:
+            body["password"] = args.password
+        if args.data:
+            body["data"] = json_input(args.data, None)
+    payload = api(method, auth_path(app, "me"), args.token, body=body, headers=user_headers(app, args.key))
+    emit(payload, lambda: print_kv(payload.get("user") or payload))
+
+
+def cmd_auth_logout(args) -> None:
+    app = resolve_app(args)
+    body = {"all": True} if args.all else {}
+    payload = api("POST", auth_path(app, "logout"), args.token, body=body, headers=user_headers(app, args.key))
+    emit(payload, "Signed out." if not args.all else "Signed out of every session.")
+
+
+def cmd_auth_users_list(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", auth_path(app, "users"))
+    emit(payload, lambda: print_table(first_list(payload, "users"), empty="No users yet."))
+
+
+def cmd_auth_users_create(args) -> None:
+    app = resolve_app(args)
+    body: dict = {"email": args.email}
+    if args.password:
+        body["password"] = args.password
+    if args.data:
+        body["data"] = json_input(args.data, None)
+    payload = app_api(app, "POST", auth_path(app, "users"), body=body)
+    user = payload.get("user") or {}
+    emit(payload, f"Created user {user.get('email', args.email)} ({user.get('id', '')}).")
+
+
+def cmd_auth_users_show(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", auth_path(app, "users", args.user_id))
+    emit(payload, lambda: print_kv(payload.get("user") or payload))
+
+
+def cmd_auth_users_update(args) -> None:
+    app = resolve_app(args)
+    body: dict = {}
+    if args.password:
+        body["password"] = args.password
+    if args.data:
+        body["data"] = json_input(args.data, None)
+    if not body:
+        usage("Pass --password or --data.")
+    payload = app_api(app, "PATCH", auth_path(app, "users", args.user_id), body=body)
+    emit(payload, lambda: print_kv(payload.get("user") or payload))
+
+
+def cmd_auth_users_ban(args) -> None:
+    app = resolve_app(args)
+    banned = not args.unban
+    payload = app_api(app, "PATCH", auth_path(app, "users", args.user_id), body={"banned": banned})
+    emit(payload, f"{'Banned' if banned else 'Unbanned'} user {args.user_id}.")
+
+
+def cmd_auth_users_delete(args) -> None:
+    if not args.yes:
+        usage("Deleting a user also deletes rows they own. Add --yes to confirm.")
+    app = resolve_app(args)
+    payload = app_api(app, "DELETE", auth_path(app, "users", args.user_id))
+    emit(payload, f"Deleted user {args.user_id}.")
+
+
+# Storage
+
+def object_path(app: str, bucket: str, key: str) -> str:
+    return app_path(app, "storage", "objects", bucket) + "/" + urllib.parse.quote(key.lstrip("/"), safe="/")
+
+
+def bucket_body(args, name: str | None = None) -> dict:
+    body: dict = {"name": name} if name else {}
+    if args.read:
+        body["read"] = args.read
+    if args.write:
+        body["write"] = args.write
+    if args.max_file_size is not None:
+        body["max_file_size"] = args.max_file_size
+    if args.allowed_type:
+        body["allowed_types"] = args.allowed_type
+    return body
+
+
+def cmd_buckets_list(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "storage", "buckets"))
+    emit(payload, lambda: print_table(first_list(payload, "buckets"), empty="No buckets yet."))
+
+
+def cmd_buckets_create(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "POST", app_path(app, "storage", "buckets"), body=bucket_body(args, args.name))
+    emit(payload, f"Created bucket {args.name}.")
+
+
+def cmd_buckets_show(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "storage", "buckets", args.name))
+    emit(payload, lambda: print_kv(payload.get("bucket") or payload))
+
+
+def cmd_buckets_update(args) -> None:
+    app = resolve_app(args)
+    body = bucket_body(args)
+    if not body:
+        usage("Nothing to change. Pass --read, --write, --max-file-size, or --allowed-type.")
+    payload = app_api(app, "PATCH", app_path(app, "storage", "buckets", args.name), body=body)
+    emit(payload, lambda: print_kv(payload.get("bucket") or payload))
+
+
+def cmd_buckets_delete(args) -> None:
+    app = resolve_app(args)
+    query = [("force", "true")] if args.force else None
+    payload = app_api(app, "DELETE", app_path(app, "storage", "buckets", args.name), query=query)
+    emit(payload, f"Deleted bucket {args.name}.")
+
+
+def cmd_storage_ls(args) -> None:
+    app = resolve_app(args)
+    query = []
+    if args.prefix:
+        query.append(("prefix", args.prefix))
+    if args.limit:
+        query.append(("limit", str(args.limit)))
+    payload = app_api(app, "GET", app_path(app, "storage", "objects", args.bucket), query=query or None)
+    emit(payload, lambda: print_table(first_list(payload, "objects", "files", "items"), empty="No files."))
+
+
+def cmd_storage_upload(args) -> None:
+    app = resolve_app(args)
+    path = file_arg(args.file)
+    key = args.key or path.name
+    ctype = args.content_type or mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    payload = app_api(app, "PUT", object_path(app, args.bucket, key), data=path, ctype=ctype, timeout=300)
+    emit(payload, f"Uploaded {path.name} to {args.bucket}/{key} ({path.stat().st_size} bytes, {ctype}).")
+
+
+def cmd_storage_download(args) -> None:
+    app = resolve_app(args)
+    dest = args.output or os.path.basename(args.key.rstrip("/")) or "download"
+    resp = app_http(app, "GET", object_path(app, args.bucket, args.key), stream=True, timeout=300,
+                    headers={"Accept": "*/*"})
+    if not resp.ok:
+        fail(resp)
+    size = save_stream(resp, dest)
+    if dest != "-":
+        emit({"bucket": args.bucket, "key": args.key, "file": dest, "bytes": size}, f"Wrote {size} bytes to {dest}.")
+
+
+def cmd_storage_rm(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "DELETE", object_path(app, args.bucket, args.key))
+    emit(payload, f"Deleted {args.bucket}/{args.key}.")
+
+
+def cmd_storage_sign(args) -> None:
+    app = resolve_app(args)
+    path = app_path(app, "storage", "sign", args.bucket) + "/" + urllib.parse.quote(args.key.lstrip("/"), safe="/")
+    payload = app_api(app, "POST", path, body={"expires_in": args.expires})
+    emit(payload, lambda: (print(payload.get("url", "")), note(f"Expires at {payload.get('expires_at', '')}.")))
+
+
+# Functions
+
+def cmd_functions_list(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "functions"))
+    emit(payload, lambda: print_table(first_list(payload, "functions"), empty="No functions yet."))
+
+
+def cmd_functions_deploy(args) -> None:
+    app = resolve_app(args)
+    path = file_arg(args.file)
+    try:
+        source = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as err:
+        usage(f"Could not read {args.file}: {err}.")
+    body: dict = {"source": source}
+    if args.verify:
+        body["verify"] = args.verify
+    if args.timeout_ms is not None:
+        body["timeout_ms"] = args.timeout_ms
+    if args.memory_mb is not None:
+        body["memory_mb"] = args.memory_mb
+    payload = app_api(app, "PUT", app_path(app, "functions", args.name, "deployment"), body=body, timeout=120)
+
+    def human():
+        print(f"Deployed {args.name} to {app}.")
+        print(f"URL: {api_base()}{app_path(app, 'functions', args.name)}")
+    emit(payload, human)
+
+
+def cmd_functions_show(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "functions", args.name, "deployment"))
+
+    def human():
+        info = payload.get("function") or payload.get("deployment") or payload
+        if args.source:
+            print(info.get("source", ""))
+        else:
+            print_kv(info, skip=("source",))
+    emit(payload, human)
+
+
+def cmd_functions_delete(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "DELETE", app_path(app, "functions", args.name, "deployment"))
+    emit(payload, f"Deleted function {args.name}.")
+
+
+def cmd_functions_logs(args) -> None:
+    app = resolve_app(args)
+    query = [("limit", str(args.limit))] if args.limit else None
+    payload = app_api(app, "GET", app_path(app, "functions", args.name, "logs"), query=query)
+    emit(payload, lambda: print_table(first_list(payload, "logs"), empty="No logs yet."))
+
+
+def cmd_functions_invoke(args) -> None:
+    app = resolve_app(args)
+    method = (args.method or ("POST" if args.data is not None else "GET")).upper()
+    query = urllib.parse.parse_qsl(args.path_query.lstrip("?"), keep_blank_values=True) if args.path_query else None
+    kw: dict = {"query": query, "headers": {"Accept": "*/*"}, "timeout": 60}
+    if args.data is not None:
+        kw["data"] = args.data.encode("utf-8")
+        kw["ctype"] = args.content_type or "application/json"
+    path = app_path(app, "functions", args.name)
+    if args.token:
+        resp = http(method, path, args.token, **kw)
+    else:
+        resp = app_http(app, method, path, **kw)
+    text = resp.body.decode("utf-8", "replace")
+    if not resp.ok:
+        data = resp.json()
+        if isinstance(data, dict) and data.get("error") and data.get("message"):
+            fail(resp)
+        if text:
+            print(text, file=sys.stderr)
+        die(f"The function returned HTTP {resp.status}.")
+    data = resp.json() if JSON else None
+    if JSON and data is not None:
+        show_json(data)
+    else:
+        sys.stdout.write(text if text.endswith("\n") or not text else text + "\n")
+
+
+# Env and webhooks
+
+ENV_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
+
+
+def cmd_env_list(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "env"))
+    emit(payload, lambda: print_table(first_list(payload, "env", "vars", "variables"), empty="No env vars."))
+
+
+def cmd_env_set(args) -> None:
+    app = resolve_app(args)
+    pairs = []
+    for item in args.pairs:
+        name, eq, value = item.partition("=")
+        if not ENV_NAME_RE.fullmatch(name) or name.startswith(("BERTH_", "DENO_")):
+            usage(f"{name!r} is not a valid name. Use capitals, digits, and underscore, not starting with BERTH_ or DENO_.")
+        if not eq:
+            value = prompt(f"Value for {name}: ", secret=True)
+        pairs.append((name, value))
+    results = [app_api(app, "PUT", app_path(app, "env", name), body={"value": value}) for name, value in pairs]
+    payload = results[0] if len(results) == 1 else {"results": results}
+    emit(payload, "Set " + ", ".join(n for n, _ in pairs) + ". Deployed functions see the new values on their next run.")
+
+
+def cmd_env_unset(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "DELETE", app_path(app, "env", args.name))
+    emit(payload, f"Removed {args.name}.")
+
+
+def cmd_webhooks_list(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "webhooks"))
+    emit(payload, lambda: print_table(first_list(payload, "webhooks"), empty="No webhooks yet."))
+
+
+def cmd_webhooks_add(args) -> None:
+    app = resolve_app(args)
+    body: dict = {"url": args.url}
+    if args.table:
+        body["table"] = args.table
+    if args.events:
+        body["events"] = split_csv(args.events)
+    if args.description:
+        body["description"] = args.description
+    payload = app_api(app, "POST", app_path(app, "webhooks"), body=body)
+
+    def human():
+        hook = payload.get("webhook") or payload
+        print(f"Added webhook {hook.get('id', '')} for {args.url}.")
+        if payload.get("secret"):
+            print("Signing secret, shown once. Use it to check Berth-Signature:")
+            print(payload["secret"])
+    emit(payload, human)
+
+
+def cmd_webhooks_show(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "webhooks", args.id))
+    emit(payload, lambda: print_kv(payload.get("webhook") or payload))
+
+
+def cmd_webhooks_update(args) -> None:
+    app = resolve_app(args)
+    body: dict = {}
+    if args.url:
+        body["url"] = args.url
+    if args.events:
+        body["events"] = split_csv(args.events)
+    if args.enabled is not None:
+        body["enabled"] = args.enabled
+    if not body:
+        usage("Nothing to change. Pass --url, --events, --enable, or --disable.")
+    payload = app_api(app, "PATCH", app_path(app, "webhooks", args.id), body=body)
+    emit(payload, lambda: print_kv(payload.get("webhook") or payload))
+
+
+def cmd_webhooks_remove(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "DELETE", app_path(app, "webhooks", args.id))
+    emit(payload, f"Removed webhook {args.id}.")
+
+
+def cmd_webhooks_deliveries(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "webhooks", args.id, "deliveries"))
+    emit(payload, lambda: print_table(first_list(payload, "deliveries"), empty="No deliveries yet."))
+
+
+def cmd_webhooks_test(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "POST", app_path(app, "webhooks", args.id, "test"), body={})
+    emit(payload, lambda: (print(f"Sent a ping to webhook {args.id}."), print_kv(payload)))
+
+
+# SQL, logs, raw API
+
+def cmd_sql(args) -> None:
+    app = resolve_app(args)
+    if args.file and args.query:
+        usage("Pass a query or -f FILE, not both.")
+    if args.file:
+        query = sys.stdin.read() if args.file == "-" else file_arg(args.file).read_text(encoding="utf-8")
+    else:
+        query = args.query
+    if not query or not query.strip():
+        usage('Pass a query, for example berth sql --app demo "select 1".')
+    body: dict = {"query": query}
+    if args.param:
+        body["params"] = args.param
+    if args.read_only:
+        body["read_only"] = True
+    if args.timeout_ms is not None:
+        body["timeout_ms"] = args.timeout_ms
+    payload = app_api(app, "POST", app_path(app, "sql"), body=body)
+
+    def human():
+        cols = [c.get("name") if isinstance(c, dict) else str(c) for c in payload.get("columns") or []]
+        rows = payload.get("rows") or []
+        if cols:
+            shaped = [r if isinstance(r, dict) else dict(zip(cols, r)) for r in rows]
+            print_table(shaped, cols, empty="(no rows)")
+        tail = f"{payload.get('command', '')} {payload.get('row_count', '')}".strip()
+        if payload.get("truncated"):
+            tail += " (truncated to the first 1000 rows)"
+        print(tail)
+    emit(payload, human)
+
+
+def cmd_logs(args) -> None:
+    app = resolve_app(args)
+    query = []
+    if args.limit:
+        query.append(("limit", str(args.limit)))
+    if args.status:
+        query.append(("status", args.status))
+    payload = app_api(app, "GET", app_path(app, "logs"), query=query or None)
+    cols = ["created_at", "method", "path", "status", "duration_ms", "key_type", "request_id"]
+    emit(payload, lambda: print_table(first_list(payload, "logs"), cols, empty="No requests logged."))
+
+
+def cmd_api(args) -> None:
+    path = args.path if args.path.startswith("/") else "/" + args.path
+    if path.startswith("/v1/"):
+        path = path[3:]
+    body = json_input(args.data, None)
+    kw: dict = {"body": body} if body is not None else {}
+    method = args.method.upper()
+    resp = app_http(args.app, method, path, **kw) if args.app else http(method, path, account_token(False) or None, **kw)
+    payload = check(resp)
+    show_json(payload)
+
+
+# Completion
+
+def command_tree(parser: argparse.ArgumentParser, prefix: list, tree: dict) -> None:
+    words = []
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for name, sub in action.choices.items():
+                words.append(name)
+                command_tree(sub, prefix + [name], tree)
+        else:
+            words.extend(o for o in action.option_strings if o.startswith("--"))
+    tree[" ".join(prefix)] = words
+
+
+def cmd_completion(args) -> None:
+    tree: dict = {}
+    command_tree(build_parser(), [], tree)
+    cases = "\n".join(f'    "{k}") echo "{" ".join(v)}" ;;' for k, v in sorted(tree.items()))
+    script = f"""# berth {args.shell} completion. Load it with: eval "$(berth completion {args.shell})"
+_berth_words() {{
+  case "$1" in
+{cases}
+  esac
+}}
+_berth() {{
+  local cur path w i words
+  cur="${{COMP_WORDS[COMP_CWORD]}}"
+  path=""
+  for ((i=1; i<COMP_CWORD; i++)); do
+    w="${{COMP_WORDS[i]}}"
+    case "$w" in -*) continue ;; esac
+    words=" $(_berth_words "$path") "
+    case "$words" in *" $w "*) path="${{path:+$path }}$w" ;; esac
+  done
+  COMPREPLY=( $(compgen -W "$(_berth_words "$path")" -- "$cur") )
+}}
+"""
+    if args.shell == "zsh":
+        script += "autoload -U +X bashcompinit && bashcompinit\n"
+    script += "complete -o default -F _berth berth\n"
+    sys.stdout.write(script)
+
+
+# Parser
+
+class Fmt(argparse.RawDescriptionHelpFormatter):
+    def __init__(self, prog):
+        super().__init__(prog, max_help_position=32)
+
+
+def common_parent() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(add_help=False)
+    g = p.add_argument_group("global options")
+    g.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="Print the raw API JSON.")
+    g.add_argument("--api", metavar="URL", default=argparse.SUPPRESS, help="API base URL for this run.")
+    g.add_argument("--idempotency-key", metavar="KEY", default=argparse.SUPPRESS,
+                   help="Send Idempotency-Key so a retried write is not applied twice.")
+    return p
+
+
+COMMON = common_parent()
+
+
+def examples(lines) -> str:
+    if isinstance(lines, str):
+        lines = [lines]
+    return "Example:\n" + "\n".join("  " + line for line in lines)
+
+
+def group(sub, name: str, summary: str, example) -> argparse._SubParsersAction:
+    p = sub.add_parser(name, help=summary, description=summary, epilog=examples(example),
+                       formatter_class=Fmt, parents=[COMMON])
+    inner = p.add_subparsers(title="commands", metavar="COMMAND")
+
+    def show_help(_args, parser=p):
+        parser.print_help(sys.stderr)
+        raise SystemExit(2)
+    p.set_defaults(func=show_help)
+    return inner
+
+
+def cmd(sub, name: str, func, summary: str, example, extra: str | None = None) -> argparse.ArgumentParser:
+    p = sub.add_parser(name, help=summary, description=summary, epilog=examples(example),
+                       formatter_class=Fmt, parents=[COMMON])
+    p.set_defaults(func=func, _extra=extra)
+    return p
+
+
+def app_opt(p: argparse.ArgumentParser) -> None:
+    p.add_argument("--app", "-a", metavar="APP", help="App slug. Defaults to BERTH_APP or the app set with berth use.")
+
+
+def yes_opt(p: argparse.ArgumentParser, what: str) -> None:
+    p.add_argument("--yes", "-y", action="store_true", help=f"Confirm that you want to {what}.")
+
+
+READS = ("secret", "public", "authenticated", "owner")
+WRITES = ("secret", "authenticated", "owner")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="berth",
+        description="Berth from the command line: apps, tables, rows, auth, storage, functions, webhooks, SQL.",
+        epilog=examples(["berth login", "berth apps create demo", "berth use demo",
+                         "berth tables create notes title:text:notnull done:boolean",
+                         "berth rows add notes title=hello", "berth rows list notes --where done.eq=false"])
+        + "\n\nEnvironment: BERTH_CONFIG, BERTH_API, BERTH_TOKEN, BERTH_APP.",
+        formatter_class=Fmt,
+    )
+    parser.add_argument("--json", action="store_true", default=False, help="Print the raw API JSON.")
+    parser.add_argument("--api", metavar="URL", default=None, help="API base URL for this run.")
+    parser.add_argument("--idempotency-key", metavar="KEY", default=None,
+                        help="Send Idempotency-Key so a retried write is not applied twice.")
+    parser.add_argument("--version", action="version", version=f"berth {VERSION}")
+    sub = parser.add_subparsers(title="commands", metavar="COMMAND")
+
+    # account and session
+    p = cmd(sub, "signup", cmd_signup, "Create a Berth account with an emailed code.", "berth signup --email you@example.com")
+    p.add_argument("--email", help="Your email address.")
+    p.add_argument("--code", help="The 6 digit code, if you already have it.")
+
+    p = cmd(sub, "login", cmd_login, "Log in with an emailed code, or save an existing key.",
+            ["berth login --email you@example.com", "berth login --token bak_...", "cat key.txt | berth login --token -"])
+    p.add_argument("--email", help="Your email address.")
+    p.add_argument("--code", help="The 6 digit code, if you already have it.")
+    p.add_argument("--token", help="Save this key or token instead. Use - to read it from stdin.")
+
+    p = cmd(sub, "logout", cmd_logout, "Forget the saved account key.", "berth logout --all")
+    p.add_argument("--all", action="store_true", help="Also forget every saved app key.")
+    cmd(sub, "whoami", cmd_whoami, "Show who the saved credential belongs to.", "berth whoami")
+    cmd(sub, "status", cmd_status, "Show API health and version.", "berth status")
+
+    acc = group(sub, "account", "Show or delete your account and manage account keys.", "berth account show")
+    cmd(acc, "show", cmd_account_show, "Show the account, limits, and usage.", "berth account show")
+    p = cmd(acc, "delete", cmd_account_delete, "Delete the account and all its apps.", "berth account delete --confirm you@example.com")
+    p.add_argument("--confirm", required=True, metavar="EMAIL", help="Your account email, to confirm.")
+    ak = group(acc, "keys", "Manage account keys (bak_) for laptops and CI.", "berth account keys list")
+    cmd(ak, "list", cmd_account_keys_list, "List account keys.", "berth account keys list")
+    p = cmd(ak, "create", cmd_account_keys_create, "Create an account key. It is shown once.", "berth account keys create ci")
+    p.add_argument("name", help="A label for the key.")
+    p = cmd(ak, "revoke", cmd_account_keys_revoke, "Revoke an account key.", "berth account keys revoke key_123")
+    p.add_argument("key_id", metavar="KEY_ID", help="Key id from berth account keys list.")
+
+    adm = group(sub, "admin", "Platform admin tools (admin token only).", "berth admin accounts list")
+    aa = group(adm, "accounts", "List and manage every account.", "berth admin accounts list")
+    cmd(aa, "list", cmd_admin_accounts_list, "List accounts.", "berth admin accounts list")
+    p = cmd(aa, "show", cmd_admin_accounts_show, "Show one account.", "berth admin accounts show acc_123")
+    p.add_argument("account_id", metavar="ACCOUNT_ID")
+    p = cmd(aa, "update", cmd_admin_accounts_update, "Change limits or disable an account.",
+            "berth admin accounts update acc_123 --limit apps=10 --enable")
+    p.add_argument("account_id", metavar="ACCOUNT_ID")
+    p.add_argument("--limit", action="append", metavar="NAME=VALUE", help="Set a limit. Repeatable.")
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--disable", dest="disabled", action="store_const", const=True, default=None)
+    g.add_argument("--enable", dest="disabled", action="store_const", const=False)
+    p = cmd(aa, "delete", cmd_admin_accounts_delete, "Delete an account and its apps.", "berth admin accounts delete acc_123 --yes")
+    p.add_argument("account_id", metavar="ACCOUNT_ID")
+    yes_opt(p, "delete the account")
+    p = cmd(adm, "codes", cmd_admin_codes, "Show the latest unexpired login code for an email.",
+            "berth admin codes --email you@example.com")
+    p.add_argument("--email", required=True)
+    p.add_argument("--app", dest="app_slug", metavar="APP", help="Look up an end-user code for this app.")
+
+    # apps
+    apps = group(sub, "apps", "Create, inspect, export, and delete apps.", ["berth apps create demo", "berth apps list"])
+    cmd(apps, "list", cmd_apps_list, "List your apps.", "berth apps list")
+    p = cmd(apps, "create", cmd_apps_create, "Create an app. Its keys are shown once and saved.", "berth apps create demo")
+    p.add_argument("name", help="App name: lowercase letters, digits, underscore.")
+    for name, func, summary, ex in (
+        ("show", cmd_apps_show, "Show an app.", "berth apps show demo"),
+        ("usage", cmd_apps_usage, "Show usage against limits.", "berth apps usage demo"),
+    ):
+        p = cmd(apps, name, func, summary, ex)
+        p.add_argument("name", nargs="?", help="App slug. Defaults to the current app.")
+    p = cmd(apps, "delete", cmd_apps_delete, "Delete an app and everything in it.", "berth apps delete demo --yes")
+    p.add_argument("name", help="App slug.")
+    yes_opt(p, "delete the app")
+    p = cmd(apps, "export", cmd_apps_export, "Download a pg_dump of the app database.", "berth apps export demo -o demo.dump")
+    p.add_argument("name", nargs="?", help="App slug. Defaults to the current app.")
+    p.add_argument("-o", "--output", metavar="FILE", help="Where to write. Default APP.dump. Use - for stdout.")
+    p = cmd(apps, "restore", cmd_apps_restore, "Create a new app from an export file.", "berth apps restore demo_copy demo.dump")
+    p.add_argument("name", help="Name for the new app.")
+    p.add_argument("file", metavar="FILE", help="A file written by berth apps export.")
+    p = cmd(apps, "config", cmd_apps_config, "Set which browser origins may call the app.",
+            ["berth apps config demo --cors https://example.com --cors http://localhost:3000", "berth apps config demo --cors '*'"])
+    p.add_argument("name", nargs="?", help="App slug. Defaults to the current app.")
+    p.add_argument("--cors", action="append", metavar="ORIGIN", help="Allowed origin. Repeatable.")
+
+    p = cmd(sub, "use", cmd_use, "Set the default app so --app can be left out.", ["berth use demo", "berth use --clear"])
+    p.add_argument("app_name", nargs="?", metavar="APP")
+    p.add_argument("--clear", action="store_true", help="Clear the default app.")
+
+    keys = group(sub, "keys", "Manage app keys: publishable (bpk_) and secret (bsk_).", "berth keys list --app demo")
+    p = cmd(keys, "list", cmd_keys_list, "List app keys.", "berth keys list --app demo")
+    app_opt(p)
+    p = cmd(keys, "create", cmd_keys_create, "Create an app key. It is shown once and saved.",
+            "berth keys create --app demo --type publishable --name ios")
+    app_opt(p)
+    p.add_argument("--type", required=True, choices=("publishable", "secret"))
+    p.add_argument("--name", help="A label for the key.")
+    p = cmd(keys, "revoke", cmd_keys_revoke, "Revoke an app key.", "berth keys revoke --app demo key_123")
+    app_opt(p)
+    p.add_argument("key_id", metavar="KEY_ID")
+
+    # schema
+    tables = group(sub, "tables", "Create and change tables.", "berth tables list --app demo")
+    p = cmd(tables, "list", cmd_tables_list, "List tables.", "berth tables list --app demo")
+    app_opt(p)
+    p = cmd(tables, "create", cmd_tables_create, "Create a table. Every table gets id and created_at.",
+            ["berth tables create --app demo notes title:text:notnull done:boolean tags:text[]",
+             "berth tables create --app demo todos title:text --read owner --write owner --updated-at"])
+    app_opt(p)
+    p.add_argument("table", metavar="NAME")
+    p.add_argument("columns", nargs="+", metavar="COLUMN",
+                   help="name:type[:notnull][:unique]. Types: text integer bigint numeric double boolean date timestamptz uuid jsonb text[] integer[]")
+    p.add_argument("--read", choices=READS, help="Who can read rows. Default secret.")
+    p.add_argument("--write", choices=WRITES, help="Who can write rows. Default secret.")
+    p.add_argument("--no-timestamps", action="store_true", help="Skip the created_at column.")
+    p.add_argument("--updated-at", action="store_true", help="Add an auto-updated updated_at column.")
+    p = cmd(tables, "show", cmd_tables_show, "Show columns, indexes, and policy.", "berth tables show --app demo notes")
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p = cmd(tables, "rename", cmd_tables_rename, "Rename a table.", "berth tables rename --app demo notes memos")
+    app_opt(p)
+    p.add_argument("old", metavar="OLD")
+    p.add_argument("new", metavar="NEW")
+    p = cmd(tables, "drop", cmd_tables_drop, "Drop a table and its rows.", "berth tables drop --app demo notes --yes")
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    yes_opt(p, "drop the table")
+    p = cmd(tables, "policy", cmd_tables_policy, "Show or set who can read and write rows.",
+            ["berth tables policy --app demo notes", "berth tables policy --app demo notes --read public --write authenticated"])
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("--read", choices=READS)
+    p.add_argument("--write", choices=WRITES)
+
+    cols = group(sub, "columns", "Add, rename, change, and drop columns.", "berth columns add --app demo notes due:date")
+    p = cmd(cols, "add", cmd_columns_add, "Add a column.",
+            ["berth columns add --app demo notes priority:integer --default 0 --not-null",
+             "berth columns add --app demo comments note_id:uuid --references notes --on-delete cascade"])
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("column", metavar="NAME:TYPE")
+    p.add_argument("--default", metavar="VALUE", help="Default value, or now(), gen_random_uuid(), current_date, auth.uid().")
+    p.add_argument("--not-null", action="store_true")
+    p.add_argument("--unique", action="store_true")
+    p.add_argument("--references", metavar="TABLE[.COL]", help="Foreign key target. Column defaults to id.")
+    p.add_argument("--on-delete", choices=("cascade", "restrict", "set-null"))
+    p = cmd(cols, "rename", cmd_columns_rename, "Rename a column.", "berth columns rename --app demo notes body text")
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("old", metavar="OLD")
+    p.add_argument("new", metavar="NEW")
+    p = cmd(cols, "alter", cmd_columns_alter, "Change a column's type, default, or null rule.",
+            ["berth columns alter --app demo notes priority --type bigint --default 1", "berth columns alter --app demo notes due --nullable"])
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("column", metavar="COL")
+    p.add_argument("--type")
+    p.add_argument("--default", metavar="VALUE")
+    p.add_argument("--drop-default", action="store_true")
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--not-null", dest="not_null", action="store_const", const=True, default=None)
+    g.add_argument("--nullable", dest="not_null", action="store_const", const=False)
+    p = cmd(cols, "drop", cmd_columns_drop, "Drop a column.", "berth columns drop --app demo notes priority --yes")
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("column", metavar="COL")
+    yes_opt(p, "drop the column")
+
+    idx = group(sub, "indexes", "List, create, and drop indexes.", "berth indexes create --app demo notes done created_at")
+    p = cmd(idx, "list", cmd_indexes_list, "List indexes on a table.", "berth indexes list --app demo notes")
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p = cmd(idx, "create", cmd_indexes_create, "Create an index.", "berth indexes create --app demo users email --unique")
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("columns", nargs="+", metavar="COL")
+    p.add_argument("--unique", action="store_true")
+    p.add_argument("--name")
+    p = cmd(idx, "drop", cmd_indexes_drop, "Drop an index.", "berth indexes drop --app demo notes notes_done_idx")
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("name", metavar="NAME")
+
+    # rows
+    rows = group(sub, "rows", "Read and write rows.", "berth rows list --app demo notes --where done.eq=false")
+    where_help = "Filter as col.op=value, e.g. age.gt=30, name.ilike=*ann*, id.in=a,b, status.not.eq=done. Repeatable."
+    p = cmd(rows, "list", cmd_rows_list, "List rows with filters, ordering, and paging.",
+            ["berth rows list --app demo notes --where done.eq=false --order created_at.desc --limit 20",
+             "berth rows list --app demo notes --select id,title --all --json"])
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("--where", "-w", action="append", metavar="COL.OP=VALUE", help=where_help)
+    p.add_argument("--select", metavar="A,B", help="Columns to return.")
+    p.add_argument("--order", metavar="COL.DESC", help="Sort, e.g. created_at.desc,title.asc.")
+    p.add_argument("--limit", type=int, help="1 to 1000. Default 100.")
+    p.add_argument("--offset", type=int)
+    p.add_argument("--cursor", help="next_cursor from a previous page.")
+    p.add_argument("--count", action="store_true", help="Include the exact total count.")
+    p.add_argument("--all", action="store_true", help="Follow next_cursor and return every page.")
+
+    def data_opts(p):
+        p.add_argument("--data", metavar="JSON", help="A JSON object, or an array of objects.")
+        p.add_argument("--file", metavar="FILE", help="Read JSON from a file, or - for stdin.")
+
+    p = cmd(rows, "add", cmd_rows_add, "Insert rows. Values are converted using the column types.",
+            ["berth rows add --app demo notes title=hello done=false tags='[\"a\",\"b\"]'",
+             "berth rows add --app demo notes --data '[{\"title\":\"a\"},{\"title\":\"b\"}]'",
+             "berth rows add --app demo notes --file rows.json"], extra="values")
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("values", nargs="*", metavar="COL=VALUE", help="Use null for SQL null.")
+    data_opts(p)
+    p = cmd(rows, "upsert", cmd_rows_upsert, "Insert, or update when a unique column already matches.",
+            "berth rows upsert --app demo profiles --on-conflict email email=a@b.co name=Ann", extra="values")
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("values", nargs="*", metavar="COL=VALUE")
+    p.add_argument("--on-conflict", required=True, metavar="COL", help="Unique column to match on.")
+    data_opts(p)
+    p = cmd(rows, "get", cmd_rows_get, "Show one row by id.", "berth rows get --app demo notes 0b6f...")
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("id", metavar="ID")
+    p.add_argument("--select", metavar="A,B")
+    p = cmd(rows, "update", cmd_rows_update, "Update one row by id, or every row matching --where.",
+            ["berth rows update --app demo notes 0b6f... done=true",
+             "berth rows update --app demo notes --where done.eq=false done=true"], extra="values")
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("values", nargs="*", metavar="[ID] COL=VALUE")
+    p.add_argument("--where", "-w", action="append", metavar="COL.OP=VALUE", help=where_help)
+    data_opts(p)
+    p = cmd(rows, "rm", cmd_rows_rm, "Delete one row by id.", "berth rows rm --app demo notes 0b6f...")
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("id", metavar="ID")
+    p = cmd(rows, "delete", cmd_rows_delete, "Delete every row matching --where.",
+            "berth rows delete --app demo notes --where done.eq=true --yes")
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("--where", "-w", action="append", metavar="COL.OP=VALUE", help=where_help)
+    yes_opt(p, "delete the matching rows")
+
+    p = cmd(sub, "import", cmd_import, "Bulk insert a CSV (header row) or NDJSON file. All or nothing.",
+            ["berth import --app demo notes notes.csv", "berth import --app demo notes notes.ndjson"])
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("file", metavar="FILE")
+    p.add_argument("--content-type", help="Override the type guessed from the file extension.")
+
+    p = cmd(sub, "watch", cmd_watch, "Stream row changes live. Ctrl-C to stop.",
+            ["berth watch --app demo notes", "berth watch --app demo notes --events insert --json"])
+    app_opt(p)
+    p.add_argument("table", metavar="TABLE")
+    p.add_argument("--events", metavar="LIST", help="Comma list of insert,update,delete.")
+
+    # auth
+    auth = group(sub, "auth", "Manage your app's end users and test sign-in.", "berth auth users list --app demo")
+
+    def auth_key(p):
+        app_opt(p)
+        p.add_argument("--key", metavar="PUBLISHABLE", help="Publishable key. Defaults to the saved one.")
+
+    p = cmd(auth, "signup", cmd_auth_signup, "Sign up an end user and print the session tokens.",
+            "berth auth signup --app demo --email ann@example.com --password 'long passphrase'")
+    auth_key(p)
+    p.add_argument("--email", required=True)
+    p.add_argument("--password")
+    p.add_argument("--data", metavar="JSON", help="Profile data object.")
+    p = cmd(auth, "login", cmd_auth_login, "Sign in an end user and print the session tokens.",
+            "berth auth login --app demo --email ann@example.com --password 'long passphrase'")
+    auth_key(p)
+    p.add_argument("--email", required=True)
+    p.add_argument("--password")
+    p = cmd(auth, "code", cmd_auth_code, "Email an end user a sign-in code.", "berth auth code --app demo --email ann@example.com")
+    auth_key(p)
+    p.add_argument("--email", required=True)
+    p = cmd(auth, "verify", cmd_auth_verify, "Trade an emailed code for a session.",
+            "berth auth verify --app demo --email ann@example.com --code 123456")
+    auth_key(p)
+    p.add_argument("--email", required=True)
+    p.add_argument("--code")
+    p = cmd(auth, "refresh", cmd_auth_refresh, "Trade a refresh token for a new session.",
+            "berth auth refresh --app demo --refresh-token rt_...")
+    auth_key(p)
+    p.add_argument("--refresh-token", required=True)
+    p = cmd(auth, "me", cmd_auth_me, "Show or update the user behind an access token.",
+            ["berth auth me --app demo --token eyJ...", "berth auth me --app demo --token eyJ... --data '{\"name\":\"Ann\"}'"])
+    auth_key(p)
+    p.add_argument("--token", required=True, metavar="ACCESS_TOKEN")
+    p.add_argument("--password", help="Set a new password.")
+    p.add_argument("--data", metavar="JSON", help="Replace profile data.")
+    p = cmd(auth, "logout", cmd_auth_logout, "Sign out an access token's session.", "berth auth logout --app demo --token eyJ... --all")
+    auth_key(p)
+    p.add_argument("--token", required=True, metavar="ACCESS_TOKEN")
+    p.add_argument("--all", action="store_true", help="Sign out every session of that user.")
+
+    users = group(auth, "users", "List, create, ban, and delete end users.", "berth auth users list --app demo")
+    p = cmd(users, "list", cmd_auth_users_list, "List end users.", "berth auth users list --app demo")
+    app_opt(p)
+    p = cmd(users, "create", cmd_auth_users_create, "Create an end user.",
+            "berth auth users create --app demo ann@example.com --password 'long passphrase'")
+    app_opt(p)
+    p.add_argument("email", metavar="EMAIL")
+    p.add_argument("--password")
+    p.add_argument("--data", metavar="JSON")
+    p = cmd(users, "show", cmd_auth_users_show, "Show an end user.", "berth auth users show --app demo usr_123")
+    app_opt(p)
+    p.add_argument("user_id", metavar="ID")
+    p = cmd(users, "update", cmd_auth_users_update, "Set an end user's password or profile data.",
+            "berth auth users update --app demo usr_123 --password 'new passphrase'")
+    app_opt(p)
+    p.add_argument("user_id", metavar="ID")
+    p.add_argument("--password")
+    p.add_argument("--data", metavar="JSON")
+    p = cmd(users, "ban", cmd_auth_users_ban, "Ban an end user, or lift a ban.",
+            ["berth auth users ban --app demo usr_123", "berth auth users ban --app demo usr_123 --unban"])
+    app_opt(p)
+    p.add_argument("user_id", metavar="ID")
+    p.add_argument("--unban", action="store_true")
+    p = cmd(users, "delete", cmd_auth_users_delete, "Delete an end user and the rows they own.",
+            "berth auth users delete --app demo usr_123 --yes")
+    app_opt(p)
+    p.add_argument("user_id", metavar="ID")
+    yes_opt(p, "delete the user")
+
+    # storage
+    st = group(sub, "storage", "Buckets and files.", ["berth storage buckets create --app demo avatars --read public",
+                                                      "berth storage upload --app demo avatars me.png"])
+    bk = group(st, "buckets", "List, create, change, and delete buckets.", "berth storage buckets list --app demo")
+
+    def bucket_opts(p):
+        p.add_argument("--read", choices=("public", "authenticated", "owner", "secret"))
+        p.add_argument("--write", choices=("authenticated", "owner", "secret"))
+        p.add_argument("--max-file-size", type=int, metavar="BYTES")
+        p.add_argument("--allowed-type", action="append", metavar="MIME", help="e.g. image/*. Repeatable.")
+
+    p = cmd(bk, "list", cmd_buckets_list, "List buckets.", "berth storage buckets list --app demo")
+    app_opt(p)
+    p = cmd(bk, "create", cmd_buckets_create, "Create a bucket.",
+            "berth storage buckets create --app demo avatars --read public --write owner --max-file-size 5000000")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    bucket_opts(p)
+    p = cmd(bk, "show", cmd_buckets_show, "Show a bucket.", "berth storage buckets show --app demo avatars")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    p = cmd(bk, "update", cmd_buckets_update, "Change a bucket's rules.", "berth storage buckets update --app demo avatars --read authenticated")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    bucket_opts(p)
+    p = cmd(bk, "delete", cmd_buckets_delete, "Delete a bucket.", "berth storage buckets delete --app demo avatars --force")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    p.add_argument("--force", action="store_true", help="Also delete every file in it.")
+    p = cmd(st, "ls", cmd_storage_ls, "List files in a bucket.", "berth storage ls --app demo avatars --prefix 2026/")
+    app_opt(p)
+    p.add_argument("bucket", metavar="BUCKET")
+    p.add_argument("--prefix")
+    p.add_argument("--limit", type=int)
+    p = cmd(st, "upload", cmd_storage_upload, "Upload a file. Overwrites an existing key.",
+            ["berth storage upload --app demo avatars me.png", "berth storage upload --app demo docs report.pdf 2026/q3.pdf"])
+    app_opt(p)
+    p.add_argument("bucket", metavar="BUCKET")
+    p.add_argument("file", metavar="FILE")
+    p.add_argument("key", nargs="?", metavar="KEY", help="Object key. Defaults to the file name.")
+    p.add_argument("--content-type", help="Defaults to a guess from the extension.")
+    p = cmd(st, "download", cmd_storage_download, "Download a file.", "berth storage download --app demo docs 2026/q3.pdf -o q3.pdf")
+    app_opt(p)
+    p.add_argument("bucket", metavar="BUCKET")
+    p.add_argument("key", metavar="KEY")
+    p.add_argument("-o", "--output", metavar="FILE", help="Default: the key's file name. Use - for stdout.")
+    p = cmd(st, "rm", cmd_storage_rm, "Delete a file.", "berth storage rm --app demo docs 2026/q3.pdf")
+    app_opt(p)
+    p.add_argument("bucket", metavar="BUCKET")
+    p.add_argument("key", metavar="KEY")
+    p = cmd(st, "sign", cmd_storage_sign, "Make a temporary download URL.", "berth storage sign --app demo docs 2026/q3.pdf --expires 600")
+    app_opt(p)
+    p.add_argument("bucket", metavar="BUCKET")
+    p.add_argument("key", metavar="KEY")
+    p.add_argument("--expires", type=int, default=3600, metavar="SECONDS", help="Default 3600.")
+
+    # functions
+    fn = group(sub, "functions", "Deploy and run TypeScript or JavaScript functions.",
+               "berth functions deploy --app demo hello hello.ts")
+    p = cmd(fn, "list", cmd_functions_list, "List functions.", "berth functions list --app demo")
+    app_opt(p)
+    p = cmd(fn, "deploy", cmd_functions_deploy, "Deploy one file as a function.",
+            "berth functions deploy --app demo hello hello.ts --verify user --timeout-ms 15000")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    p.add_argument("file", metavar="FILE")
+    p.add_argument("--verify", choices=("key", "user", "none"), help="Who may call it. key: any app key; user: a signed-in user.")
+    p.add_argument("--timeout-ms", type=int)
+    p.add_argument("--memory-mb", type=int)
+    p = cmd(fn, "show", cmd_functions_show, "Show a function's deployment.", "berth functions show --app demo hello --source")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    p.add_argument("--source", action="store_true", help="Print the deployed source.")
+    p = cmd(fn, "delete", cmd_functions_delete, "Delete a function.", "berth functions delete --app demo hello")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    p = cmd(fn, "logs", cmd_functions_logs, "Show recent runs and console output.", "berth functions logs --app demo hello --limit 20")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    p.add_argument("--limit", type=int)
+    p = cmd(fn, "invoke", cmd_functions_invoke, "Call a function and print its response.",
+            ["berth functions invoke --app demo hello", "berth functions invoke --app demo hello --data '{\"name\":\"Ann\"}' --path-query 'lang=pt'"])
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    p.add_argument("--data", metavar="BODY", help="Request body. Implies POST.")
+    p.add_argument("--content-type", help="Default application/json.")
+    p.add_argument("--method", help="HTTP method. Default GET, or POST with --data.")
+    p.add_argument("--path-query", metavar="QUERY", help="Query string, e.g. 'a=b&c=d'.")
+    p.add_argument("--token", metavar="CREDENTIAL", help="Call with this key or user access token instead.")
+
+    env = group(sub, "env", "Env vars for functions. Values are never shown.", "berth env set --app demo STRIPE_KEY=sk_live_...")
+    p = cmd(env, "list", cmd_env_list, "List env var names.", "berth env list --app demo")
+    app_opt(p)
+    p = cmd(env, "set", cmd_env_set, "Set env vars. NAME alone prompts for the value.",
+            ["berth env set --app demo API_URL=https://example.com MODE=live", "berth env set --app demo STRIPE_KEY"])
+    app_opt(p)
+    p.add_argument("pairs", nargs="+", metavar="NAME=VALUE")
+    p = cmd(env, "unset", cmd_env_unset, "Remove an env var.", "berth env unset --app demo MODE")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+
+    wh = group(sub, "webhooks", "Send row changes to your own URL, signed.", "berth webhooks add --app demo https://example.com/hook --table notes")
+    p = cmd(wh, "list", cmd_webhooks_list, "List webhooks.", "berth webhooks list --app demo")
+    app_opt(p)
+    p = cmd(wh, "add", cmd_webhooks_add, "Add a webhook. The signing secret is shown once.",
+            "berth webhooks add --app demo https://example.com/hook --table notes --events insert,update")
+    app_opt(p)
+    p.add_argument("url", metavar="URL")
+    p.add_argument("--table")
+    p.add_argument("--events", metavar="LIST", help="Comma list of insert,update,delete.")
+    p.add_argument("--description")
+    for name, func, summary in (
+        ("show", cmd_webhooks_show, "Show a webhook."),
+        ("remove", cmd_webhooks_remove, "Remove a webhook."),
+        ("deliveries", cmd_webhooks_deliveries, "Show recent delivery attempts."),
+        ("test", cmd_webhooks_test, "Send a ping event now."),
+    ):
+        p = cmd(wh, name, func, summary, f"berth webhooks {name} --app demo wh_123")
+        app_opt(p)
+        p.add_argument("id", metavar="ID")
+    p = cmd(wh, "update", cmd_webhooks_update, "Change a webhook.", "berth webhooks update --app demo wh_123 --events insert --disable")
+    app_opt(p)
+    p.add_argument("id", metavar="ID")
+    p.add_argument("--url")
+    p.add_argument("--events", metavar="LIST")
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--enable", dest="enabled", action="store_const", const=True, default=None)
+    g.add_argument("--disable", dest="enabled", action="store_const", const=False)
+
+    p = cmd(sub, "sql", cmd_sql, "Run SQL against the app database.",
+            ["berth sql --app demo \"select count(*) from notes\"",
+             "berth sql --app demo \"select * from notes where title = $1\" --param hello --read-only",
+             "berth sql --app demo -f migrate.sql"])
+    app_opt(p)
+    p.add_argument("query", nargs="?", metavar="QUERY")
+    p.add_argument("-f", "--file", metavar="FILE", help="Read the query from a file, or - for stdin.")
+    p.add_argument("--param", action="append", metavar="VALUE", help="Value for $1, $2, ... Repeatable.")
+    p.add_argument("--read-only", action="store_true", help="Reject writes.")
+    p.add_argument("--timeout-ms", type=int)
+
+    p = cmd(sub, "logs", cmd_logs, "Show recent API requests to an app.", ["berth logs --app demo --limit 50", "berth logs --app demo --status 4xx"])
+    app_opt(p)
+    p.add_argument("--limit", type=int)
+    p.add_argument("--status", help="Filter, e.g. 4xx, 5xx, or 404.")
+
+    p = cmd(sub, "api", cmd_api, "Call any API path and print the JSON. For things the CLI does not wrap.",
+            ["berth api GET /openapi.json", "berth api GET /apps/demo/tables --app demo"])
+    p.add_argument("method", metavar="METHOD")
+    p.add_argument("path", metavar="PATH")
+    p.add_argument("--data", metavar="JSON")
+    p.add_argument("--app", "-a", metavar="APP", help="Use this app's saved key.")
+
+    p = cmd(sub, "completion", cmd_completion, "Print a shell completion script.",
+            ['eval "$(berth completion zsh)"', "berth completion bash > ~/.local/share/bash-completion/completions/berth"])
+    p.add_argument("shell", choices=("bash", "zsh"))
+    return parser
+
+
+def main(argv: list | None = None) -> None:
+    global JSON, API_OVERRIDE, IDEMPOTENCY_KEY
+    argv = sys.argv[1:] if argv is None else argv
+    parser = build_parser()
+    if not argv:
+        parser.print_help()
+        return
+    args, extras = parser.parse_known_args(argv)
+    if extras:
+        target = getattr(args, "_extra", None)
+        if target and not any(e.startswith("-") and not NUMBER_RE.fullmatch(e) for e in extras):
+            setattr(args, target, list(getattr(args, target) or []) + extras)
+        else:
+            parser.error("unrecognized arguments: " + " ".join(extras))
+    JSON = bool(getattr(args, "json", False))
+    API_OVERRIDE = getattr(args, "api", None)
+    IDEMPOTENCY_KEY = getattr(args, "idempotency_key", None)
+    if not hasattr(args, "func"):
+        parser.print_help(sys.stderr)
+        raise SystemExit(2)
+    args.func(args)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        raise SystemExit(130)
+    except BrokenPipeError:
+        try:
+            sys.stdout.close()
+        except OSError:
+            pass
+        raise SystemExit(0)

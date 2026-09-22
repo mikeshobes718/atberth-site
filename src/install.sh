@@ -2,7 +2,7 @@
 set -eu
 dest="${HOME}/.local/bin/berth"
 mkdir -p "${HOME}/.local/bin"
-curl -fsSL "https://raw.githubusercontent.com/mikeshobes718/berth-cli/main/berth" -o "${dest}.tmp"
+curl -fsSL "https://atberth.com/cli/berth" -o "${dest}.tmp"
 chmod 755 "${dest}.tmp"
 mv "${dest}.tmp" "${dest}"
 echo "Installed ${dest}"

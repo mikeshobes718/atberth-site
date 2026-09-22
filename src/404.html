@@ -5,8 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Not found. Berth</title>
 <meta name="robots" content="noindex">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<script>(function(){try{var t=localStorage.getItem("berth-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}})();</script>
+<script>
+(function(){var d=document.documentElement,t;try{t=localStorage.getItem("berth-theme")}catch(e){}if(t!=="light"&&t!=="dark")t=window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";d.setAttribute("data-theme",t);d.classList.add("js")})();
+</script>
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -19,5 +24,6 @@
     <a class="btn btn-light" href="/">Back to Berth</a>
   </div>
 </main>
+<script src="/main.js" defer></script>
 </body>
 </html>
