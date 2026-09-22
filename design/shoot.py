@@ -5,7 +5,8 @@ url = sys.argv[1]
 prefix = sys.argv[2]
 
 with sync_playwright() as p:
-    b = p.chromium.launch()
+    import os
+    b = p.chromium.launch(args=[a for a in [os.environ.get("CHROME_ARG")] if a])
     for name, opts in [
         ("desktop", dict(viewport={"width": 1440, "height": 900}, device_scale_factor=1)),
         ("mobile", dict(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True)),
