@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@font-face{font-family:"Geist";src:url(../src/fonts/geist.woff2) format("woff2");font-weight:300 800}
+@font-face{font-family:"Geist Mono";src:url(../src/fonts/geist-mono.woff2) format("woff2");font-weight:400 600}
+html,body{margin:0;width:1200px;height:630px;overflow:hidden;background:#08090b;color:#f3f5f6;font-family:"Geist",sans-serif;-webkit-font-smoothing:antialiased}
+.bg{position:absolute;inset:0;background:radial-gradient(40% 55% at 82% 20%,rgba(110,231,200,.22),transparent 70%),radial-gradient(35% 45% at 12% 0%,rgba(138,180,255,.16),transparent 70%)}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);background-size:60px 60px;-webkit-mask-image:radial-gradient(70% 70% at 70% 30%,#000,transparent 75%)}
+.in{position:absolute;inset:72px 80px;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:14px;font-size:30px;font-weight:600;letter-spacing:-.02em}
+.brand svg{width:40px;height:40px}
+h1{margin:auto 0 0;font-size:92px;line-height:.98;letter-spacing:-.045em;font-weight:560}
+p{margin:26px 0 0;font-family:"Geist Mono",monospace;font-size:22px;color:#a0a8b0;display:flex;gap:14px}
+p span+span::before{content:"/";margin-right:14px;color:#5a6168}
+.pill{position:absolute;top:72px;right:80px;font-size:18px;color:#a0a8b0;border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:8px 16px;display:flex;align-items:center;gap:10px}
+.pill i{width:9px;height:9px;border-radius:50%;background:#6ee7c8}
+</style>
+</head>
+<body>
+<div class="bg"></div><div class="grid"></div>
+<div class="pill"><i></i>In private use today</div>
+<div class="in">
+  <div class="brand"><svg viewBox="0 0 24 24"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="#f3f5f6" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="#f3f5f6" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="#6ee7c8" stroke-width="1.6" stroke-linecap="round"/></svg>Berth</div>
+  <h1>A quiet home port<br>for your apps.</h1>
+  <p><span>Postgres 17</span><span>PostgREST</span><span>Deno API</span><span>Nightly backups</span></p>
+</div>
+</body>
+</html>

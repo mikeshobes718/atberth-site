@@ -1,0 +1,10 @@
+{
+  "name": "atberth-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "images": "sh scripts/render-images.sh",
+    "preview": "npm run build && python3 -m http.server 4321 --directory dist"
+  }
+}
