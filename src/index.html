@@ -198,12 +198,13 @@
         <article class="card c-night reveal">
           <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 17.5 9.5 12 4 6.5M12 18h8"/></svg></div>
           <h3>Functions</h3>
-          <p>One TypeScript file on Deno, with your env vars, a secret key already injected, logs, and a sandbox with no access to private networks.</p>
+          <p>One TypeScript file on Deno. Import from npm and jsr, read your env vars, call the API with an injected secret key, and run on a cron schedule.</p>
           <div class="term" aria-label="Illustrative function deploy">
             <p class="term-h"><span>terminal</span><span class="tag">Illustrative</span></p>
             <p><span class="t-dim">01</span> berth env set GREETING=Hi&nbsp;&nbsp;<span class="t-ok">saved</span></p>
             <p><span class="t-dim">02</span> berth functions deploy hello hello.ts&nbsp;&nbsp;<span class="t-ok">deployed</span></p>
             <p><span class="t-dim">03</span> berth functions invoke hello&nbsp;&nbsp;<span class="t-ok">200</span></p>
+            <p><span class="t-dim">04</span> berth functions deploy nightly nightly.ts --schedule @daily&nbsp;&nbsp;<span class="t-ok">scheduled</span></p>
           </div>
         </article>
 
@@ -271,7 +272,7 @@
           <li><span class="pip" aria-hidden="true"></span><span class="s-n">Keys and auth</span><span class="s-d">Account, secret, publishable keys. End-user sign in.</span><span class="bars" aria-hidden="true"></span></li>
           <li><span class="pip" aria-hidden="true"></span><span class="s-n">Row policies</span><span class="s-d">Postgres row level security</span><span class="bars" aria-hidden="true"></span></li>
           <li><span class="pip" aria-hidden="true"></span><span class="s-n">Realtime and storage</span><span class="s-d">SSE row events, buckets, signed URLs</span><span class="bars" aria-hidden="true"></span></li>
-          <li><span class="pip pip-n" aria-hidden="true"></span><span class="s-n">Functions and webhooks</span><span class="s-d">Deno functions, signed webhooks with retries</span><span class="bars" aria-hidden="true"></span></li>
+          <li><span class="pip pip-n" aria-hidden="true"></span><span class="s-n">Functions and webhooks</span><span class="s-d">Deno functions with cron schedules, signed webhooks with retries</span><span class="bars" aria-hidden="true"></span></li>
           <li><span class="pip pip-n" aria-hidden="true"></span><span class="s-n">SQL and export</span><span class="s-d mono">api.atberth.com/v1</span><span class="bars" aria-hidden="true"></span></li>
         </ul>
       </div>

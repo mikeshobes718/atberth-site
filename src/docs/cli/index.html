@@ -235,6 +235,10 @@ berth functions show --app "$APP" hello
 berth functions invoke --app "$APP" hello --data '{"name":"Ada"}' --method POST
 berth functions logs --app "$APP" hello
 berth functions delete --app "$APP" hello</code></pre>
+      <p><code>--schedule CRON</code> also runs the function on a cron schedule in UTC (five fields, or <code>@hourly</code>, <code>@daily</code>, <code>@weekly</code>, <code>@monthly</code>). A redeploy without the flag keeps the schedule; <code>--no-schedule</code> removes it. See <a href="/docs/functions/#schedule">Schedules</a>.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth functions deploy --app "$APP" hello hello.ts --schedule "*/15 * * * *"
+berth functions deploy --app "$APP" hello hello.ts --no-schedule
+berth functions delete --app "$APP" hello</code></pre>
 
       <h2 id="env">Env vars</h2>
       <pre class="code" data-lang="bash" data-check><code>berth env set --app "$APP" GREETING=Hello STRIPE_MODE=test

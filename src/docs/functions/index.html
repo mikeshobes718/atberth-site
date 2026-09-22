@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Functions. Berth docs</title>
-<meta name="description" content="Deploy one TypeScript or JavaScript file as a Berth function on Deno. Sandbox rules, env vars, injected BERTH_ variables, verify modes, invoking, and logs.">
+<meta name="description" content="Deploy one TypeScript or JavaScript file as a Berth function on Deno. Imports, verify modes, invoking, env vars, cron schedules, sandbox rules, and logs.">
 <link rel="canonical" href="https://atberth.com/docs/functions/">
 <meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
@@ -13,7 +13,7 @@
 <meta property="og:site_name" content="Berth">
 <meta property="og:url" content="https://atberth.com/docs/functions/">
 <meta property="og:title" content="Functions. Berth docs">
-<meta property="og:description" content="Deploy one TypeScript or JavaScript file as a Berth function on Deno. Sandbox rules, env vars, injected BERTH_ variables, verify modes, invoking, and logs.">
+<meta property="og:description" content="Deploy one TypeScript or JavaScript file as a Berth function on Deno. Imports, verify modes, invoking, env vars, cron schedules, sandbox rules, and logs.">
 <meta property="og:image" content="https://atberth.com/assets/og.png">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
@@ -99,11 +99,26 @@ Deno.serve((req) =&gt; {
 });
 EOF</code></pre>
 
+      <h2 id="imports">Imports</h2>
+      <p>A function may import packages from <code>npm:</code>, <code>jsr:</code>, and <code>https://</code> URLs such as esm.sh. It may not import other local files, because only the one file is deployed. If your code is spread over several files, bundle it into one first (for example with esbuild).</p>
+      <pre class="code" data-lang="bash" data-check><code>cat &gt; digest.ts &lt;&lt;'EOF'
+import { encodeHex } from "jsr:@std/encoding/hex";
+
+export default async (req: Request) =&gt; {
+  const data = new Uint8Array(await req.arrayBuffer());
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Response.json({ sha256: encodeHex(hash) });
+};
+EOF</code></pre>
+      <p>The other two forms look like this:</p>
+      <pre class="code" data-lang="ts"><code>import { Chess } from "npm:chess.js";
+import { nanoid } from "https://esm.sh/nanoid";</code></pre>
+
       <h2 id="deploy">Deploy</h2>
-      <p><code>hello.ts</code> reads the <code>GREETING</code> env var, so set it first. In the current runtime, reading an env var that is not set throws instead of returning <code>undefined</code>.</p>
-      <pre class="code" data-lang="bash" data-check><code>berth env set --app "$APP" GREETING=Hello
-berth functions deploy --app "$APP" hello hello.ts --verify key
+      <p><code>hello.ts</code> reads <code>GREETING</code>, which is not set yet. An unset env var reads as <code>undefined</code>, so the <code>?? "Hello"</code> fallback applies.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth functions deploy --app "$APP" hello hello.ts --verify key
 berth functions deploy --app "$APP" whoami whoami.ts --verify user --timeout-ms 5000 --memory-mb 128
+berth functions deploy --app "$APP" digest digest.ts
 berth functions list --app "$APP"</code></pre>
       <p>Deploying the same name again replaces it. The HTTP form is a <code>PUT</code> with the source as a JSON string:</p>
       <pre class="code" data-lang="bash" data-check><code>jq -n --rawfile source hello.ts '{source: $source, verify: "key", timeout_ms: 10000}' | \
@@ -128,7 +143,8 @@ berth functions list --app "$APP"</code></pre>
   -H "Authorization: Bearer $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name":"Ada"}'
-berth functions invoke --app "$APP" hello --data '{"name":"Grace"}'</code></pre>
+berth functions invoke --app "$APP" hello --data '{"name":"Grace"}'
+berth functions invoke --app "$APP" digest --data 'hello' --content-type text/plain | grep 2cf24dba</code></pre>
       <p>A <code>user</code> function needs a signed-in user's token:</p>
       <pre class="code" data-lang="bash" data-check><code>ACCESS_TOKEN=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/signup \
   -H "Authorization: Bearer $PUBLISHABLE_KEY" \
@@ -174,11 +190,60 @@ EOF
 berth functions deploy --app "$APP" count_notes count_notes.ts
 berth functions invoke --app "$APP" count_notes --method GET</code></pre>
 
+      <h2 id="schedule">Schedules</h2>
+      <p>Give a function a cron schedule and Berth runs it on its own: nightly cleanups, reminders, syncing from another API. A schedule is five cron fields in UTC (<code>minute hour day month weekday</code>), or one of <code>@hourly</code>, <code>@daily</code>, <code>@weekly</code>, <code>@monthly</code>.</p>
+      <p>Each minute that matches, Berth sends the function a <code>POST</code> with the body <code>{"scheduled_at": "2026-09-22T10:15:00Z"}</code> and these headers:</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Header</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td><code>Berth-Key-Type</code></td><td><code>schedule</code>. Berth sets this header itself on every call (<code>publishable</code>, <code>secret</code>, <code>user</code>, or <code>none</code> for other callers), so a caller cannot fake it.</td></tr>
+          <tr><td><code>Berth-Schedule</code></td><td>the cron expression, for your logs. Do not use it to decide who called; check <code>Berth-Key-Type</code>.</td></tr>
+        </tbody>
+      </table></div>
+      <p>Scheduled runs do not go through the function's <code>verify</code> mode, and they show up in the function's <a href="#logs">logs</a> like any other run.</p>
+      <pre class="code" data-lang="bash" data-check><code>cat &gt; cleanup.ts &lt;&lt;'EOF'
+export default async (req: Request) =&gt; {
+  if (req.headers.get("Berth-Key-Type") !== "schedule") {
+    return new Response("Only the scheduler runs this.", { status: 403 });
+  }
+  const { scheduled_at } = await req.json();
+  const base = Deno.env.get("BERTH_API_URL");
+  const app = Deno.env.get("BERTH_APP");
+  const res = await fetch(`${base}/apps/${app}/tables/notes/rows?title=eq.expired`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${Deno.env.get("BERTH_SECRET_KEY")}` },
+  });
+  return Response.json({ scheduled_at, cleaned: await res.json() });
+};
+EOF
+berth functions deploy --app "$APP" cleanup cleanup.ts --schedule "*/15 * * * *"</code></pre>
+      <p>The deployment response includes <code>"schedule"</code>. A redeploy that leaves the schedule out keeps it. <code>--no-schedule</code>, or <code>"schedule": null</code> over HTTP, removes it.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth functions deploy --app "$APP" cleanup cleanup.ts --json | jq -e '.function.schedule == "*/15 * * * *"'
+jq -n --rawfile source cleanup.ts '{source: $source, schedule: "@daily"}' | \
+  curl -sS -X PUT https://api.atberth.com/v1/apps/$APP/functions/cleanup/deployment \
+    -H "Authorization: Bearer $SECRET_KEY" \
+    -H "Content-Type: application/json" \
+    --data-binary @- | jq -e '.function.schedule == "@daily"'
+jq -n --rawfile source cleanup.ts '{source: $source, schedule: null}' | \
+  curl -sS -X PUT https://api.atberth.com/v1/apps/$APP/functions/cleanup/deployment \
+    -H "Authorization: Bearer $SECRET_KEY" \
+    -H "Content-Type: application/json" \
+    --data-binary @- | jq -e '.function.schedule == null'
+berth functions deploy --app "$APP" cleanup cleanup.ts --schedule @hourly
+berth functions deploy --app "$APP" cleanup cleanup.ts --no-schedule --json | jq -e '.function.schedule == null'</code></pre>
+      <p>A bad expression is rejected with 400 <code>invalid_body</code>:</p>
+      <pre class="code" data-lang="bash" data-check="raw"><code>jq -n --rawfile source cleanup.ts '{source: $source, schedule: "every day"}' | \
+  curl -sS -X PUT https://api.atberth.com/v1/apps/$APP/functions/cleanup/deployment \
+    -H "Authorization: Bearer $SECRET_KEY" \
+    -H "Content-Type: application/json" \
+    --data-binary @- | jq -e '.error == "invalid_body"'</code></pre>
+
       <h2 id="sandbox">Sandbox rules</h2>
       <ul>
         <li>Network: the public internet only. No localhost, no private ranges, no cloud metadata addresses.</li>
         <li>No file system and no subprocesses.</li>
-        <li>Only this app's env vars are visible.</li>
+        <li>Only this app's env vars are visible. A name that is not set reads as <code>undefined</code>; the host's own variables are never reachable.</li>
+        <li>Imports from <code>npm:</code>, <code>jsr:</code>, and <code>https://</code> URLs work. Relative imports of local files do not.</li>
         <li>Timeout: 10 seconds by default, 30 at most (<code>--timeout-ms</code>). Past it the caller gets 504 <code>timeout</code>.</li>
         <li>Heap: 128 MB by default, 256 MB at most (<code>--memory-mb</code>).</li>
         <li>Four runs at once per app, 20 functions per app, 1 MB of source each.</li>
@@ -204,10 +269,12 @@ berth functions delete --app "$APP" whoami</code></pre>
       <p>On this page</p>
       <ul>
         <li><a href="#write">Write a function</a></li>
+        <li><a href="#imports">Imports</a></li>
         <li><a href="#deploy">Deploy</a></li>
         <li><a href="#verify">Verify modes</a></li>
         <li><a href="#invoke">Invoke</a></li>
         <li><a href="#env">Env vars</a></li>
+        <li><a href="#schedule">Schedules</a></li>
         <li><a href="#sandbox">Sandbox rules</a></li>
         <li><a href="#logs">Logs</a></li>
         <li><a href="#manage">Show and delete</a></li>

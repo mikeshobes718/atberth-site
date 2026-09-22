@@ -196,7 +196,29 @@ session = await berth("/auth/login", { method: "POST", body: { email, password }
       <p>Supabase storage policies on <code>(storage.foldername(name))[1] = auth.uid()</code> map to an <code>owner</code> bucket, which requires keys to start with the user id.</p>
 
       <h2 id="functions">Edge functions</h2>
-      <p><code>supabase.functions.invoke("hello", { body })</code> becomes <code>POST /functions/hello</code>. Both run Deno, and <code>Deno.serve</code> code carries over. Set secrets with <code>berth env set</code> instead of <code>supabase secrets set</code>, and read the injected <code>BERTH_SECRET_KEY</code> instead of <code>SUPABASE_SERVICE_ROLE_KEY</code>. A function is one file, so there is no shared <code>_shared</code> folder.</p>
+      <p><code>supabase.functions.invoke("hello", { body })</code> becomes <code>POST /functions/hello</code>. Both run Deno, and <code>Deno.serve</code> code carries over. Set secrets with <code>berth env set</code> instead of <code>supabase secrets set</code>, and read the injected <code>BERTH_SECRET_KEY</code> instead of <code>SUPABASE_SERVICE_ROLE_KEY</code>. <code>npm:</code>, <code>jsr:</code>, and <code>https://</code> imports work as they do on Supabase. A function is one file, so there is no shared <code>_shared</code> folder: bundle local imports into the file first.</p>
+
+      <h2 id="cron">Scheduled jobs</h2>
+      <p>On Supabase a scheduled job is usually <code>pg_cron</code> plus <code>pg_net</code> calling an edge function over HTTP with the service role key. On Berth the schedule belongs to the function itself, and no key travels in SQL:</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Supabase</th><th>Berth</th></tr></thead>
+        <tbody>
+          <tr><td><code>cron.schedule('job', '*/15 * * * *', $$ select net.http_post(...) $$)</code></td><td><code>berth functions deploy NAME FILE --schedule "*/15 * * * *"</code></td></tr>
+          <tr><td><code>cron.unschedule('job')</code></td><td><code>--no-schedule</code>, or <code>"schedule": null</code></td></tr>
+          <tr><td><code>cron.job_run_details</code></td><td><code>berth functions logs NAME</code></td></tr>
+          <tr><td>checking the service role key in the function</td><td>checking <code>Berth-Key-Type: schedule</code></td></tr>
+        </tbody>
+      </table></div>
+      <pre class="code" data-lang="bash" data-check><code>cat &gt; nightly.ts &lt;&lt;'EOF'
+export default async (req: Request) =&gt; {
+  if (req.headers.get("Berth-Key-Type") !== "schedule") return new Response(null, { status: 403 });
+  const { scheduled_at } = await req.json();
+  return Response.json({ ran_for: scheduled_at });
+};
+EOF
+berth functions deploy --app "$APP" nightly nightly.ts --schedule "0 3 * * *" --json | jq -e '.function.schedule == "0 3 * * *"'
+berth functions deploy --app "$APP" nightly nightly.ts --no-schedule</code></pre>
+      <p>Schedules are in UTC and fire at most once a minute. Details are on <a href="/docs/functions/#schedule">Functions</a>.</p>
 
       <h2 id="realtime">Realtime</h2>
       <p>A <code>channel().on("postgres_changes", { event: "*", table: "notes" })</code> subscription becomes an <code>EventSource</code> on <code>/tables/notes/stream</code>, with <code>insert</code>, <code>update</code>, and <code>delete</code> events. See <a href="/docs/realtime/">Realtime</a>.</p>
@@ -234,6 +256,7 @@ berth apps export "$APP" -o notes_app.dump</code></pre>
         <li><a href="#rls">Row level security</a></li>
         <li><a href="#storage">Storage</a></li>
         <li><a href="#functions">Edge functions</a></li>
+        <li><a href="#cron">Scheduled jobs</a></li>
         <li><a href="#realtime">Realtime</a></li>
         <li><a href="#webhooks">Database webhooks</a></li>
         <li><a href="#data">Moving the data</a></li>

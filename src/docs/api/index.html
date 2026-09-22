@@ -441,7 +441,7 @@ curl -sS "$SIGNED_URL"</code></pre>
       <h2 id="functions">Functions</h2>
       <p>One TypeScript or JavaScript file on Deno. See <a href="/docs/functions/">Functions</a> for the sandbox and injected env.</p>
       <p class="ep"><span class="m m-put">PUT</span>/v1/apps/{app}/functions/{name}/deployment</p>
-      <p>Body <code>{"source", "verify"?: "key", "user", or "none", "timeout_ms"?, "memory_mb"?}</code>.</p>
+      <p>Body <code>{"source", "verify"?: "key", "user", or "none", "timeout_ms"?, "memory_mb"?, "schedule"?}</code>. 201 on the first deploy, 200 on a redeploy. Returns <code>{"function"}</code> with <code>name</code>, <code>verify</code>, <code>schedule</code>, <code>timeout_ms</code>, <code>memory_mb</code>, <code>version</code>, and <code>url</code>. <code>schedule</code> is five cron fields in UTC or <code>@hourly</code>, <code>@daily</code>, <code>@weekly</code>, <code>@monthly</code>; leaving it out keeps the current one, and <code>null</code> removes it. See <a href="/docs/functions/#schedule">Schedules</a>.</p>
       <pre class="code" data-lang="bash" data-check><code>cat &gt; echo.ts &lt;&lt;'EOF'
 export default async (req: Request) =&gt; Response.json({ method: req.method, body: await req.text() });
 EOF
@@ -449,7 +449,17 @@ jq -n --rawfile source echo.ts '{source: $source, verify: "key"}' | \
   curl -sS -X PUT https://api.atberth.com/v1/apps/$APP/functions/echo/deployment \
     -H "Authorization: Bearer $SECRET_KEY" \
     -H "Content-Type: application/json" \
-    --data-binary @-</code></pre>
+    --data-binary @-
+jq -n --rawfile source echo.ts '{source: $source, schedule: "@hourly"}' | \
+  curl -sS -X PUT https://api.atberth.com/v1/apps/$APP/functions/echo/deployment \
+    -H "Authorization: Bearer $SECRET_KEY" \
+    -H "Content-Type: application/json" \
+    --data-binary @- | jq -e '.function.schedule == "@hourly"'
+jq -n --rawfile source echo.ts '{source: $source, schedule: null}' | \
+  curl -sS -X PUT https://api.atberth.com/v1/apps/$APP/functions/echo/deployment \
+    -H "Authorization: Bearer $SECRET_KEY" \
+    -H "Content-Type: application/json" \
+    --data-binary @- | jq -e '.function.schedule == null'</code></pre>
       <p class="ep"><span class="m">GET</span>/v1/apps/{app}/functions</p>
       <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/functions \
   -H "Authorization: Bearer $SECRET_KEY"</code></pre>
