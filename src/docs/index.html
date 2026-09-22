@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Berth docs</title>
+<meta name="description" content="Use Berth from the command line or with curl. Install the CLI, create an app, add a table, and write a row. No website required.">
+<link rel="canonical" href="https://atberth.com/docs">
+<meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="dark light">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Berth">
+<meta property="og:url" content="https://atberth.com/docs">
+<meta property="og:title" content="Berth docs">
+<meta property="og:description" content="Use Berth from the command line or with curl. No website required.">
+<meta property="og:image" content="https://atberth.com/assets/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+<script>
+(function(){var d=document.documentElement;try{var t=localStorage.getItem("berth-theme");if(t==="light"||t==="dark")d.setAttribute("data-theme",t)}catch(e){}d.classList.add("js")})();
+</script>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/" aria-label="Berth home">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>Berth</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/#platform">Platform</a>
+      <a href="/#how">How it works</a>
+      <a href="/#status">Included</a>
+      <a href="/#apps">Hosted</a>
+      <a href="/docs" aria-current="page">Docs</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="theme" type="button" aria-label="Switch to light theme" data-theme-toggle>
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+      </button>
+      <a class="btn btn-sm btn-light" href="mailto:mikeshobes718@gmail.com?subject=Request%20a%20berth">Request a berth</a>
+    </div>
+  </div>
+</header>
+
+<!-- Hierarchy matched to Discord developer docs sidebar and article: https://mobbin.com/sites/sections/2e0a873d-1006-487b-84d2-740a5cf78c29 -->
+<main id="main" class="doc-main">
+  <div class="wrap doc-layout">
+    <nav class="doc-side" aria-label="Docs">
+      <p class="group">Start</p>
+      <a href="#install">Install</a>
+      <a href="#login">Login</a>
+      <a href="#create-app">Create an app</a>
+      <a href="#create-table">Create a table</a>
+      <a href="#add-row">Add a row</a>
+      <p class="group">Commands</p>
+      <a href="#cmd-login">berth login</a>
+      <a href="#cmd-whoami">berth whoami</a>
+      <a href="#cmd-apps-list">berth apps list</a>
+      <a href="#cmd-apps-create">berth apps create</a>
+      <a href="#cmd-apps-delete">berth apps delete</a>
+      <a href="#cmd-tables-list">berth tables list</a>
+      <a href="#cmd-tables-create">berth tables create</a>
+      <a href="#cmd-rows-list">berth rows list</a>
+      <a href="#cmd-rows-add">berth rows add</a>
+      <a href="#cmd-rows-get">berth rows get</a>
+      <a href="#cmd-rows-rm">berth rows rm</a>
+      <p class="group">Reference</p>
+      <a href="#auth">Auth</a>
+      <a href="#errors">Errors</a>
+      <a href="#http">HTTP API</a>
+    </nav>
+
+    <article class="doc">
+      <p class="kicker">Docs</p>
+      <h1>Use Berth from the command line</h1>
+      <p class="lede">A berth is one app. You get a Postgres database and a token. The CLI and the HTTP API do the same work. You do not need this website after you have a token.</p>
+
+      <h2 id="install">Install</h2>
+      <p>This downloads one Python 3 script. No pip install.</p>
+      <pre class="code"><code>curl -fsSL https://atberth.com/install.sh | sh</code></pre>
+      <p>That writes <code>~/.local/bin/berth</code>. If that folder is not on your PATH, the installer tells you the line to add. Then run <code>berth --help</code>.</p>
+      <p>The same installer is also at <code>https://raw.githubusercontent.com/mikeshobes718/berth-cli/main/install.sh</code>.</p>
+
+      <h2 id="login">Login</h2>
+      <p>Save a token on this machine. You are prompted, so the token is not in your shell history. The file is <code>~/.config/berth/config.json</code>, mode 600.</p>
+      <pre class="code"><code>berth login</code></pre>
+      <p>Scripts can pass it without a prompt:</p>
+      <pre class="code"><code>berth login --token "$TOKEN"
+berth login &lt; token.txt</code></pre>
+      <p>Check what was saved:</p>
+      <pre class="code"><code>berth whoami</code></pre>
+
+      <h2 id="create-app">Create an app</h2>
+      <p>This needs the admin token. The name is the slug: 2 to 32 characters, a letter first, then lowercase letters, numbers, or underscore.</p>
+      <pre class="code"><code>berth apps create demo</code></pre>
+      <p>Berth creates a database for that app and prints an app token once. The CLI stores it next to your login. Same call with curl, using the admin token:</p>
+      <pre class="code"><code>curl -sS -X POST https://api.atberth.com/v1/apps \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"demo"}'</code></pre>
+      <p>A new app answers <code>201</code> with <code>id</code>, <code>slug</code>, and <code>token</code>. The token is not shown again.</p>
+
+      <h2 id="create-table">Create a table</h2>
+      <p>Use the app token, or the admin token. Types are <code>text</code>, <code>integer</code>, <code>boolean</code>, and <code>timestamptz</code>. Berth always adds <code>id</code> (uuid) and <code>created_at</code>.</p>
+      <pre class="code"><code>berth tables create --app demo notes body:text</code></pre>
+      <pre class="code"><code>curl -sS -X POST https://api.atberth.com/v1/apps/demo/tables \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"notes","columns":[{"name":"body","type":"text"}]}'</code></pre>
+
+      <h2 id="add-row">Add a row</h2>
+      <p>Send the column values. <code>id</code> and <code>created_at</code> are filled in for you.</p>
+      <pre class="code"><code>berth rows add --app demo notes body=hello</code></pre>
+      <p>The same insert with curl. <code>$TOKEN</code> here is the app token printed by <code>berth apps create</code> (the admin token also works):</p>
+      <pre class="code"><code>curl -sS -X POST https://api.atberth.com/v1/apps/demo/tables/notes \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"body":"hello"}'</code></pre>
+      <p>Read it back. Copy <code>id</code> from the insert response.</p>
+      <pre class="code"><code>berth rows get --app demo notes "$ID"
+
+curl -sS https://api.atberth.com/v1/apps/demo/tables/notes/$ID \
+  -H "Authorization: Bearer $TOKEN"</code></pre>
+
+      <h2 id="cmd-login">berth login</h2>
+      <p>Saves a token. <code>--token</code> skips the prompt. If stdin is not a terminal, the token is read from the pipe. Add <code>--json</code> for a JSON result. <code>--api</code> sets the base URL (default <code>https://api.atberth.com/v1</code>).</p>
+
+      <h2 id="cmd-whoami">berth whoami</h2>
+      <p>Calls <code>GET /v1/me</code>. An admin token prints <code>role: admin</code>. An app token prints <code>role: app token</code>.</p>
+
+      <h2 id="cmd-apps-list">berth apps list</h2>
+      <p>Lists apps for the admin token. An app token cannot list apps.</p>
+      <pre class="code"><code>berth apps list
+berth apps list --json</code></pre>
+
+      <h2 id="cmd-apps-create">berth apps create</h2>
+      <p>Creates the app, the database, and a token. The name is the only argument.</p>
+      <pre class="code"><code>berth apps create demo</code></pre>
+
+      <h2 id="cmd-apps-delete">berth apps delete</h2>
+      <p>Drops that app's database and forgets the saved app token. It does not touch any other database.</p>
+      <pre class="code"><code>berth apps delete demo</code></pre>
+
+      <h2 id="cmd-tables-list">berth tables list</h2>
+      <p>Lists tables and columns for one app. <code>--app</code> is required.</p>
+      <pre class="code"><code>berth tables list --app demo</code></pre>
+
+      <h2 id="cmd-tables-create">berth tables create</h2>
+      <p>Creates a table. Each column is <code>name:type</code>. At least one column is required.</p>
+      <pre class="code"><code>berth tables create --app demo notes body:text done:boolean</code></pre>
+
+      <h2 id="cmd-rows-list">berth rows list</h2>
+      <p>Prints rows, newest first. <code>--limit</code> is optional (default 50, max 200).</p>
+      <pre class="code"><code>berth rows list --app demo notes
+berth rows list --app demo notes --limit 10</code></pre>
+
+      <h2 id="cmd-rows-add">berth rows add</h2>
+      <p>Inserts one row. Each value is <code>name=value</code>. Use <code>true</code> or <code>false</code> for booleans, and a whole number for integers. Other values are text.</p>
+      <pre class="code"><code>berth rows add --app demo notes body=hello</code></pre>
+
+      <h2 id="cmd-rows-get">berth rows get</h2>
+      <p>Reads one row by its uuid.</p>
+      <pre class="code"><code>berth rows get --app demo notes "$ID"</code></pre>
+
+      <h2 id="cmd-rows-rm">berth rows rm</h2>
+      <p>Deletes one row by its uuid.</p>
+      <pre class="code"><code>berth rows rm --app demo notes "$ID"</code></pre>
+
+      <h2 id="auth">Auth</h2>
+      <p>Every request needs a bearer token.</p>
+      <pre class="code"><code>Authorization: Bearer $TOKEN</code></pre>
+      <p>The admin token can create and delete apps, rotate an app token, and read or write any app. An app token can only use tables and rows for that one app. Base URL: <code>https://api.atberth.com/v1</code>.</p>
+      <p>Add <code>--json</code> to any CLI command when a script needs JSON. Failures exit nonzero.</p>
+
+      <h2 id="errors">Errors</h2>
+      <p>Errors are JSON. There is a short code and one sentence. No stack trace.</p>
+      <pre class="code"><code>{"error":"unauthorized","message":"Send a bearer token."}</code></pre>
+      <ul>
+        <li><code>400</code> the name, type, or body is not usable.</li>
+        <li><code>401</code> missing or rejected token.</li>
+        <li><code>403</code> this token cannot do that.</li>
+        <li><code>404</code> that app, table, row, or path does not exist.</li>
+        <li><code>409</code> that app or table already exists.</li>
+        <li><code>500</code> something went wrong on the server.</li>
+      </ul>
+
+      <h2 id="http">HTTP API</h2>
+      <p>Admin token:</p>
+      <ul>
+        <li><code>GET /v1/me</code> returns <code>{"role":"admin"}</code>.</li>
+        <li><code>GET /v1/apps</code> lists apps. No tokens in the list.</li>
+        <li><code>POST /v1/apps</code> with <code>{"name":"demo"}</code> creates an app. <code>201</code>. The token is in this response only.</li>
+        <li><code>GET /v1/apps/demo</code> reads one app.</li>
+        <li><code>DELETE /v1/apps/demo</code> drops that app database only.</li>
+        <li><code>POST /v1/apps/demo/tokens</code> rotates the app token and returns the new one once.</li>
+      </ul>
+      <p>App token or admin token:</p>
+      <ul>
+        <li><code>GET /v1/apps/demo/tables</code> lists tables and columns.</li>
+        <li><code>POST /v1/apps/demo/tables</code> creates a table.</li>
+        <li><code>GET /v1/apps/demo/tables/notes?limit=50</code> lists rows.</li>
+        <li><code>POST /v1/apps/demo/tables/notes</code> inserts one JSON object of column values.</li>
+        <li><code>GET /v1/apps/demo/tables/notes/{id}</code> reads one row.</li>
+        <li><code>DELETE /v1/apps/demo/tables/notes/{id}</code> deletes one row.</li>
+      </ul>
+      <p>Names that are not lowercase letters, numbers, and underscore, 2 to 32 characters, starting with a letter, are rejected.</p>
+    </article>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="/" aria-label="Berth home">
+          <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Berth</span>
+        </a>
+      </div>
+      <div>
+        <p class="foot-h">Platform</p>
+        <ul>
+          <li><a href="/#platform">Postgres 17</a></li>
+          <li><a href="/#platform">PostgREST</a></li>
+          <li><a href="/#platform">Deno API</a></li>
+          <li><a href="/#how">How it works</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Docs</p>
+        <ul>
+          <li><a href="#install">Install</a></li>
+          <li><a href="#create-app">Create an app</a></li>
+          <li><a href="#add-row">Add a row</a></li>
+          <li><a href="#errors">Errors</a></li>
+          <li><a href="#http">HTTP API</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Access</p>
+        <ul>
+          <li><a href="mailto:mikeshobes718@gmail.com?subject=Request%20a%20berth">Request a berth</a></li>
+          <li><a href="/docs">Docs</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Connect</p>
+        <ul>
+          <li><a href="mailto:mikeshobes718@gmail.com?subject=Berth">Email</a></li>
+          <li><a href="https://github.com/mikeshobes718/atberth-site">Site source</a></li>
+          <li><a href="https://github.com/mikeshobes718/berth-cli">CLI source</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-base">
+      <p>&copy; 2026 Berth. Private beta.</p>
+      <p>Pricing when you request access.</p>
+    </div>
+  </div>
+</footer>
+<script>
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll(".doc-side a"));
+  var sections = links.map(function (a) {
+    return { a: a, el: document.getElementById((a.getAttribute("href") || "").slice(1)) };
+  }).filter(function (s) { return s.el; });
+  function mark() {
+    var y = window.scrollY + 120;
+    var current = sections[0];
+    sections.forEach(function (s) { if (s.el.offsetTop <= y) current = s; });
+    sections.forEach(function (s) { s.a.classList.toggle("active", s === current); });
+  }
+  if (sections.length) {
+    mark();
+    window.addEventListener("scroll", mark, { passive: true });
+  }
+})();
+</script>
+<script src="/main.js" defer></script>
+</body>
+</html>
