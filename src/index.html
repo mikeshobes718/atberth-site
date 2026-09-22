@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Berth: a quiet home port for your apps</title>
-<meta name="description" content="Berth is a self-built hosting stack: Postgres 17, PostgREST, and a Deno API on one always-on server, with nightly backups and verified syncs. In private use today. Goal: a $0 monthly bill.">
+<title>Berth: host your app or your site</title>
+<meta name="description" content="Berth hosts your app or website on Mike's servers. You get a database, an API, HTTPS, and nightly backups. Private beta. Pricing when you request access.">
 <link rel="canonical" href="https://atberth.com/">
 <meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
@@ -12,15 +12,15 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Berth">
 <meta property="og:url" content="https://atberth.com/">
-<meta property="og:title" content="Berth: a quiet home port for your apps">
-<meta property="og:description" content="Postgres 17, PostgREST, and a Deno API on one always-on server. Nightly backups. Verified syncs. A $0 monthly bill as the goal.">
+<meta property="og:title" content="Berth: host your app or your site">
+<meta property="og:description" content="Paid hosting for your app or website. Database, API, HTTPS, and nightly backups. Private beta. Pricing when you request access.">
 <meta property="og:image" content="https://atberth.com/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Berth. A quiet home port for your apps.">
+<meta property="og:image:alt" content="Berth. Host your app or your site.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Berth: a quiet home port for your apps">
-<meta name="twitter:description" content="Postgres 17, PostgREST, and a Deno API on one always-on server. Nightly backups. Verified syncs.">
+<meta name="twitter:title" content="Berth: host your app or your site">
+<meta name="twitter:description" content="Paid hosting for your app or website. Database, API, HTTPS, and nightly backups. Pricing when you request access.">
 <meta name="twitter:image" content="https://atberth.com/assets/og.png">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
@@ -45,15 +45,15 @@
     <nav class="nav-links" aria-label="Primary">
       <a href="#platform">Platform</a>
       <a href="#how">How it works</a>
-      <a href="#status">Status</a>
-      <a href="#apps">Apps</a>
+      <a href="#status">Included</a>
+      <a href="#apps">Hosted</a>
     </nav>
     <div class="nav-actions">
       <button class="theme" type="button" aria-label="Switch to light theme" data-theme-toggle>
         <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
       </button>
-      <a class="btn btn-sm btn-light" href="mailto:mikeshobes718@gmail.com?subject=Berth%20early%20access">Request early access</a>
+      <a class="btn btn-sm btn-light" href="mailto:mikeshobes718@gmail.com?subject=Request%20a%20berth">Request a berth</a>
     </div>
   </div>
 </header>
@@ -62,12 +62,12 @@
   <section class="hero">
     <div class="glow" aria-hidden="true"></div>
     <div class="wrap">
-      <p class="eyebrow rise"><span class="dot" aria-hidden="true"></span>In private use today</p>
-      <h1 class="rise r1">A quiet home port<br>for your apps.</h1>
+      <p class="eyebrow rise"><span class="dot" aria-hidden="true"></span>Private beta</p>
+      <h1 class="rise r1">Host your app<br>or your site.</h1>
       <div class="hero-sub rise r2">
-        <p>Berth is a self-built hosting stack that moves apps off Supabase and Vercel. Postgres, an instant REST API, and nightly backups on one always-on server. The goal is a $0 monthly bill.</p>
+        <p>Berth hosts it on Mike's servers. You get a database, an API, HTTPS, and nightly backups. This is paid hosting, in private beta. Pricing when you request access.</p>
         <div class="hero-cta">
-          <a class="btn btn-light" href="mailto:mikeshobes718@gmail.com?subject=Berth%20early%20access">Request early access</a>
+          <a class="btn btn-light" href="mailto:mikeshobes718@gmail.com?subject=Request%20a%20berth">Request a berth</a>
           <a class="btn btn-ghost" href="#how">How it works <span aria-hidden="true">&rarr;</span></a>
         </div>
       </div>
@@ -75,19 +75,17 @@
       <figure class="window rise r3" aria-labelledby="flow-cap">
         <div class="window-bar">
           <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
-          <span class="window-title">berth / data path</span>
-          <span class="tag">Design diagram, not live data</span>
+          <span class="window-title">berth / your app</span>
+          <span class="tag">Illustrative</span>
         </div>
         <div class="flow">
           <div class="node apps">
-            <p class="node-k">Apps</p>
-            <ul class="chips">
-              <li>Clip</li><li>Spot</li><li>Haul</li><li>Riff</li><li>FormForge</li><li>Heard</li><li>13 Luas</li>
-            </ul>
+            <p class="node-k">Your app</p>
+            <p class="node-v">The app or site you want hosted.</p>
           </div>
           <div class="wire" aria-hidden="true"></div>
           <div class="vm">
-            <p class="vm-label"><span>Oracle Cloud Always Free</span><span>ARM</span><span>2 cores</span><span>12 GB</span></p>
+            <p class="vm-label"><span>Your berth</span><span>HTTPS</span><span>API</span><span>Postgres</span></p>
             <div class="vm-grid">
               <div class="node n-https">
                 <p class="node-k">HTTPS</p>
@@ -113,25 +111,25 @@
                 <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
                 <div>
                   <p class="node-k">Every night</p>
-                  <p class="node-v">Database backup. Sync from the live database, every table count checked.</p>
+                  <p class="node-v">Database backup. Table counts checked.</p>
                 </div>
               </div>
             </div>
             <p class="vm-foot"><span class="lock" aria-hidden="true"></span>The database is never exposed to the internet.</p>
           </div>
         </div>
-        <figcaption id="flow-cap" class="sr">Apps call api.atberth.com over HTTPS. A Deno API checks the token, PostgREST turns requests into queries, and Postgres 17 answers on a private network. Every night the database is backed up and synced, with every table count checked. All of it runs on one Oracle Cloud Always Free ARM server with 2 cores and 12 GB of memory.</figcaption>
+        <figcaption id="flow-cap" class="sr">Illustrative diagram of what a customer's app runs on. The app calls the API over HTTPS. A Deno API checks the token, PostgREST turns requests into queries, and Postgres 17 answers on a private network. Every night the database is backed up and table counts are checked. The database is never exposed to the internet.</figcaption>
       </figure>
     </div>
   </section>
 
   <section class="facts" aria-label="Key facts">
     <div class="wrap facts-row">
-      <div><p class="f-v">$0</p><p class="f-k">Monthly bill, the goal</p></div>
-      <div><p class="f-v">17</p><p class="f-k">Postgres version</p></div>
-      <div><p class="f-v">2<small>ARM cores</small></p><p class="f-k">Always on</p></div>
-      <div><p class="f-v">12<small>GB</small></p><p class="f-k">Memory</p></div>
-      <div><p class="f-v">Nightly</p><p class="f-k">Backup and verified sync</p></div>
+      <div><p class="f-v">Postgres</p><p class="f-k">Your database</p></div>
+      <div><p class="f-v">HTTPS</p><p class="f-k">API for your app</p></div>
+      <div><p class="f-v">Nightly</p><p class="f-k">Backups</p></div>
+      <div><p class="f-v">Token</p><p class="f-k">On every request</p></div>
+      <div><p class="f-v">Beta</p><p class="f-k">Pricing on request</p></div>
     </div>
   </section>
 
@@ -139,15 +137,15 @@
     <div class="wrap">
       <div class="sec-head reveal">
         <p class="kicker">Platform</p>
-        <h2>Everything an app needs.<br><span class="soft">Nothing it bills for.</span></h2>
-        <p class="lede">The core pieces behind every app on Berth. Real Postgres, an API in front of it, and the boring nightly work that keeps data safe.</p>
+        <h2>What you get.<br><span class="soft">A place to run it.</span></h2>
+        <p class="lede">You pay Berth to host the app or site. That berth includes a database, an API, HTTPS, and a backup every night.</p>
       </div>
 
       <div class="bento">
         <article class="card c-db reveal">
           <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8v-13M4.5 12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8"/></svg></div>
           <h3>Postgres 17</h3>
-          <p>The database your apps already speak. Real Postgres on the server, reachable only from inside it.</p>
+          <p>The database for your app. Real Postgres on the server, reachable only from inside it.</p>
           <ul class="sub">
             <li><span class="b" aria-hidden="true"></span>Postgres 17</li>
             <li><span class="b" aria-hidden="true"></span>Private network only</li>
@@ -162,17 +160,17 @@
         <article class="card c-on reveal">
           <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="7" rx="2"/><rect x="3.5" y="13" width="17" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg></div>
           <h3>Always on</h3>
-          <p>One server that never sleeps. Oracle Cloud Always Free, on ARM.</p>
+          <p>Your app runs on a server that stays up. Berth looks after the machine.</p>
           <ul class="sub">
-            <li><span class="b" aria-hidden="true"></span>2 ARM cores</li>
-            <li><span class="b" aria-hidden="true"></span>12 GB of memory</li>
+            <li><span class="b" aria-hidden="true"></span>Server stays up</li>
+            <li><span class="b" aria-hidden="true"></span>Berth runs it for you</li>
           </ul>
         </article>
 
         <article class="card reveal">
           <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5 3 12l5 7M16 5l5 7-5 7"/></svg></div>
           <h3>PostgREST</h3>
-          <p>Tables become REST endpoints. No hand-written CRUD layer to keep in sync.</p>
+          <p>Your tables become REST endpoints. The API follows the database schema.</p>
           <pre class="code" aria-label="Example request"><code><span class="c-k">GET</span> https://api.atberth.com/...
 <span class="c-d">Authorization: Bearer $TOKEN</span></code></pre>
         </article>
@@ -180,7 +178,7 @@
         <article class="card reveal">
           <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 17.5 9.5 12 4 6.5M12 18h8"/></svg></div>
           <h3>Deno API</h3>
-          <p>Custom server logic in TypeScript, sitting in front of the database behind HTTPS.</p>
+          <p>Server logic in TypeScript, in front of your database, behind HTTPS.</p>
           <ul class="sub">
             <li><span class="b" aria-hidden="true"></span>HTTPS at api.atberth.com</li>
             <li><span class="b" aria-hidden="true"></span>TypeScript on Deno</li>
@@ -198,21 +196,21 @@
         </article>
 
         <article class="card c-zero reveal">
-          <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M14.8 9.2c-.5-.9-1.6-1.4-2.8-1.4-1.6 0-2.8.8-2.8 2.1 0 3 5.8 1.4 5.8 4.3 0 1.3-1.3 2.1-3 2.1-1.3 0-2.5-.6-3-1.6M12 6.3v1.5M12 16.9v1.2"/></svg></div>
-          <h3>$0 is the goal</h3>
-          <p>Anything that can be self-built is self-built, so the monthly bill for it can sit at zero.</p>
-          <p class="big-zero" aria-hidden="true">$0<span>/mo</span></p>
+          <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12.5 12.5 4H19v6.5L10.5 19.5 4 12.5z"/><circle cx="16" cy="8" r="1" fill="currentColor" stroke="none"/></svg></div>
+          <h3>Pricing on request</h3>
+          <p>Private beta. No public price list yet. You get the price when you ask for a berth.</p>
+          <p class="big-zero" aria-hidden="true">Beta</p>
         </article>
 
         <article class="card c-night reveal">
           <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></div>
-          <h3>Nightly backup and verified sync</h3>
-          <p>Every night the database is backed up, and the live database is synced to the server. Then every table count is checked, so a quiet failure cannot hide.</p>
+          <h3>Nightly backups</h3>
+          <p>Every night your database is backed up. Table counts are checked, so a failed backup does not pass quietly.</p>
           <div class="term" aria-label="Illustrative nightly run">
             <p class="term-h"><span>nightly run</span><span class="tag">Illustrative</span></p>
             <p><span class="t-dim">01</span> backup&nbsp;&nbsp;database&nbsp;&nbsp;<span class="t-ok">done</span></p>
-            <p><span class="t-dim">02</span> sync&nbsp;&nbsp;&nbsp;&nbsp;live to berth&nbsp;&nbsp;<span class="t-ok">done</span></p>
-            <p><span class="t-dim">03</span> check&nbsp;&nbsp;&nbsp;every table count&nbsp;&nbsp;<span class="t-ok">match</span></p>
+            <p><span class="t-dim">02</span> check&nbsp;&nbsp;&nbsp;every table count&nbsp;&nbsp;<span class="t-ok">match</span></p>
+            <p><span class="t-dim">03</span> database stays private&nbsp;&nbsp;<span class="t-ok">yes</span></p>
           </div>
         </article>
       </div>
@@ -223,25 +221,25 @@
     <div class="wrap how">
       <div class="how-copy reveal">
         <p class="kicker">How it works</p>
-        <h2>From rented to moored,<br><span class="soft">one careful step at a time.</span></h2>
-        <p class="lede">Moving an app is not a leap. The data comes over first, gets checked, and only then does traffic follow.</p>
+        <h2>Request a berth.<br><span class="soft">We host the app.</span></h2>
+        <p class="lede">No public signup. You write, Berth sets up the database, the API, and HTTPS, and your app runs there.</p>
       </div>
       <ol class="steps reveal">
         <li>
           <span class="num" aria-hidden="true">1</span>
-          <div><h3>Mirror</h3><p>A nightly sync copies the live database onto the Berth server, table by table.</p></div>
+          <div><h3>Request</h3><p>Tell us the app or site you want hosted. Pricing comes back with the reply.</p></div>
         </li>
         <li>
           <span class="num" aria-hidden="true">2</span>
-          <div><h3>Verify</h3><p>Every table count is checked against the source. A mismatch is a failure, not a footnote.</p></div>
+          <div><h3>Set up</h3><p>Berth prepares a database, an API, and HTTPS for it.</p></div>
         </li>
         <li>
           <span class="num" aria-hidden="true">3</span>
-          <div><h3>Point</h3><p>The app talks to api.atberth.com over HTTPS, with a token on every request.</p></div>
+          <div><h3>Connect</h3><p>Your app calls the API over HTTPS. Every request carries a token.</p></div>
         </li>
         <li>
           <span class="num" aria-hidden="true">4</span>
-          <div><h3>Protect</h3><p>The database stays off the internet, and a fresh backup lands every night.</p></div>
+          <div><h3>Keep</h3><p>Backups run every night. The database stays off the public internet.</p></div>
         </li>
       </ol>
     </div>
@@ -252,18 +250,18 @@
       <div class="status reveal">
         <div class="status-head">
           <div>
-            <p class="kicker">Status</p>
-            <h2 class="h3">What runs on Berth</h2>
+            <p class="kicker">Included</p>
+            <h2 class="h3">What your app runs on</h2>
           </div>
-          <p class="tag tag-lg">Design reference. Not live monitoring. This page fetches nothing.</p>
+          <p class="tag tag-lg">Illustrative list. Not live monitoring.</p>
         </div>
         <ul class="status-list">
-          <li><span class="pip" aria-hidden="true"></span><span class="s-n">Postgres 17</span><span class="s-d">Database, private network</span><span class="bars" aria-hidden="true"></span></li>
+          <li><span class="pip" aria-hidden="true"></span><span class="s-n">Postgres 17</span><span class="s-d">Database for your app</span><span class="bars" aria-hidden="true"></span></li>
           <li><span class="pip" aria-hidden="true"></span><span class="s-n">PostgREST</span><span class="s-d">REST from the schema</span><span class="bars" aria-hidden="true"></span></li>
-          <li><span class="pip" aria-hidden="true"></span><span class="s-n">Deno API</span><span class="s-d">Token required</span><span class="bars" aria-hidden="true"></span></li>
+          <li><span class="pip" aria-hidden="true"></span><span class="s-n">Deno API</span><span class="s-d">Token on every request</span><span class="bars" aria-hidden="true"></span></li>
           <li><span class="pip" aria-hidden="true"></span><span class="s-n">HTTPS</span><span class="s-d mono">api.atberth.com</span><span class="bars" aria-hidden="true"></span></li>
           <li><span class="pip pip-n" aria-hidden="true"></span><span class="s-n">Nightly backup</span><span class="s-d">Every night</span><span class="bars" aria-hidden="true"></span></li>
-          <li><span class="pip pip-n" aria-hidden="true"></span><span class="s-n">Nightly sync</span><span class="s-d">Every table count checked</span><span class="bars" aria-hidden="true"></span></li>
+          <li><span class="pip pip-n" aria-hidden="true"></span><span class="s-n">Nightly check</span><span class="s-d">Table counts checked</span><span class="bars" aria-hidden="true"></span></li>
         </ul>
       </div>
     </div>
@@ -272,19 +270,19 @@
   <section id="apps" class="section">
     <div class="wrap">
       <div class="sec-head reveal">
-        <p class="kicker">Apps</p>
-        <h2>Home port for seven apps.</h2>
-        <p class="lede">Each app has static legal and support pages, served free from GitHub Pages.</p>
+        <p class="kicker">Hosted</p>
+        <h2>Already hosting real apps.</h2>
+        <p class="lede">These already run on Berth. Yours can be next.</p>
       </div>
       <ul class="app-grid reveal">
-        <li><a href="https://mikeshobes718.github.io/berth/clip/"><span class="a-n">Clip</span><span class="a-l">Privacy, support</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
-        <li><a href="https://mikeshobes718.github.io/berth/spot/"><span class="a-n">Spot</span><span class="a-l">Privacy, support</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
-        <li><a href="https://mikeshobes718.github.io/berth/haul/"><span class="a-n">Haul</span><span class="a-l">Privacy, support</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
-        <li><a href="https://mikeshobes718.github.io/berth/riff/"><span class="a-n">Riff</span><span class="a-l">Privacy, support</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
-        <li><a href="https://mikeshobes718.github.io/berth/formforge/"><span class="a-n">FormForge</span><span class="a-l">Privacy, terms</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
-        <li><a href="https://mikeshobes718.github.io/berth/heard/"><span class="a-n">Heard</span><span class="a-l">Privacy, support</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
-        <li><a href="https://mikeshobes718.github.io/berth/treze-luas/"><span class="a-n">13 Luas</span><span class="a-l">Privacy, support</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
-        <li><a class="a-all" href="https://mikeshobes718.github.io/berth/"><span class="a-n">All pages</span><span class="a-l">Legal and support index</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a href="https://mikeshobes718.github.io/berth/clip/"><span class="a-n">Clip</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a href="https://mikeshobes718.github.io/berth/spot/"><span class="a-n">Spot</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a href="https://mikeshobes718.github.io/berth/haul/"><span class="a-n">Haul</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a href="https://mikeshobes718.github.io/berth/riff/"><span class="a-n">Riff</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a href="https://mikeshobes718.github.io/berth/formforge/"><span class="a-n">FormForge</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a href="https://mikeshobes718.github.io/berth/heard/"><span class="a-n">Heard</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a href="https://mikeshobes718.github.io/berth/treze-luas/"><span class="a-n">13 Luas</span><span class="a-l">Hosted</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
+        <li><a class="a-all" href="mailto:mikeshobes718@gmail.com?subject=Request%20a%20berth"><span class="a-n">Your app</span><span class="a-l">Request a berth</span><span class="arr" aria-hidden="true">&#8599;</span></a></li>
       </ul>
     </div>
   </section>
@@ -293,9 +291,9 @@
     <div class="wrap">
       <div class="cta reveal">
         <div class="cta-glow" aria-hidden="true"></div>
-        <h2>In private use today.</h2>
-        <p>Berth runs Mike's own apps for now. There is no signup, no billing, and no customer isolation yet. If you would like to host an app here later, say hello.</p>
-        <a class="btn btn-light" href="mailto:mikeshobes718@gmail.com?subject=Berth%20early%20access">Request early access</a>
+        <h2>Request a berth.</h2>
+        <p>Berth is opening for other people. There is no public signup and no price list yet. Tell us what you want hosted, and you get pricing in the reply.</p>
+        <a class="btn btn-light" href="mailto:mikeshobes718@gmail.com?subject=Request%20a%20berth">Request a berth</a>
       </div>
     </div>
   </section>
@@ -317,11 +315,11 @@
           <li><a href="#platform">PostgREST</a></li>
           <li><a href="#platform">Deno API</a></li>
           <li><a href="#how">How it works</a></li>
-          <li><a href="#status">Status</a></li>
+          <li><a href="#status">What you get</a></li>
         </ul>
       </div>
       <div>
-        <p class="foot-h">Apps</p>
+        <p class="foot-h">Hosted</p>
         <ul>
           <li><a href="https://mikeshobes718.github.io/berth/clip/">Clip</a></li>
           <li><a href="https://mikeshobes718.github.io/berth/spot/">Spot</a></li>
@@ -333,11 +331,11 @@
         </ul>
       </div>
       <div>
-        <p class="foot-h">Legal</p>
+        <p class="foot-h">Access</p>
         <ul>
-          <li><a href="https://mikeshobes718.github.io/berth/">Legal and support pages</a></li>
-          <li><a href="https://mikeshobes718.github.io/berth/formforge/privacy/">FormForge privacy</a></li>
-          <li><a href="https://mikeshobes718.github.io/berth/formforge/terms/">FormForge terms</a></li>
+          <li><a href="mailto:mikeshobes718@gmail.com?subject=Request%20a%20berth">Request a berth</a></li>
+          <li><a href="#how">How it works</a></li>
+          <li><a href="https://mikeshobes718.github.io/berth/">Pages for hosted apps</a></li>
         </ul>
       </div>
       <div>
@@ -349,8 +347,8 @@
       </div>
     </div>
     <div class="foot-base">
-      <p>&copy; 2026 Berth. In private use.</p>
-      <p>Hosted free on GitHub Pages.</p>
+      <p>&copy; 2026 Berth. Private beta.</p>
+      <p>Pricing when you request access.</p>
     </div>
   </div>
 </footer>
