@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SQL, export, and restore. Berth docs</title>
+<meta name="description" content="Run parameterized SQL against your Berth app&#x27;s Postgres database, use read only mode for safety, join tables, and export or restore the whole app with pg_dump.">
+<link rel="canonical" href="https://atberth.com/docs/sql/">
+<meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Berth">
+<meta property="og:url" content="https://atberth.com/docs/sql/">
+<meta property="og:title" content="SQL, export, and restore. Berth docs">
+<meta property="og:description" content="Run parameterized SQL against your Berth app&#x27;s Postgres database, use read only mode for safety, join tables, and export or restore the whole app with pg_dump.">
+<meta property="og:image" content="https://atberth.com/assets/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+<script>
+(function(){var d=document.documentElement,t;try{t=localStorage.getItem("berth-theme")}catch(e){}if(t!=="light"&&t!=="dark")t=window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";d.setAttribute("data-theme",t);d.classList.add("js")})();
+</script>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/" aria-label="Berth home">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>Berth</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/#platform">Platform</a>
+      <a href="/docs/" aria-current="page">Docs</a>
+      <a href="/docs/cli/">CLI</a>
+      <a href="/docs/api/">API</a>
+      <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="theme" type="button" aria-label="Switch to light theme" data-theme-toggle>
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+      </button>
+      <a class="btn btn-sm btn-light" href="/docs/#quickstart">Quickstart</a>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="doc-main">
+  <div class="wrap doc-layout">
+    <nav class="doc-side" aria-label="Docs">
+      <p class="group">Get started</p>
+      <a href="/docs/">Overview and quickstart</a>
+      <a href="/docs/keys/">Keys and security</a>
+      <p class="group">Build</p>
+      <a href="/docs/auth/">End-user auth</a>
+      <a href="/docs/policies/">Row policies</a>
+      <a href="/docs/queries/">Queries</a>
+      <a href="/docs/realtime/">Realtime</a>
+      <a href="/docs/storage/">Storage</a>
+      <a href="/docs/functions/">Functions</a>
+      <a href="/docs/webhooks/">Webhooks</a>
+      <a href="/docs/sql/" aria-current="page">SQL, export, restore</a>
+      <p class="group">Reference</p>
+      <a href="/docs/cli/">CLI reference</a>
+      <a href="/docs/api/">HTTP API reference</a>
+      <a href="/docs/limits/">Limits and errors</a>
+      <p class="group">Guides</p>
+      <a href="/docs/supabase/">Migrating from Supabase</a>
+    </nav>
+
+    <article class="doc">
+      <p class="crumb">Build</p>
+      <h1>SQL, export, and restore</h1>
+      <p class="lede">Your app is a real Postgres database. When the rows API is not enough, send SQL. When you want your data out, export a standard <code>pg_dump</code> file.</p>
+
+      <h2 id="setup">Example data</h2>
+      <pre class="code" data-lang="bash" data-check><code>berth tables create --app "$APP" profiles display_name:text:notnull
+PROFILE_ID=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/tables/profiles/rows \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"display_name":"Ada"}' | jq -er .row.id)
+berth tables create --app "$APP" notes title:text:notnull
+berth columns add --app "$APP" notes profile_id:uuid --references profiles --on-delete cascade
+berth rows add --app "$APP" notes title="Buy milk" profile_id="$PROFILE_ID"
+berth rows add --app "$APP" notes title="Buy more milk" profile_id="$PROFILE_ID"</code></pre>
+
+      <h2 id="run">Run SQL</h2>
+      <p>SQL needs the secret key. Use <code>$1</code>, <code>$2</code> placeholders and pass values separately, never by pasting them into the query string.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth sql --app "$APP" 'select count(*) from notes'
+berth sql --app "$APP" 'select title from notes where title ilike $1 order by title' --param '%more%'</code></pre>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/sql \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"select title, created_at from notes where title ilike $1","params":["%milk%"],"timeout_ms":5000}'</code></pre>
+      <p>The result is <code>{"command", "columns", "rows", "row_count", "truncated"}</code>. At most 1,000 rows come back; <code>truncated</code> tells you when there were more. Queries stop after 10 seconds by default, 30 at most.</p>
+
+      <h2 id="joins">Joins and views</h2>
+      <p>The rows API reads one table at a time and has no embedded joins. Join in SQL:</p>
+      <pre class="code" data-lang="bash" data-check><code>berth sql --app "$APP" 'select n.title, p.display_name from notes n join profiles p on p.id = n.profile_id order by n.title'</code></pre>
+      <p>Keep longer statements in a file:</p>
+      <pre class="code" data-lang="bash" data-check><code>cat &gt; notes_per_profile.sql &lt;&lt;'EOF'
+create view notes_per_profile as
+select p.id, p.display_name, count(n.id) as notes
+from profiles p left join notes n on n.profile_id = p.id
+group by p.id, p.display_name
+EOF
+berth sql --app "$APP" -f notes_per_profile.sql
+berth sql --app "$APP" 'select * from notes_per_profile'</code></pre>
+
+      <h2 id="read-only">Read only mode</h2>
+      <p><code>read_only</code> runs the statement in a read only transaction, so a reporting query cannot change data by mistake. A write answers 403 <code>read_only</code>:</p>
+      <pre class="code" data-lang="bash" data-check="raw"><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/sql \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"delete from notes","read_only":true}'</code></pre>
+      <pre class="code" data-lang="bash" data-check><code>berth sql --app "$APP" --read-only --timeout-ms 2000 'select count(*) from profiles'</code></pre>
+
+      <h2 id="rpc">Call a Postgres function</h2>
+      <p>Create a function with SQL, then call it by name with named JSON arguments. This is the same idea as <code>supabase.rpc()</code>. It needs the secret key. The response is the function's result as JSON: a value for a scalar function, an array of objects for a function that returns a table.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth sql --app "$APP" 'create function notes_by_profile_count(pid uuid) returns bigint language sql as $$ select count(*) from notes where profile_id = pid $$'
+berth rpc --app "$APP" notes_by_profile_count pid="$PROFILE_ID"</code></pre>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/rpc/notes_by_profile_count \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"pid\":\"$PROFILE_ID\"}"</code></pre>
+      <p>A missing function is 404 <code>not_found</code>. A publishable key or user token gets 403 <code>forbidden</code>, so call it from your server or from a <a href="/docs/functions/">function</a>.</p>
+
+      <h2 id="schema">Schema from the API</h2>
+      <p>SQL can do anything the app's role can. For everyday changes the schema routes are safer, because they keep policies and owner columns in step:</p>
+      <pre class="code" data-lang="bash" data-check><code>berth columns add --app "$APP" notes pinned:boolean --default false --not-null
+berth columns rename --app "$APP" notes pinned starred
+berth columns alter --app "$APP" notes starred --drop-default --nullable
+berth indexes create --app "$APP" notes profile_id created_at --name notes_by_profile
+berth indexes list --app "$APP" notes</code></pre>
+
+      <h2 id="export">Export</h2>
+      <p>An export is a <code>pg_dump</code> custom format file of the app's database: schema, rows, and policies. It opens with the standard Postgres tools too (<code>pg_restore --list backup.dump</code>).</p>
+      <pre class="code" data-lang="bash" data-check><code>berth apps export "$APP" -o backup.dump
+curl -sS -o backup-curl.dump https://api.atberth.com/v1/apps/$APP/export \
+  -H "Authorization: Bearer $SECRET_KEY"
+ls -l backup.dump backup-curl.dump</code></pre>
+
+      <h2 id="restore">Restore</h2>
+      <p>Restore always creates a new app from a dump, so it can never overwrite a live one. It needs the account key and answers like app creation, with fresh keys. Up to 200 MB.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth apps restore "${APP}_copy" backup.dump
+berth sql --app "${APP}_copy" 'select count(*) from notes'</code></pre>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/${APP}_curl/restore \
+  -H "Authorization: Bearer $BERTH_ACCOUNT_KEY" \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary @backup-curl.dump | jq '.app.name'</code></pre>
+      <p>Clean up the copies:</p>
+      <pre class="code" data-lang="bash" data-check><code>berth apps delete "${APP}_copy" --yes
+berth apps delete "${APP}_curl" --yes</code></pre>
+      <nav class="pager" aria-label="Pages">
+        <a href="/docs/webhooks/"><span>Previous</span>Webhooks</a>
+        <a class="nx" href="/docs/cli/"><span>Next</span>CLI reference</a>
+      </nav>
+    </article>
+
+    <aside class="doc-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#setup">Example data</a></li>
+        <li><a href="#run">Run SQL</a></li>
+        <li><a href="#joins">Joins and views</a></li>
+        <li><a href="#read-only">Read only mode</a></li>
+        <li><a href="#rpc">Call a Postgres function</a></li>
+        <li><a href="#schema">Schema from the API</a></li>
+        <li><a href="#export">Export</a></li>
+        <li><a href="#restore">Restore</a></li>
+      </ul>
+    </aside>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="/" aria-label="Berth home">
+          <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Berth</span>
+        </a>
+      </div>
+      <div>
+        <p class="foot-h">Start</p>
+        <ul>
+          <li><a href="/docs/">Quickstart</a></li>
+          <li><a href="/docs/keys/">Keys and security</a></li>
+          <li><a href="/docs/supabase/">From Supabase</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Build</p>
+        <ul>
+          <li><a href="/docs/auth/">End-user auth</a></li>
+          <li><a href="/docs/queries/">Queries</a></li>
+          <li><a href="/docs/storage/">Storage</a></li>
+          <li><a href="/docs/functions/">Functions</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Reference</p>
+        <ul>
+          <li><a href="/docs/cli/">CLI</a></li>
+          <li><a href="/docs/api/">HTTP API</a></li>
+          <li><a href="/docs/limits/">Limits and errors</a></li>
+          <li><a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Connect</p>
+        <ul>
+          <li><a href="mailto:hello@atberth.com?subject=Berth">Email</a></li>
+          <li><a href="/privacy/">Privacy</a></li>
+          <li><a href="/terms/">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-base">
+      <p>&copy; 2026 Berth. Private beta.</p>
+      <p>API base: https://api.atberth.com/v1</p>
+    </div>
+  </div>
+</footer>
+<script src="/main.js" defer></script>
+</body>
+</html>

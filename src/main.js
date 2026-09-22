@@ -59,6 +59,53 @@
     }, 2500);
   }
 
+  document.querySelectorAll(".doc pre.code").forEach(function (pre) {
+    var box = document.createElement("div");
+    box.className = "cb";
+    var head = document.createElement("div");
+    head.className = "cb-head";
+    var label = document.createElement("span");
+    label.textContent = pre.getAttribute("data-lang") || "shell";
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "copy";
+    btn.textContent = "Copy";
+    btn.addEventListener("click", function () {
+      var text = pre.innerText.replace(/\n$/, "");
+      var done = function () {
+        btn.textContent = "Copied";
+        setTimeout(function () { btn.textContent = "Copy"; }, 1400);
+      };
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () {});
+    });
+    head.appendChild(label);
+    head.appendChild(btn);
+    pre.parentNode.insertBefore(box, pre);
+    box.appendChild(head);
+    box.appendChild(pre);
+  });
+
+  var current = document.querySelector('.doc-side a[aria-current="page"]');
+  if (current && window.matchMedia("(max-width: 900px)").matches) {
+    var side = current.parentNode;
+    side.scrollLeft = current.offsetLeft - 24;
+  }
+
+  var tocLinks = Array.prototype.slice.call(document.querySelectorAll(".doc-toc a"));
+  var heads = tocLinks.map(function (a) {
+    return { a: a, el: document.getElementById((a.getAttribute("href") || "").slice(1)) };
+  }).filter(function (h) { return h.el; });
+  if (heads.length) {
+    var mark = function () {
+      var y = window.scrollY + 120;
+      var on = heads[0];
+      heads.forEach(function (h) { if (h.el.offsetTop <= y) on = h; });
+      heads.forEach(function (h) { h.a.classList.toggle("active", h === on); });
+    };
+    mark();
+    window.addEventListener("scroll", mark, { passive: true });
+  }
+
   if (!reduce && window.matchMedia("(hover: hover)").matches) {
     document.querySelectorAll(".card").forEach(function (card) {
       card.addEventListener("pointermove", function (e) {

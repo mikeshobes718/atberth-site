@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Migrating from Supabase. Berth docs</title>
+<meta name="description" content="Map supabase-js calls to Berth: client setup, table queries and filters, auth, RLS, storage, functions, realtime, database webhooks, and dumps. Plus the features Berth does not have.">
+<link rel="canonical" href="https://atberth.com/docs/supabase/">
+<meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Berth">
+<meta property="og:url" content="https://atberth.com/docs/supabase/">
+<meta property="og:title" content="Migrating from Supabase. Berth docs">
+<meta property="og:description" content="Map supabase-js calls to Berth: client setup, table queries and filters, auth, RLS, storage, functions, realtime, database webhooks, and dumps. Plus the features Berth does not have.">
+<meta property="og:image" content="https://atberth.com/assets/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+<script>
+(function(){var d=document.documentElement,t;try{t=localStorage.getItem("berth-theme")}catch(e){}if(t!=="light"&&t!=="dark")t=window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";d.setAttribute("data-theme",t);d.classList.add("js")})();
+</script>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/" aria-label="Berth home">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>Berth</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/#platform">Platform</a>
+      <a href="/docs/" aria-current="page">Docs</a>
+      <a href="/docs/cli/">CLI</a>
+      <a href="/docs/api/">API</a>
+      <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="theme" type="button" aria-label="Switch to light theme" data-theme-toggle>
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+      </button>
+      <a class="btn btn-sm btn-light" href="/docs/#quickstart">Quickstart</a>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="doc-main">
+  <div class="wrap doc-layout">
+    <nav class="doc-side" aria-label="Docs">
+      <p class="group">Get started</p>
+      <a href="/docs/">Overview and quickstart</a>
+      <a href="/docs/keys/">Keys and security</a>
+      <p class="group">Build</p>
+      <a href="/docs/auth/">End-user auth</a>
+      <a href="/docs/policies/">Row policies</a>
+      <a href="/docs/queries/">Queries</a>
+      <a href="/docs/realtime/">Realtime</a>
+      <a href="/docs/storage/">Storage</a>
+      <a href="/docs/functions/">Functions</a>
+      <a href="/docs/webhooks/">Webhooks</a>
+      <a href="/docs/sql/">SQL, export, restore</a>
+      <p class="group">Reference</p>
+      <a href="/docs/cli/">CLI reference</a>
+      <a href="/docs/api/">HTTP API reference</a>
+      <a href="/docs/limits/">Limits and errors</a>
+      <p class="group">Guides</p>
+      <a href="/docs/supabase/" aria-current="page">Migrating from Supabase</a>
+    </nav>
+
+    <article class="doc">
+      <p class="crumb">Guides</p>
+      <h1>Migrating from Supabase</h1>
+      <p class="lede">Berth follows many of the same ideas as Supabase: Postgres per project, PostgREST style filters, a publishable key plus user JWT, row level security. There is no client SDK, so each supabase-js call becomes one <code>fetch</code>. This page maps them, and lists what Berth does not do.</p>
+
+      <h2 id="client">Client setup</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>Supabase</th><th>Berth</th></tr></thead>
+        <tbody>
+          <tr><td><code>createClient(url, anonKey)</code></td><td>base URL <code>https://api.atberth.com/v1/apps/{app}</code> plus the publishable key (<code>bpk_...</code>) in the <code>apikey</code> header</td></tr>
+          <tr><td>service role key</td><td>secret key (<code>bsk_...</code>), server only</td></tr>
+          <tr><td>user access token</td><td>user JWT in <code>Authorization: Bearer</code></td></tr>
+          <tr><td>project</td><td>app, one Postgres database and role each</td></tr>
+        </tbody>
+      </table></div>
+      <p>A ten line helper covers most of what the client did:</p>
+      <pre class="code" data-lang="js"><code>const BASE = "https://api.atberth.com/v1/apps/notes_app";
+const KEY = "bpk_...";
+let session = null; // { access_token, refresh_token, user }
+
+async function berth(path, { method = "GET", body, query } = {}) {
+  const url = new URL(BASE + path);
+  if (query) for (const [k, v] of Object.entries(query)) url.searchParams.append(k, v);
+  const headers = { apikey: KEY, "Content-Type": "application/json" };
+  if (session) headers.Authorization = `Bearer ${session.access_token}`;
+  const res = await fetch(url, { method, headers, body: body &amp;&amp; JSON.stringify(body) });
+  const data = res.status === 204 ? null : await res.json();
+  if (!res.ok) throw Object.assign(new Error(data.message), { code: data.error });
+  return data;
+}</code></pre>
+
+      <h2 id="queries">Table queries</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>supabase-js</th><th>Berth</th></tr></thead>
+        <tbody>
+          <tr><td><code>from("notes").select("id,title")</code></td><td><code>GET /tables/notes/rows?select=id,title</code></td></tr>
+          <tr><td><code>.eq("done", false)</code></td><td><code>done=eq.false</code></td></tr>
+          <tr><td><code>.neq</code>, <code>.gt</code>, <code>.gte</code>, <code>.lt</code>, <code>.lte</code></td><td><code>neq.</code>, <code>gt.</code>, <code>gte.</code>, <code>lt.</code>, <code>lte.</code></td></tr>
+          <tr><td><code>.like</code>, <code>.ilike("title", "%milk%")</code></td><td><code>title=ilike.*milk*</code></td></tr>
+          <tr><td><code>.in("slug", ["a","b"])</code></td><td><code>slug=in.(a,b)</code></td></tr>
+          <tr><td><code>.is("x", null)</code></td><td><code>x=is.null</code></td></tr>
+          <tr><td><code>.contains("tags", ["home"])</code></td><td><code>tags=cs.["home"]</code></td></tr>
+          <tr><td><code>.not("done", "eq", true)</code></td><td><code>done=not.eq.true</code></td></tr>
+          <tr><td><code>.order("created_at", { ascending: false })</code></td><td><code>order=created_at.desc</code></td></tr>
+          <tr><td><code>.range(20, 29)</code></td><td><code>offset=20&amp;limit=10</code>, or better, <code>cursor</code></td></tr>
+          <tr><td><code>.select("*", { count: "exact" })</code></td><td><code>count=exact</code></td></tr>
+          <tr><td><code>.single()</code> by id</td><td><code>GET /tables/notes/rows/{id}</code></td></tr>
+          <tr><td><code>.insert(obj or array)</code></td><td><code>POST /tables/notes/rows</code></td></tr>
+          <tr><td><code>.upsert(obj, { onConflict: "slug" })</code></td><td><code>POST /rows?upsert=true&amp;on_conflict=slug</code></td></tr>
+          <tr><td><code>.update(obj).eq("id", id)</code></td><td><code>PATCH /rows/{id}</code>, or <code>PATCH /rows?filters</code></td></tr>
+          <tr><td><code>.delete().eq("done", true)</code></td><td><code>DELETE /rows?done=eq.true</code></td></tr>
+          <tr><td><code>.rpc("fn", args)</code></td><td><code>POST /rpc/fn</code> or <code>berth rpc</code>, with the secret key (see <a href="/docs/sql/#rpc">SQL</a>). From a phone, wrap it in a <a href="/docs/functions/">function</a></td></tr>
+        </tbody>
+      </table></div>
+      <p>Side by side:</p>
+      <pre class="code" data-lang="js"><code>// Supabase
+const { data } = await supabase.from("notes")
+  .select("id,title").eq("done", false).order("created_at", { ascending: false }).range(0, 9);
+
+// Berth
+const { rows } = await berth("/tables/notes/rows", {
+  query: { select: "id,title", done: "eq.false", order: "created_at.desc", limit: 10 },
+});</code></pre>
+      <p>The same query from a shell:</p>
+      <pre class="code" data-lang="bash" data-check><code>berth tables create --app "$APP" notes title:text:notnull done:boolean
+curl -sS -X POST https://api.atberth.com/v1/apps/$APP/tables/notes/rows \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '[{"title":"Buy milk","done":false},{"title":"Call the bank","done":true}]' &gt; /dev/null
+curl -sS -G https://api.atberth.com/v1/apps/$APP/tables/notes/rows \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  --data-urlencode "select=id,title" \
+  --data-urlencode "done=eq.false" \
+  --data-urlencode "order=created_at.desc" \
+  --data-urlencode "limit=10"</code></pre>
+
+      <h2 id="auth">Auth</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>supabase-js</th><th>Berth</th></tr></thead>
+        <tbody>
+          <tr><td><code>auth.signUp({ email, password })</code></td><td><code>POST /auth/signup</code></td></tr>
+          <tr><td><code>auth.signInWithPassword</code></td><td><code>POST /auth/login</code></td></tr>
+          <tr><td><code>auth.signInWithOtp({ email })</code></td><td><code>POST /auth/code</code>, then <code>POST /auth/verify</code> with the 6 digit code</td></tr>
+          <tr><td><code>auth.getUser()</code></td><td><code>GET /auth/me</code></td></tr>
+          <tr><td><code>auth.updateUser</code></td><td><code>PATCH /auth/me</code></td></tr>
+          <tr><td><code>auth.refreshSession()</code></td><td><code>POST /auth/refresh</code> (rotating, store the new token)</td></tr>
+          <tr><td><code>auth.signOut()</code></td><td><code>POST /auth/logout</code></td></tr>
+          <tr><td><code>auth.admin.*</code></td><td><code>/auth/users</code> with the secret key</td></tr>
+        </tbody>
+      </table></div>
+      <pre class="code" data-lang="js"><code>// Supabase
+await supabase.auth.signInWithPassword({ email, password });
+
+// Berth
+session = await berth("/auth/login", { method: "POST", body: { email, password } });</code></pre>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/signup \
+  -H "apikey: $PUBLISHABLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ada@example.com","password":"correct horse battery"}' | jq .user.email</code></pre>
+      <p>Users do not move over with their Supabase passwords. Create them with <code>POST /auth/users</code> and let them sign in with an email code, then set a password.</p>
+
+      <h2 id="rls">Row level security</h2>
+      <p>The usual Supabase policy <code>using (auth.uid() = user_id)</code> is the Berth <code>owner</code> policy. Berth adds <code>owner_id</code> for you and turns on RLS. Rename your <code>user_id</code> column to <code>owner_id</code>, or copy it across, when you move data.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth tables policy --app "$APP" notes --read owner --write owner</code></pre>
+      <p>The API manages four policy levels. For rules beyond them (roles, team membership), put the logic in a <a href="/docs/functions/">function</a> that uses the secret key.</p>
+
+      <h2 id="storage">Storage</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>supabase-js</th><th>Berth</th></tr></thead>
+        <tbody>
+          <tr><td><code>storage.from("avatars").upload(path, file)</code></td><td><code>PUT /storage/objects/avatars/{path}</code> with the raw body</td></tr>
+          <tr><td><code>.download(path)</code></td><td><code>GET /storage/objects/avatars/{path}</code></td></tr>
+          <tr><td><code>.getPublicUrl(path)</code></td><td>the same GET URL on a <code>public</code> bucket</td></tr>
+          <tr><td><code>.createSignedUrl(path, 3600)</code></td><td><code>POST /storage/sign/avatars/{path}</code> with <code>{"expires_in": 3600}</code></td></tr>
+          <tr><td><code>.list(prefix)</code></td><td><code>GET /storage/objects/avatars?prefix=</code></td></tr>
+          <tr><td><code>.remove([path])</code></td><td><code>DELETE /storage/objects/avatars/{path}</code>, one per call</td></tr>
+        </tbody>
+      </table></div>
+      <p>Supabase storage policies on <code>(storage.foldername(name))[1] = auth.uid()</code> map to an <code>owner</code> bucket, which requires keys to start with the user id.</p>
+
+      <h2 id="functions">Edge functions</h2>
+      <p><code>supabase.functions.invoke("hello", { body })</code> becomes <code>POST /functions/hello</code>. Both run Deno, and <code>Deno.serve</code> code carries over. Set secrets with <code>berth env set</code> instead of <code>supabase secrets set</code>, and read the injected <code>BERTH_SECRET_KEY</code> instead of <code>SUPABASE_SERVICE_ROLE_KEY</code>. A function is one file, so there is no shared <code>_shared</code> folder.</p>
+
+      <h2 id="realtime">Realtime</h2>
+      <p>A <code>channel().on("postgres_changes", { event: "*", table: "notes" })</code> subscription becomes an <code>EventSource</code> on <code>/tables/notes/stream</code>, with <code>insert</code>, <code>update</code>, and <code>delete</code> events. See <a href="/docs/realtime/">Realtime</a>.</p>
+
+      <h2 id="webhooks">Database webhooks</h2>
+      <p>Supabase database webhooks map to Berth <a href="/docs/webhooks/">webhooks</a>: pick a table and events, and Berth POSTs signed JSON with <code>record</code> and <code>old_record</code>, with retries.</p>
+
+      <h2 id="data">Moving the data</h2>
+      <p><code>supabase db dump</code> has a Berth counterpart in <code>berth apps export</code>, which writes a <code>pg_dump</code> file. To bring data in from Supabase, export each table as CSV and load it with <code>berth import</code>, or insert in batches of 1,000 rows. Create the tables with <code>berth tables create</code> first so they get Berth's ids, timestamps, and policies.</p>
+      <pre class="code" data-lang="bash" data-check><code>printf 'title,done\nImported from Supabase,false\n' &gt; notes.csv
+berth import --app "$APP" notes notes.csv
+berth apps export "$APP" -o notes_app.dump</code></pre>
+
+      <h2 id="gaps">What Berth does not have</h2>
+      <ul>
+        <li><strong>No embedded joins.</strong> <code>select("*, profiles(*)")</code> has no equivalent. Make two requests, or join in <a href="/docs/sql/">SQL</a> or a view from your server.</li>
+        <li><strong>No OAuth or social login.</strong> Email and password, and email codes, only.</li>
+        <li><strong>No <code>or=</code> filters.</strong> Filters are ANDed. Use <code>in.(...)</code> or SQL.</li>
+        <li><strong>No phone or SMS auth.</strong></li>
+        <li><strong>No presence or broadcast channels.</strong> Realtime is row changes only.</li>
+        <li><strong>No client SDK.</strong> Plain HTTPS and the CLI.</li>
+        <li><strong>No custom policy expressions in the API.</strong> The four policy levels, plus functions for anything else.</li>
+      </ul>
+      <nav class="pager" aria-label="Pages">
+        <a href="/docs/limits/"><span>Previous</span>Limits and errors</a>
+      </nav>
+    </article>
+
+    <aside class="doc-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#client">Client setup</a></li>
+        <li><a href="#queries">Table queries</a></li>
+        <li><a href="#auth">Auth</a></li>
+        <li><a href="#rls">Row level security</a></li>
+        <li><a href="#storage">Storage</a></li>
+        <li><a href="#functions">Edge functions</a></li>
+        <li><a href="#realtime">Realtime</a></li>
+        <li><a href="#webhooks">Database webhooks</a></li>
+        <li><a href="#data">Moving the data</a></li>
+        <li><a href="#gaps">What Berth does not have</a></li>
+      </ul>
+    </aside>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="/" aria-label="Berth home">
+          <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Berth</span>
+        </a>
+      </div>
+      <div>
+        <p class="foot-h">Start</p>
+        <ul>
+          <li><a href="/docs/">Quickstart</a></li>
+          <li><a href="/docs/keys/">Keys and security</a></li>
+          <li><a href="/docs/supabase/">From Supabase</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Build</p>
+        <ul>
+          <li><a href="/docs/auth/">End-user auth</a></li>
+          <li><a href="/docs/queries/">Queries</a></li>
+          <li><a href="/docs/storage/">Storage</a></li>
+          <li><a href="/docs/functions/">Functions</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Reference</p>
+        <ul>
+          <li><a href="/docs/cli/">CLI</a></li>
+          <li><a href="/docs/api/">HTTP API</a></li>
+          <li><a href="/docs/limits/">Limits and errors</a></li>
+          <li><a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Connect</p>
+        <ul>
+          <li><a href="mailto:hello@atberth.com?subject=Berth">Email</a></li>
+          <li><a href="/privacy/">Privacy</a></li>
+          <li><a href="/terms/">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-base">
+      <p>&copy; 2026 Berth. Private beta.</p>
+      <p>API base: https://api.atberth.com/v1</p>
+    </div>
+  </div>
+</footer>
+<script src="/main.js" defer></script>
+</body>
+</html>

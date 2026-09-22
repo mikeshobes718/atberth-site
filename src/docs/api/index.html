@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HTTP API reference. Berth docs</title>
+<meta name="description" content="Every Berth HTTP endpoint with a curl example: platform and accounts, apps and keys, schema, rows, end-user auth, storage, functions, env vars, and webhooks.">
+<link rel="canonical" href="https://atberth.com/docs/api/">
+<meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Berth">
+<meta property="og:url" content="https://atberth.com/docs/api/">
+<meta property="og:title" content="HTTP API reference. Berth docs">
+<meta property="og:description" content="Every Berth HTTP endpoint with a curl example: platform and accounts, apps and keys, schema, rows, end-user auth, storage, functions, env vars, and webhooks.">
+<meta property="og:image" content="https://atberth.com/assets/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+<script>
+(function(){var d=document.documentElement,t;try{t=localStorage.getItem("berth-theme")}catch(e){}if(t!=="light"&&t!=="dark")t=window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";d.setAttribute("data-theme",t);d.classList.add("js")})();
+</script>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/" aria-label="Berth home">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>Berth</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/#platform">Platform</a>
+      <a href="/docs/" aria-current="page">Docs</a>
+      <a href="/docs/cli/">CLI</a>
+      <a href="/docs/api/">API</a>
+      <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="theme" type="button" aria-label="Switch to light theme" data-theme-toggle>
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+      </button>
+      <a class="btn btn-sm btn-light" href="/docs/#quickstart">Quickstart</a>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="doc-main">
+  <div class="wrap doc-layout">
+    <nav class="doc-side" aria-label="Docs">
+      <p class="group">Get started</p>
+      <a href="/docs/">Overview and quickstart</a>
+      <a href="/docs/keys/">Keys and security</a>
+      <p class="group">Build</p>
+      <a href="/docs/auth/">End-user auth</a>
+      <a href="/docs/policies/">Row policies</a>
+      <a href="/docs/queries/">Queries</a>
+      <a href="/docs/realtime/">Realtime</a>
+      <a href="/docs/storage/">Storage</a>
+      <a href="/docs/functions/">Functions</a>
+      <a href="/docs/webhooks/">Webhooks</a>
+      <a href="/docs/sql/">SQL, export, restore</a>
+      <p class="group">Reference</p>
+      <a href="/docs/cli/">CLI reference</a>
+      <a href="/docs/api/" aria-current="page">HTTP API reference</a>
+      <a href="/docs/limits/">Limits and errors</a>
+      <p class="group">Guides</p>
+      <a href="/docs/supabase/">Migrating from Supabase</a>
+    </nav>
+
+    <article class="doc" data-app="self">
+      <p class="crumb">Reference</p>
+      <h1>HTTP API reference</h1>
+      <p class="lede">Base URL <code>https://api.atberth.com/v1</code>. JSON in and out, except where a route says otherwise. The machine readable version is <a href="https://api.atberth.com/v1/openapi.json">/v1/openapi.json</a> (OpenAPI 3.1), generated from the same route table the server dispatches with.</p>
+      <p>Send credentials as <code>Authorization: Bearer &lt;key or token&gt;</code>. A publishable key may go in <code>apikey</code> instead. Every response has <code>X-Request-Id</code>; errors look like <code>{"error", "message", "request_id"}</code> and are listed in <a href="/docs/limits/#codes">Limits and errors</a>. The examples run in order and create the app they use.</p>
+
+      <h2 id="platform">Platform and accounts</h2>
+      <p class="ep"><span class="m">GET</span>/v1/health</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/health</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/status</p>
+      <p>Returns <code>ok</code>, <code>version</code>, <code>database</code>, <code>functions_runtime</code>, and <code>uptime_seconds</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/status</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/openapi.json</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/openapi.json | jq -r '.paths | keys[]'</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/signup</p>
+      <p>Body <code>{"email"}</code>. Answers 202 <code>{"sent": true, "email"}</code> and emails a 6 digit code.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X POST https://api.atberth.com/v1/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com"}'</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/login</p>
+      <p>With <code>{"email"}</code> it emails a code (202). With <code>{"email", "code", "key_name"?}</code> it returns <code>{"key": "bak_...", "account"}</code>. The key is shown once.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X POST https://api.atberth.com/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com"}'
+curl -sS -X POST https://api.atberth.com/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","code":"123456","key_name":"laptop"}'</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/me</p>
+      <p>Any credential. <code>role</code> is <code>account</code>, <code>secret</code>, <code>publishable</code>, or <code>user</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/me \
+  -H "Authorization: Bearer $BERTH_ACCOUNT_KEY"</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/account</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/account \
+  -H "Authorization: Bearer $BERTH_ACCOUNT_KEY"</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/account/keys</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/account/keys \
+  -H "Authorization: Bearer $BERTH_ACCOUNT_KEY"</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/account/keys</p>
+      <p>Body <code>{"name"}</code>. 201 <code>{"key", "secret": "bak_..."}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>KEY_ID=$(curl -sS -X POST https://api.atberth.com/v1/account/keys \
+  -H "Authorization: Bearer $BERTH_ACCOUNT_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"ci"}' | jq -er .key.id)</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/account/keys/{key_id}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE https://api.atberth.com/v1/account/keys/$KEY_ID \
+  -H "Authorization: Bearer $BERTH_ACCOUNT_KEY"</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/account?confirm=&lt;email&gt;</p>
+      <p>Deletes the account and all its apps. <code>confirm</code> must be the account email.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X DELETE "https://api.atberth.com/v1/account?confirm=you@example.com" \
+  -H "Authorization: Bearer $BERTH_ACCOUNT_KEY"</code></pre>
+      <p>Operator routes (<code>/v1/admin/accounts</code>, <code>/v1/admin/accounts/{account_id}</code>, <code>/v1/admin/codes</code>) need the platform admin token and are not available to accounts.</p>
+
+      <h2 id="apps">Apps and keys</h2>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps</p>
+      <p>Account key. Body <code>{"name"}</code>. 201 <code>{"app", "keys": {"secret", "publishable"}}</code>. Both keys are shown only here.</p>
+      <pre class="code" data-lang="bash" data-check><code>CREATED=$(curl -sS -X POST https://api.atberth.com/v1/apps \
+  -H "Authorization: Bearer $BERTH_ACCOUNT_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"$APP\"}")
+SECRET_KEY=$(echo "$CREATED" | jq -er .keys.secret)
+PUBLISHABLE_KEY=$(echo "$CREATED" | jq -er .keys.publishable)
+echo "$CREATED" | jq .app</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps \
+  -H "Authorization: Bearer $BERTH_ACCOUNT_KEY"</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}</p>
+      <p>Returns <code>id</code>, <code>name</code>, <code>slug</code>, <code>created_at</code>, <code>cors_origins</code>, <code>api_url</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-patch">PATCH</span>/v1/apps/{app}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"cors_origins":["*"]}'</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/keys</p>
+      <p>Lists <code>id</code>, <code>name</code>, <code>type</code>, <code>prefix</code>, <code>created_at</code>, <code>last_used_at</code>, <code>revoked_at</code>. Never the key itself.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/keys \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/keys</p>
+      <p>Body <code>{"name", "type": "secret" or "publishable"}</code>. 201 <code>{"key", "secret"}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>KEY_ID=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/keys \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"android build","type":"publishable"}' | jq -er .key.id)</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/keys/{key_id}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE https://api.atberth.com/v1/apps/$APP/keys/$KEY_ID \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/usage</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/usage \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/logs?limit=&amp;status=</p>
+      <p>Recent requests: <code>created_at</code>, <code>method</code>, <code>path</code>, <code>status</code>, <code>duration_ms</code>, <code>key_type</code>, <code>request_id</code>. Kept 7 days.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS "https://api.atberth.com/v1/apps/$APP/logs?limit=5" \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/sql</p>
+      <p>Body <code>{"query", "params"?, "read_only"?, "timeout_ms"?}</code>. Returns <code>{"command", "columns", "rows", "row_count", "truncated"}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/sql \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"select $1::int + 1 as answer","params":[41],"read_only":true}'</code></pre>
+
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/rpc/{function}</p>
+      <p>Secret key. Calls a Postgres function in the app's <code>public</code> schema with a JSON object of named arguments. Returns the result as JSON: a value, or an array of objects for a function that returns a table.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/sql \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"create function add_nums(a integer, b integer) returns integer language sql as $$ select a + b $$"}'
+curl -sS -X POST https://api.atberth.com/v1/apps/$APP/rpc/add_nums \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"a":2,"b":3}'</code></pre>
+
+      <h2 id="schema">Schema</h2>
+      <p>Column types: <code>text</code>, <code>integer</code>, <code>bigint</code>, <code>numeric</code>, <code>double</code>, <code>boolean</code>, <code>date</code>, <code>timestamptz</code>, <code>uuid</code>, <code>jsonb</code>, <code>text[]</code>, <code>integer[]</code>. A column is <code>{"name", "type", "default"?, "not_null"?, "unique"?, "references"?: {"table", "column"?, "on_delete"?}}</code>. <code>default</code> is a JSON literal or one of <code>"now()"</code>, <code>"gen_random_uuid()"</code>, <code>"current_date"</code>, <code>"auth.uid()"</code>.</p>
+      <p>Every table gets <code>id uuid</code> primary key and <code>created_at</code>. <code>"timestamps": false</code> skips <code>created_at</code>; <code>"updated_at": true</code> adds an auto touched <code>updated_at</code>. Policy is <code>{"read", "write"}</code>, default secret and secret; see <a href="/docs/policies/">Row policies</a>.</p>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/tables</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/tables \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"profiles","columns":[{"name":"display_name","type":"text","not_null":true}],"policy":{"read":"public","write":"owner"}}'
+curl -sS -X POST https://api.atberth.com/v1/apps/$APP/tables \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "notes",
+    "columns": [
+      {"name": "title", "type": "text", "not_null": true},
+      {"name": "slug", "type": "text", "unique": true},
+      {"name": "done", "type": "boolean", "default": false},
+      {"name": "tags", "type": "text[]"},
+      {"name": "profile_id", "type": "uuid", "references": {"table": "profiles", "on_delete": "set null"}}
+    ],
+    "updated_at": true
+  }'</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/tables</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/tables \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/tables/{table}</p>
+      <p>Returns <code>name</code>, <code>columns</code>, <code>primary_key</code>, <code>indexes</code>, <code>foreign_keys</code>, <code>policy</code>, <code>row_estimate</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/tables/notes \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-patch">PATCH</span>/v1/apps/{app}/tables/{table}</p>
+      <p>Body <code>{"name"?, "policy"?}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/tables \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"drafts","columns":[{"name":"body","type":"text"}]}' &gt; /dev/null
+curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP/tables/drafts \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"archive","policy":{"read":"authenticated","write":"secret"}}'</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/tables/{table}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE https://api.atberth.com/v1/apps/$APP/tables/archive \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/tables/{table}/columns</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/tables/notes/columns \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"priority","type":"integer","default":0,"not_null":true}'</code></pre>
+      <p class="ep"><span class="m m-patch">PATCH</span>/v1/apps/{app}/tables/{table}/columns/{column}</p>
+      <p>Body <code>{"name"?, "type"?, "default"?, "drop_default"?, "not_null"?}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP/tables/notes/columns/priority \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"rank","type":"bigint","drop_default":true,"not_null":false}'</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/tables/{table}/columns/{column}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE https://api.atberth.com/v1/apps/$APP/tables/notes/columns/rank \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/tables/{table}/indexes</p>
+      <p>Body <code>{"columns", "unique"?, "name"?}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/tables/notes/indexes \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"columns":["done","created_at"],"name":"notes_done_created"}'</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/tables/{table}/indexes</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/tables/notes/indexes \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/tables/{table}/indexes/{index}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE https://api.atberth.com/v1/apps/$APP/tables/notes/indexes/notes_done_created \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+
+      <h2 id="rows">Rows</h2>
+      <p>Auth is the table policy (secret key, publishable key, or user token). Query parameters for GET, PATCH, and DELETE on <code>/rows</code>: filters <code>column=op.value</code> (<code>eq</code>, <code>neq</code>, <code>gt</code>, <code>gte</code>, <code>lt</code>, <code>lte</code>, <code>like</code>, <code>ilike</code>, <code>in.(a,b)</code>, <code>is.null</code>, <code>is.true</code>, <code>is.false</code>, <code>cs</code>, and <code>not.</code> before any), <code>select</code>, <code>order</code>, <code>limit</code> (1 to 1000, default 100), <code>offset</code>, <code>cursor</code>, <code>count=exact</code>. Details in <a href="/docs/queries/">Queries</a>.</p>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/tables/{table}/rows</p>
+      <p>An object or an array of up to 1,000. 201 <code>{"rows"}</code>, plus <code>"row"</code> for a single object.</p>
+      <pre class="code" data-lang="bash" data-check><code>ROW_ID=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/tables/notes/rows \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Buy milk","slug":"milk","tags":["home"]}' | jq -er .row.id)
+curl -sS -X POST https://api.atberth.com/v1/apps/$APP/tables/notes/rows \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: bulk-$APP-1" \
+  -d '[{"title":"Fix the sink","slug":"sink"},{"title":"Call the bank","slug":"bank","done":true}]'</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/tables/{table}/rows?upsert=true&amp;on_conflict=col</p>
+      <p>Insert or update by a unique column. 200 <code>{"rows"}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST "https://api.atberth.com/v1/apps/$APP/tables/notes/rows?upsert=true&amp;on_conflict=slug" \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"slug":"milk","title":"Buy oat milk"}'</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/tables/{table}/rows</p>
+      <p><code>{"rows", "next_cursor", "count"?}</code>. <code>Berth-Next-Cursor</code> and <code>X-Total-Count</code> headers mirror the body.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -G https://api.atberth.com/v1/apps/$APP/tables/notes/rows \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  --data-urlencode "done=eq.false" \
+  --data-urlencode "select=id,title" \
+  --data-urlencode "order=created_at.desc" \
+  --data-urlencode "limit=10" \
+  --data-urlencode "count=exact"</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/tables/{table}/rows/{id}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/tables/notes/rows/$ROW_ID \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-patch">PATCH</span>/v1/apps/{app}/tables/{table}/rows/{id}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP/tables/notes/rows/$ROW_ID \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"done":true}'</code></pre>
+      <p class="ep"><span class="m m-patch">PATCH</span>/v1/apps/{app}/tables/{table}/rows?filters</p>
+      <p>At least one filter is required. Returns <code>{"rows"}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X PATCH "https://api.atberth.com/v1/apps/$APP/tables/notes/rows?slug=eq.sink" \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"done":true}'</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/tables/{table}/rows/{id}</p>
+      <p>Returns <code>{"deleted": true, "id"}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE https://api.atberth.com/v1/apps/$APP/tables/notes/rows/$ROW_ID \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/tables/{table}/rows?filters</p>
+      <p>At least one filter is required. Returns <code>{"deleted": n}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE "https://api.atberth.com/v1/apps/$APP/tables/notes/rows?done=eq.true" \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/tables/{table}/import</p>
+      <p>Secret key. <code>text/csv</code> with a header row, or <code>application/x-ndjson</code>. Max 20 MB, all or nothing. Returns <code>{"inserted": n}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>printf 'title,slug\nPlan trip,trip\nPay rent,rent\n' | \
+  curl -sS -X POST https://api.atberth.com/v1/apps/$APP/tables/notes/import \
+    -H "Authorization: Bearer $SECRET_KEY" \
+    -H "Content-Type: text/csv" \
+    --data-binary @-</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/tables/{table}/stream</p>
+      <p><code>text/event-stream</code> with <code>insert</code>, <code>update</code>, and <code>delete</code> events whose data is <code>{"id", "type", "table", "record", "old_record", "at"}</code>. Supports <code>Last-Event-ID</code>, <code>?events=</code>, and <code>?apikey=</code> / <code>?access_token=</code> for browsers. Heartbeat every 15 s. See <a href="/docs/realtime/">Realtime</a>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sN --max-time 3 "https://api.atberth.com/v1/apps/$APP/tables/notes/stream?events=insert,update" \
+  -H "Authorization: Bearer $SECRET_KEY" || [ $? -eq 28 ]</code></pre>
+
+      <h2 id="auth">End-user auth</h2>
+      <p>Under <code>/v1/apps/{app}/auth</code>. Needs the app's publishable or secret key, or a user token for <code>me</code> and <code>logout</code>. A session is <code>{"user", "access_token", "token_type": "bearer", "expires_in": 3600, "refresh_token"}</code>. See <a href="/docs/auth/">End-user auth</a>.</p>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/auth/signup</p>
+      <p>Body <code>{"email", "password", "data"?}</code>. 201 session.</p>
+      <pre class="code" data-lang="bash" data-check><code>SESSION=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/signup \
+  -H "apikey: $PUBLISHABLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ada@example.com","password":"correct horse battery","data":{"name":"Ada"}}')
+ACCESS_TOKEN=$(echo "$SESSION" | jq -er .access_token)
+REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/auth/login</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/login \
+  -H "apikey: $PUBLISHABLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ada@example.com","password":"correct horse battery"}' | jq .user</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/auth/code</p>
+      <p>Body <code>{"email"}</code>. 202, emails a 6 digit code and creates the user if new.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/code \
+  -H "apikey: $PUBLISHABLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ada@example.com"}'</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/auth/verify</p>
+      <p>Body <code>{"email", "code"}</code>. Returns a session.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/verify \
+  -H "apikey: $PUBLISHABLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ada@example.com","code":"123456"}'</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/auth/refresh</p>
+      <p>Body <code>{"refresh_token"}</code>. Returns a new session and a new refresh token. Reusing an old refresh token revokes the whole chain.</p>
+      <pre class="code" data-lang="bash" data-check><code>SESSION=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/refresh \
+  -H "apikey: $PUBLISHABLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"refresh_token\":\"$REFRESH_TOKEN\"}")
+ACCESS_TOKEN=$(echo "$SESSION" | jq -er .access_token)
+REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/auth/me</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/auth/me \
+  -H "Authorization: Bearer $ACCESS_TOKEN"</code></pre>
+      <p class="ep"><span class="m m-patch">PATCH</span>/v1/apps/{app}/auth/me</p>
+      <p>Body <code>{"password"?, "data"?}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP/auth/me \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"data":{"name":"Ada Lovelace"}}'</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/auth/logout</p>
+      <p>Body <code>{"all"?: bool}</code>. Returns <code>{"signed_out": true}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/logout \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"all":true}'</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/auth/users</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/auth/users \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/auth/users</p>
+      <p>Secret key. Body <code>{"email", "password"?, "data"?}</code>. 201 <code>{"user"}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>USER_ID=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/users \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"grace@example.com","data":{"name":"Grace"}}' | jq -er .user.id)</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/auth/users/{user_id}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/auth/users/$USER_ID \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-patch">PATCH</span>/v1/apps/{app}/auth/users/{user_id}</p>
+      <p>Body <code>{"banned"?, "data"?, "password"?}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP/auth/users/$USER_ID \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"banned":true}'</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/auth/users/{user_id}</p>
+      <p>Deletes the user and the rows they own.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE https://api.atberth.com/v1/apps/$APP/auth/users/$USER_ID \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+
+      <h2 id="storage">Storage</h2>
+      <p>A bucket is <code>{"name", "read", "write", "max_file_size"?, "allowed_types"?}</code>. See <a href="/docs/storage/">Storage</a>.</p>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/storage/buckets</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/storage/buckets \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"files","read":"secret","write":"secret","max_file_size":1000000}'</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/storage/buckets</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/storage/buckets \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/storage/buckets/{bucket}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/storage/buckets/files \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-patch">PATCH</span>/v1/apps/{app}/storage/buckets/{bucket}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP/storage/buckets/files \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"read":"authenticated","allowed_types":["text/*"]}'</code></pre>
+      <p class="ep"><span class="m m-put">PUT</span>/v1/apps/{app}/storage/objects/{bucket}/{key}</p>
+      <p>Raw body. <code>Content-Type</code> is stored. Overwrites.</p>
+      <pre class="code" data-lang="bash" data-check><code>echo "hello from Berth" &gt; hello.txt
+curl -sS -X PUT https://api.atberth.com/v1/apps/$APP/storage/objects/files/docs/hello.txt \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: text/plain" \
+  --data-binary @hello.txt</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/storage/objects/{bucket}?prefix=&amp;limit=</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS "https://api.atberth.com/v1/apps/$APP/storage/objects/files?prefix=docs/&amp;limit=50" \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/storage/objects/{bucket}/{key}</p>
+      <p>The raw file. Auth by read policy, or <code>?expires=&amp;signature=</code> from a signed URL. <code>?download=1</code> sends it as an attachment.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/storage/objects/files/docs/hello.txt \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/storage/sign/{bucket}/{key}</p>
+      <p>Body <code>{"expires_in": seconds}</code>. Returns <code>{"url", "expires_at"}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>SIGNED_URL=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/storage/sign/files/docs/hello.txt \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"expires_in":300}' | jq -er .url)
+curl -sS "$SIGNED_URL"</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/storage/objects/{bucket}/{key}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE https://api.atberth.com/v1/apps/$APP/storage/objects/files/docs/hello.txt \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/storage/buckets/{bucket}</p>
+      <p>The bucket must be empty, unless <code>?force=true</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE "https://api.atberth.com/v1/apps/$APP/storage/buckets/files?force=true" \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+
+      <h2 id="functions">Functions</h2>
+      <p>One TypeScript or JavaScript file on Deno. See <a href="/docs/functions/">Functions</a> for the sandbox and injected env.</p>
+      <p class="ep"><span class="m m-put">PUT</span>/v1/apps/{app}/functions/{name}/deployment</p>
+      <p>Body <code>{"source", "verify"?: "key", "user", or "none", "timeout_ms"?, "memory_mb"?}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>cat &gt; echo.ts &lt;&lt;'EOF'
+export default async (req: Request) =&gt; Response.json({ method: req.method, body: await req.text() });
+EOF
+jq -n --rawfile source echo.ts '{source: $source, verify: "key"}' | \
+  curl -sS -X PUT https://api.atberth.com/v1/apps/$APP/functions/echo/deployment \
+    -H "Authorization: Bearer $SECRET_KEY" \
+    -H "Content-Type: application/json" \
+    --data-binary @-</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/functions</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/functions \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/functions/{name}/deployment</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/functions/echo/deployment \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m">ANY</span>/v1/apps/{app}/functions/{name}</p>
+      <p>Auth per <code>verify</code>. The function's own response.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/functions/echo \
+  -H "apikey: $PUBLISHABLE_KEY" \
+  -d 'ping'</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/functions/{name}/logs?limit=</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS "https://api.atberth.com/v1/apps/$APP/functions/echo/logs?limit=10" \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/functions/{name}/deployment</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE https://api.atberth.com/v1/apps/$APP/functions/echo/deployment \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+
+      <h2 id="env">Env vars</h2>
+      <p>Names match <code>^[A-Z][A-Z0-9_]{0,63}$</code> and may not start with <code>BERTH_</code> or <code>DENO_</code>. Values are never returned.</p>
+      <p class="ep"><span class="m m-put">PUT</span>/v1/apps/{app}/env/{name}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X PUT https://api.atberth.com/v1/apps/$APP/env/MAIL_FROM \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"value":"notes@example.com"}'</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/env</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/env \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/env/{name}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE https://api.atberth.com/v1/apps/$APP/env/MAIL_FROM \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+
+      <h2 id="webhooks">Webhooks</h2>
+      <p>See <a href="/docs/webhooks/">Webhooks</a> for the payload, signature, and retries.</p>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/webhooks</p>
+      <p>Body <code>{"url", "table"?, "events"?, "description"?}</code>. The signing <code>secret</code> is returned once.</p>
+      <pre class="code" data-lang="bash" data-check><code>WEBHOOK_ID=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/webhooks \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/berth-webhook","table":"notes","events":["insert"]}' | jq -er .webhook.id)</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/webhooks</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/webhooks \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/webhooks/{webhook_id}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/webhooks/$WEBHOOK_ID \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-patch">PATCH</span>/v1/apps/{app}/webhooks/{webhook_id}</p>
+      <p>Body <code>{"url"?, "events"?, "enabled"?}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP/webhooks/$WEBHOOK_ID \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"events":["insert","update","delete"],"enabled":true}'</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/webhooks/{webhook_id}/test</p>
+      <p>Sends a <code>ping</code> event.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/webhooks/$WEBHOOK_ID/test \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/webhooks/{webhook_id}/deliveries</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/webhooks/$WEBHOOK_ID/deliveries \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/webhooks/{webhook_id}</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE https://api.atberth.com/v1/apps/$APP/webhooks/$WEBHOOK_ID \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+
+      <h2 id="export">Export, restore, delete</h2>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/export</p>
+      <p>Secret key. A binary <code>pg_dump</code> custom format file (<code>application/octet-stream</code>).</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -o app.dump https://api.atberth.com/v1/apps/$APP/export \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/restore</p>
+      <p>Account key. The binary dump as the body. 201, creates a new app named <code>{app}</code>, answered like <code>POST /v1/apps</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/${APP}_copy/restore \
+  -H "Authorization: Bearer $BERTH_ACCOUNT_KEY" \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary @app.dump | jq .app</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}</p>
+      <p>Account key. Drops the app's database, role, keys, users, files, functions, and webhooks.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE https://api.atberth.com/v1/apps/${APP}_copy \
+  -H "Authorization: Bearer $BERTH_ACCOUNT_KEY"</code></pre>
+      <nav class="pager" aria-label="Pages">
+        <a href="/docs/cli/"><span>Previous</span>CLI reference</a>
+        <a class="nx" href="/docs/limits/"><span>Next</span>Limits and errors</a>
+      </nav>
+    </article>
+
+    <aside class="doc-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#platform">Platform and accounts</a></li>
+        <li><a href="#apps">Apps and keys</a></li>
+        <li><a href="#schema">Schema</a></li>
+        <li><a href="#rows">Rows</a></li>
+        <li><a href="#auth">End-user auth</a></li>
+        <li><a href="#storage">Storage</a></li>
+        <li><a href="#functions">Functions</a></li>
+        <li><a href="#env">Env vars</a></li>
+        <li><a href="#webhooks">Webhooks</a></li>
+        <li><a href="#export">Export, restore, delete</a></li>
+      </ul>
+    </aside>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="/" aria-label="Berth home">
+          <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Berth</span>
+        </a>
+      </div>
+      <div>
+        <p class="foot-h">Start</p>
+        <ul>
+          <li><a href="/docs/">Quickstart</a></li>
+          <li><a href="/docs/keys/">Keys and security</a></li>
+          <li><a href="/docs/supabase/">From Supabase</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Build</p>
+        <ul>
+          <li><a href="/docs/auth/">End-user auth</a></li>
+          <li><a href="/docs/queries/">Queries</a></li>
+          <li><a href="/docs/storage/">Storage</a></li>
+          <li><a href="/docs/functions/">Functions</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Reference</p>
+        <ul>
+          <li><a href="/docs/cli/">CLI</a></li>
+          <li><a href="/docs/api/">HTTP API</a></li>
+          <li><a href="/docs/limits/">Limits and errors</a></li>
+          <li><a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Connect</p>
+        <ul>
+          <li><a href="mailto:hello@atberth.com?subject=Berth">Email</a></li>
+          <li><a href="/privacy/">Privacy</a></li>
+          <li><a href="/terms/">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-base">
+      <p>&copy; 2026 Berth. Private beta.</p>
+      <p>API base: https://api.atberth.com/v1</p>
+    </div>
+  </div>
+</footer>
+<script src="/main.js" defer></script>
+</body>
+</html>

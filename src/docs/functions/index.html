@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Functions. Berth docs</title>
+<meta name="description" content="Deploy one TypeScript or JavaScript file as a Berth function on Deno. Sandbox rules, env vars, injected BERTH_ variables, verify modes, invoking, and logs.">
+<link rel="canonical" href="https://atberth.com/docs/functions/">
+<meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Berth">
+<meta property="og:url" content="https://atberth.com/docs/functions/">
+<meta property="og:title" content="Functions. Berth docs">
+<meta property="og:description" content="Deploy one TypeScript or JavaScript file as a Berth function on Deno. Sandbox rules, env vars, injected BERTH_ variables, verify modes, invoking, and logs.">
+<meta property="og:image" content="https://atberth.com/assets/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+<script>
+(function(){var d=document.documentElement,t;try{t=localStorage.getItem("berth-theme")}catch(e){}if(t!=="light"&&t!=="dark")t=window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";d.setAttribute("data-theme",t);d.classList.add("js")})();
+</script>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/" aria-label="Berth home">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>Berth</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/#platform">Platform</a>
+      <a href="/docs/" aria-current="page">Docs</a>
+      <a href="/docs/cli/">CLI</a>
+      <a href="/docs/api/">API</a>
+      <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="theme" type="button" aria-label="Switch to light theme" data-theme-toggle>
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+      </button>
+      <a class="btn btn-sm btn-light" href="/docs/#quickstart">Quickstart</a>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="doc-main">
+  <div class="wrap doc-layout">
+    <nav class="doc-side" aria-label="Docs">
+      <p class="group">Get started</p>
+      <a href="/docs/">Overview and quickstart</a>
+      <a href="/docs/keys/">Keys and security</a>
+      <p class="group">Build</p>
+      <a href="/docs/auth/">End-user auth</a>
+      <a href="/docs/policies/">Row policies</a>
+      <a href="/docs/queries/">Queries</a>
+      <a href="/docs/realtime/">Realtime</a>
+      <a href="/docs/storage/">Storage</a>
+      <a href="/docs/functions/" aria-current="page">Functions</a>
+      <a href="/docs/webhooks/">Webhooks</a>
+      <a href="/docs/sql/">SQL, export, restore</a>
+      <p class="group">Reference</p>
+      <a href="/docs/cli/">CLI reference</a>
+      <a href="/docs/api/">HTTP API reference</a>
+      <a href="/docs/limits/">Limits and errors</a>
+      <p class="group">Guides</p>
+      <a href="/docs/supabase/">Migrating from Supabase</a>
+    </nav>
+
+    <article class="doc">
+      <p class="crumb">Build</p>
+      <h1>Functions</h1>
+      <p class="lede">A function is one TypeScript or JavaScript file that answers HTTP requests. It runs on Deno next to your app, with your app's env vars and a secret key already in its environment.</p>
+
+      <h2 id="write">Write a function</h2>
+      <p>Export a default handler that takes a <code>Request</code> and returns a <code>Response</code>:</p>
+      <pre class="code" data-lang="bash" data-check><code>cat &gt; hello.ts &lt;&lt;'EOF'
+export default async (req: Request): Promise&lt;Response&gt; =&gt; {
+  const body = req.method === "POST" ? await req.json().catch(() =&gt; ({})) : {};
+  const greeting = Deno.env.get("GREETING") ?? "Hello";
+  return Response.json({ message: `${greeting}, ${body.name ?? "world"}` });
+};
+EOF</code></pre>
+      <p>Or use <code>Deno.serve</code>, which is handy when you already have Deno code:</p>
+      <pre class="code" data-lang="bash" data-check><code>cat &gt; whoami.ts &lt;&lt;'EOF'
+Deno.serve((req) =&gt; {
+  return Response.json({
+    user_id: req.headers.get("Berth-User-Id"),
+    email: req.headers.get("Berth-User-Email"),
+  });
+});
+EOF</code></pre>
+
+      <h2 id="deploy">Deploy</h2>
+      <p><code>hello.ts</code> reads the <code>GREETING</code> env var, so set it first. In the current runtime, reading an env var that is not set throws instead of returning <code>undefined</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth env set --app "$APP" GREETING=Hello
+berth functions deploy --app "$APP" hello hello.ts --verify key
+berth functions deploy --app "$APP" whoami whoami.ts --verify user --timeout-ms 5000 --memory-mb 128
+berth functions list --app "$APP"</code></pre>
+      <p>Deploying the same name again replaces it. The HTTP form is a <code>PUT</code> with the source as a JSON string:</p>
+      <pre class="code" data-lang="bash" data-check><code>jq -n --rawfile source hello.ts '{source: $source, verify: "key", timeout_ms: 10000}' | \
+  curl -sS -X PUT https://api.atberth.com/v1/apps/$APP/functions/hello/deployment \
+    -H "Authorization: Bearer $SECRET_KEY" \
+    -H "Content-Type: application/json" \
+    --data-binary @-</code></pre>
+
+      <h2 id="verify">Verify modes</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>verify</th><th>Who may call it</th></tr></thead>
+        <tbody>
+          <tr><td><code>key</code></td><td>anyone with the app's publishable or secret key (the default)</td></tr>
+          <tr><td><code>user</code></td><td>signed-in users only; the function gets <code>Berth-User-Id</code> and <code>Berth-User-Email</code></td></tr>
+          <tr><td><code>none</code></td><td>anyone on the internet, for example a payment provider's webhook. Check signatures yourself.</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="invoke">Invoke</h2>
+      <p>A function answers any method at <code>/v1/apps/{app}/functions/{name}</code>, and its response is passed through as is.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/functions/hello \
+  -H "Authorization: Bearer $PUBLISHABLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Ada"}'
+berth functions invoke --app "$APP" hello --data '{"name":"Grace"}'</code></pre>
+      <p>A <code>user</code> function needs a signed-in user's token:</p>
+      <pre class="code" data-lang="bash" data-check><code>ACCESS_TOKEN=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/signup \
+  -H "Authorization: Bearer $PUBLISHABLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ada@example.com","password":"correct horse battery"}' | jq -er .access_token)
+curl -sS https://api.atberth.com/v1/apps/$APP/functions/whoami \
+  -H "apikey: $PUBLISHABLE_KEY" \
+  -H "Authorization: Bearer $ACCESS_TOKEN"</code></pre>
+
+      <h2 id="env">Env vars</h2>
+      <p>Set secrets such as third party API keys as env vars. Values are write only: the API lists names and <code>updated_at</code>, never values. Names are uppercase letters, digits, and underscores, and may not start with <code>BERTH_</code> or <code>DENO_</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth env set --app "$APP" GREETING=Welcome
+berth env list --app "$APP"
+berth functions invoke --app "$APP" hello --data '{"name":"Ada"}'</code></pre>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X PUT https://api.atberth.com/v1/apps/$APP/env/GREETING \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"value":"Hi"}'
+berth env unset --app "$APP" GREETING</code></pre>
+      <p>Every function also gets these, set by Berth:</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td><code>BERTH_API_URL</code></td><td>the API base URL</td></tr>
+          <tr><td><code>BERTH_APP</code></td><td>the app name</td></tr>
+          <tr><td><code>BERTH_SECRET_KEY</code></td><td>a secret key for this app, so the function can call the API with full access</td></tr>
+        </tbody>
+      </table></div>
+      <p>A function that counts notes with the injected key. The key stays on the server:</p>
+      <pre class="code" data-lang="bash" data-check><code>berth tables create --app "$APP" notes title:text:notnull
+berth rows add --app "$APP" notes title="From a function"
+cat &gt; count_notes.ts &lt;&lt;'EOF'
+export default async () =&gt; {
+  const base = Deno.env.get("BERTH_API_URL");
+  const app = Deno.env.get("BERTH_APP");
+  const res = await fetch(`${base}/apps/${app}/tables/notes/rows?count=exact&amp;limit=1`, {
+    headers: { Authorization: `Bearer ${Deno.env.get("BERTH_SECRET_KEY")}` },
+  });
+  const { count } = await res.json();
+  return Response.json({ notes: count });
+};
+EOF
+berth functions deploy --app "$APP" count_notes count_notes.ts
+berth functions invoke --app "$APP" count_notes --method GET</code></pre>
+
+      <h2 id="sandbox">Sandbox rules</h2>
+      <ul>
+        <li>Network: the public internet only. No localhost, no private ranges, no cloud metadata addresses.</li>
+        <li>No file system and no subprocesses.</li>
+        <li>Only this app's env vars are visible.</li>
+        <li>Timeout: 10 seconds by default, 30 at most (<code>--timeout-ms</code>). Past it the caller gets 504 <code>timeout</code>.</li>
+        <li>Heap: 128 MB by default, 256 MB at most (<code>--memory-mb</code>).</li>
+        <li>Four runs at once per app, 20 functions per app, 1 MB of source each.</li>
+        <li>A crash or an empty response returns 502 <code>function_error</code>.</li>
+      </ul>
+
+      <h2 id="logs">Logs</h2>
+      <p>Each run of a function is logged. Read the recent entries:</p>
+      <pre class="code" data-lang="bash" data-check><code>berth functions logs --app "$APP" hello
+curl -sS "https://api.atberth.com/v1/apps/$APP/functions/hello/logs?limit=20" \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+
+      <h2 id="manage">Show and delete</h2>
+      <pre class="code" data-lang="bash" data-check><code>berth functions show --app "$APP" hello
+berth functions delete --app "$APP" whoami</code></pre>
+      <nav class="pager" aria-label="Pages">
+        <a href="/docs/storage/"><span>Previous</span>Storage</a>
+        <a class="nx" href="/docs/webhooks/"><span>Next</span>Webhooks</a>
+      </nav>
+    </article>
+
+    <aside class="doc-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#write">Write a function</a></li>
+        <li><a href="#deploy">Deploy</a></li>
+        <li><a href="#verify">Verify modes</a></li>
+        <li><a href="#invoke">Invoke</a></li>
+        <li><a href="#env">Env vars</a></li>
+        <li><a href="#sandbox">Sandbox rules</a></li>
+        <li><a href="#logs">Logs</a></li>
+        <li><a href="#manage">Show and delete</a></li>
+      </ul>
+    </aside>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="/" aria-label="Berth home">
+          <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Berth</span>
+        </a>
+      </div>
+      <div>
+        <p class="foot-h">Start</p>
+        <ul>
+          <li><a href="/docs/">Quickstart</a></li>
+          <li><a href="/docs/keys/">Keys and security</a></li>
+          <li><a href="/docs/supabase/">From Supabase</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Build</p>
+        <ul>
+          <li><a href="/docs/auth/">End-user auth</a></li>
+          <li><a href="/docs/queries/">Queries</a></li>
+          <li><a href="/docs/storage/">Storage</a></li>
+          <li><a href="/docs/functions/">Functions</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Reference</p>
+        <ul>
+          <li><a href="/docs/cli/">CLI</a></li>
+          <li><a href="/docs/api/">HTTP API</a></li>
+          <li><a href="/docs/limits/">Limits and errors</a></li>
+          <li><a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Connect</p>
+        <ul>
+          <li><a href="mailto:hello@atberth.com?subject=Berth">Email</a></li>
+          <li><a href="/privacy/">Privacy</a></li>
+          <li><a href="/terms/">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-base">
+      <p>&copy; 2026 Berth. Private beta.</p>
+      <p>API base: https://api.atberth.com/v1</p>
+    </div>
+  </div>
+</footer>
+<script src="/main.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Storage. Berth docs</title>
+<meta name="description" content="Berth storage buckets with read and write policies, size and type limits, uploads, downloads, listing, and signed URLs.">
+<link rel="canonical" href="https://atberth.com/docs/storage/">
+<meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Berth">
+<meta property="og:url" content="https://atberth.com/docs/storage/">
+<meta property="og:title" content="Storage. Berth docs">
+<meta property="og:description" content="Berth storage buckets with read and write policies, size and type limits, uploads, downloads, listing, and signed URLs.">
+<meta property="og:image" content="https://atberth.com/assets/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+<script>
+(function(){var d=document.documentElement,t;try{t=localStorage.getItem("berth-theme")}catch(e){}if(t!=="light"&&t!=="dark")t=window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";d.setAttribute("data-theme",t);d.classList.add("js")})();
+</script>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/" aria-label="Berth home">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>Berth</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/#platform">Platform</a>
+      <a href="/docs/" aria-current="page">Docs</a>
+      <a href="/docs/cli/">CLI</a>
+      <a href="/docs/api/">API</a>
+      <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="theme" type="button" aria-label="Switch to light theme" data-theme-toggle>
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+      </button>
+      <a class="btn btn-sm btn-light" href="/docs/#quickstart">Quickstart</a>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="doc-main">
+  <div class="wrap doc-layout">
+    <nav class="doc-side" aria-label="Docs">
+      <p class="group">Get started</p>
+      <a href="/docs/">Overview and quickstart</a>
+      <a href="/docs/keys/">Keys and security</a>
+      <p class="group">Build</p>
+      <a href="/docs/auth/">End-user auth</a>
+      <a href="/docs/policies/">Row policies</a>
+      <a href="/docs/queries/">Queries</a>
+      <a href="/docs/realtime/">Realtime</a>
+      <a href="/docs/storage/" aria-current="page">Storage</a>
+      <a href="/docs/functions/">Functions</a>
+      <a href="/docs/webhooks/">Webhooks</a>
+      <a href="/docs/sql/">SQL, export, restore</a>
+      <p class="group">Reference</p>
+      <a href="/docs/cli/">CLI reference</a>
+      <a href="/docs/api/">HTTP API reference</a>
+      <a href="/docs/limits/">Limits and errors</a>
+      <p class="group">Guides</p>
+      <a href="/docs/supabase/">Migrating from Supabase</a>
+    </nav>
+
+    <article class="doc">
+      <p class="crumb">Build</p>
+      <h1>Storage</h1>
+      <p class="lede">Files live in buckets inside your app. Each bucket has a read and a write policy, like a table, plus optional size and type limits. Uploads are one raw <code>PUT</code>.</p>
+
+      <h2 id="buckets">Buckets</h2>
+      <div class="tbl"><table>
+        <thead><tr><th>Field</th><th>Values</th></tr></thead>
+        <tbody>
+          <tr><td><code>read</code></td><td><code>public</code>, <code>authenticated</code>, <code>owner</code>, <code>secret</code></td></tr>
+          <tr><td><code>write</code></td><td><code>authenticated</code>, <code>owner</code>, <code>secret</code></td></tr>
+          <tr><td><code>max_file_size</code></td><td>bytes, up to the 50 MB platform limit</td></tr>
+          <tr><td><code>allowed_types</code></td><td>content types, wildcards allowed, for example <code>["image/*"]</code></td></tr>
+        </tbody>
+      </table></div>
+      <p>With <code>owner</code>, a signed-in user may only use keys that start with their user id and a slash, such as <code>&lt;user id&gt;/avatar.png</code>. The secret key may use any key.</p>
+      <p>Public avatars that only their owner can replace:</p>
+      <pre class="code" data-lang="bash" data-check><code>berth storage buckets create --app "$APP" avatars --read public --write owner --max-file-size 2000000</code></pre>
+      <p>Private documents for your server only, with a type allow list:</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/storage/buckets \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"docs","read":"secret","write":"secret","allowed_types":["text/plain","application/pdf"]}'
+berth storage buckets list --app "$APP"</code></pre>
+
+      <h2 id="upload">Upload</h2>
+      <p>Upload is <code>PUT /storage/objects/{bucket}/{key}</code> with the raw file as the body. The <code>Content-Type</code> you send is stored and served back. A second PUT to the same key overwrites it.</p>
+      <p>Sign up a user and upload their avatar as them:</p>
+      <pre class="code" data-lang="bash" data-check><code>SESSION=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/signup \
+  -H "Authorization: Bearer $PUBLISHABLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ada@example.com","password":"correct horse battery"}')
+ACCESS_TOKEN=$(echo "$SESSION" | jq -er .access_token)
+USER_ID=$(echo "$SESSION" | jq -er .user.id)
+echo 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' | base64 -d &gt; avatar.png</code></pre>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X PUT https://api.atberth.com/v1/apps/$APP/storage/objects/avatars/$USER_ID/avatar.png \
+  -H "apikey: $PUBLISHABLE_KEY" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: image/png" \
+  --data-binary @avatar.png</code></pre>
+      <p>Outside her own folder, the owner policy refuses with 403 <code>policy_violation</code>:</p>
+      <pre class="code" data-lang="bash" data-check="raw"><code>curl -sS -X PUT https://api.atberth.com/v1/apps/$APP/storage/objects/avatars/someone-else/avatar.png \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: image/png" \
+  --data-binary @avatar.png</code></pre>
+      <p>From the CLI (secret key), the key defaults to the file name:</p>
+      <pre class="code" data-lang="bash" data-check><code>echo "Berth storage example" &gt; readme.txt
+berth storage upload --app "$APP" docs readme.txt
+berth storage upload --app "$APP" docs readme.txt notes/readme.txt --content-type text/plain</code></pre>
+
+      <h2 id="list">List</h2>
+      <pre class="code" data-lang="bash" data-check><code>berth storage ls --app "$APP" docs --prefix notes/
+curl -sS "https://api.atberth.com/v1/apps/$APP/storage/objects/avatars?prefix=$USER_ID/&amp;limit=100" \
+  -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+
+      <h2 id="download">Download</h2>
+      <p>A <code>public</code> bucket needs no key at all, so the URL can go straight into an image tag. Add <code>?download=1</code> to get an attachment.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -o downloaded.png https://api.atberth.com/v1/apps/$APP/storage/objects/avatars/$USER_ID/avatar.png
+file downloaded.png</code></pre>
+      <pre class="code" data-lang="bash" data-check><code>berth storage download --app "$APP" docs readme.txt -o copy.txt
+cat copy.txt</code></pre>
+
+      <h2 id="signed-urls">Signed URLs</h2>
+      <p>For a private bucket, hand out a link that works without a key until it expires. Anyone allowed to read the object may sign it.</p>
+      <pre class="code" data-lang="bash" data-check><code>SIGNED_URL=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/storage/sign/docs/readme.txt \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"expires_in":600}' | jq -er .url)
+curl -sS "$SIGNED_URL"</code></pre>
+      <pre class="code" data-lang="bash" data-check><code>berth storage sign --app "$APP" docs readme.txt --expires 3600</code></pre>
+      <p>The link carries <code>?expires=</code> and <code>?signature=</code>. Changing either one breaks it.</p>
+
+      <h2 id="delete">Delete</h2>
+      <pre class="code" data-lang="bash" data-check><code>berth storage rm --app "$APP" docs notes/readme.txt
+curl -sS -X DELETE https://api.atberth.com/v1/apps/$APP/storage/objects/avatars/$USER_ID/avatar.png \
+  -H "Authorization: Bearer $ACCESS_TOKEN"</code></pre>
+      <p>A bucket must be empty before it can be deleted, unless you pass <code>--force</code> (<code>?force=true</code>), which deletes its files too.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth storage buckets delete --app "$APP" docs --force
+berth storage buckets delete --app "$APP" avatars</code></pre>
+      <nav class="pager" aria-label="Pages">
+        <a href="/docs/realtime/"><span>Previous</span>Realtime</a>
+        <a class="nx" href="/docs/functions/"><span>Next</span>Functions</a>
+      </nav>
+    </article>
+
+    <aside class="doc-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#buckets">Buckets</a></li>
+        <li><a href="#upload">Upload</a></li>
+        <li><a href="#list">List</a></li>
+        <li><a href="#download">Download</a></li>
+        <li><a href="#signed-urls">Signed URLs</a></li>
+        <li><a href="#delete">Delete</a></li>
+      </ul>
+    </aside>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="/" aria-label="Berth home">
+          <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Berth</span>
+        </a>
+      </div>
+      <div>
+        <p class="foot-h">Start</p>
+        <ul>
+          <li><a href="/docs/">Quickstart</a></li>
+          <li><a href="/docs/keys/">Keys and security</a></li>
+          <li><a href="/docs/supabase/">From Supabase</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Build</p>
+        <ul>
+          <li><a href="/docs/auth/">End-user auth</a></li>
+          <li><a href="/docs/queries/">Queries</a></li>
+          <li><a href="/docs/storage/">Storage</a></li>
+          <li><a href="/docs/functions/">Functions</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Reference</p>
+        <ul>
+          <li><a href="/docs/cli/">CLI</a></li>
+          <li><a href="/docs/api/">HTTP API</a></li>
+          <li><a href="/docs/limits/">Limits and errors</a></li>
+          <li><a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Connect</p>
+        <ul>
+          <li><a href="mailto:hello@atberth.com?subject=Berth">Email</a></li>
+          <li><a href="/privacy/">Privacy</a></li>
+          <li><a href="/terms/">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-base">
+      <p>&copy; 2026 Berth. Private beta.</p>
+      <p>API base: https://api.atberth.com/v1</p>
+    </div>
+  </div>
+</footer>
+<script src="/main.js" defer></script>
+</body>
+</html>

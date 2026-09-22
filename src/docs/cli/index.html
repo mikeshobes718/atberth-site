@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CLI reference. Berth docs</title>
+<meta name="description" content="Every berth command with an example: account, apps, keys, tables, columns, indexes, rows, import, watch, auth, storage, functions, env, webhooks, SQL, logs, and completion.">
+<link rel="canonical" href="https://atberth.com/docs/cli/">
+<meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Berth">
+<meta property="og:url" content="https://atberth.com/docs/cli/">
+<meta property="og:title" content="CLI reference. Berth docs">
+<meta property="og:description" content="Every berth command with an example: account, apps, keys, tables, columns, indexes, rows, import, watch, auth, storage, functions, env, webhooks, SQL, logs, and completion.">
+<meta property="og:image" content="https://atberth.com/assets/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+<script>
+(function(){var d=document.documentElement,t;try{t=localStorage.getItem("berth-theme")}catch(e){}if(t!=="light"&&t!=="dark")t=window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";d.setAttribute("data-theme",t);d.classList.add("js")})();
+</script>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/" aria-label="Berth home">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>Berth</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/#platform">Platform</a>
+      <a href="/docs/" aria-current="page">Docs</a>
+      <a href="/docs/cli/">CLI</a>
+      <a href="/docs/api/">API</a>
+      <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="theme" type="button" aria-label="Switch to light theme" data-theme-toggle>
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+      </button>
+      <a class="btn btn-sm btn-light" href="/docs/#quickstart">Quickstart</a>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="doc-main">
+  <div class="wrap doc-layout">
+    <nav class="doc-side" aria-label="Docs">
+      <p class="group">Get started</p>
+      <a href="/docs/">Overview and quickstart</a>
+      <a href="/docs/keys/">Keys and security</a>
+      <p class="group">Build</p>
+      <a href="/docs/auth/">End-user auth</a>
+      <a href="/docs/policies/">Row policies</a>
+      <a href="/docs/queries/">Queries</a>
+      <a href="/docs/realtime/">Realtime</a>
+      <a href="/docs/storage/">Storage</a>
+      <a href="/docs/functions/">Functions</a>
+      <a href="/docs/webhooks/">Webhooks</a>
+      <a href="/docs/sql/">SQL, export, restore</a>
+      <p class="group">Reference</p>
+      <a href="/docs/cli/" aria-current="page">CLI reference</a>
+      <a href="/docs/api/">HTTP API reference</a>
+      <a href="/docs/limits/">Limits and errors</a>
+      <p class="group">Guides</p>
+      <a href="/docs/supabase/">Migrating from Supabase</a>
+    </nav>
+
+    <article class="doc" data-app="self">
+      <p class="crumb">Reference</p>
+      <h1>CLI reference</h1>
+      <p class="lede"><code>berth</code> is one Python 3 file with no dependencies. Every command is a thin wrapper over the <a href="/docs/api/">HTTP API</a>. The examples below run in order against a fresh app named <code>$APP</code>.</p>
+
+      <h2 id="install">Install and global options</h2>
+      <pre class="code" data-lang="bash"><code>curl -fsSL https://atberth.com/install.sh | sh</code></pre>
+      <div class="tbl"><table>
+        <thead><tr><th>Option or variable</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>--json</code></td><td>print the raw JSON response, for scripts and <code>jq</code></td></tr>
+          <tr><td><code>--api URL</code></td><td>API base URL, default <code>https://api.atberth.com/v1</code></td></tr>
+          <tr><td><code>BERTH_CONFIG</code></td><td>config file path, default <code>~/.config/berth/config.json</code> (mode 600)</td></tr>
+          <tr><td><code>BERTH_API</code></td><td>same as <code>--api</code></td></tr>
+          <tr><td><code>BERTH_TOKEN</code></td><td>use this key instead of the saved one</td></tr>
+          <tr><td><code>BERTH_APP</code></td><td>default for <code>--app</code></td></tr>
+        </tbody>
+      </table></div>
+      <p>Failures print the error message and exit nonzero, so <code>set -e</code> scripts stop on the first problem.</p>
+
+      <h2 id="account">Signing in and account</h2>
+      <h3 id="status">berth status</h3>
+      <p>API version and health. No login needed.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth status</code></pre>
+      <h3 id="signup">berth signup, berth login</h3>
+      <p>Emails you a code and saves an account key. Pass <code>--email</code> and <code>--code</code> to skip the prompts. <code>berth login --token</code> saves an existing key, for CI.</p>
+      <pre class="code" data-lang="bash"><code>berth signup --email you@example.com
+berth login --email you@example.com --code 123456</code></pre>
+      <pre class="code" data-lang="bash" data-check><code>berth login --token "$BERTH_ACCOUNT_KEY"</code></pre>
+      <h3 id="whoami">berth whoami</h3>
+      <pre class="code" data-lang="bash" data-check><code>berth whoami</code></pre>
+      <h3 id="account-show">berth account show</h3>
+      <p>Email, limits, and usage.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth account show</code></pre>
+      <h3 id="account-keys">berth account keys</h3>
+      <pre class="code" data-lang="bash" data-check><code>berth account keys list
+KEY_ID=$(berth account keys create ci --json | jq -er .key.id)
+berth account keys revoke "$KEY_ID"</code></pre>
+      <h3 id="account-delete">berth account delete</h3>
+      <p>Deletes the account and every app in it. You must type the account email.</p>
+      <pre class="code" data-lang="bash"><code>berth account delete --confirm you@example.com</code></pre>
+      <h3 id="logout">berth logout</h3>
+      <p>Forgets the saved account key on this machine. It does not revoke it. <code>--all</code> also forgets saved app keys.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth logout
+berth login --token "$BERTH_ACCOUNT_KEY"</code></pre>
+
+      <h2 id="apps">Apps</h2>
+      <h3 id="apps-create">berth apps create</h3>
+      <p>Creates the app, its database and role, and prints a secret and a publishable key once.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth apps create "$APP"</code></pre>
+      <h3 id="apps-list">berth apps list, show, usage</h3>
+      <pre class="code" data-lang="bash" data-check><code>berth apps list
+berth apps show "$APP"
+berth apps usage "$APP"</code></pre>
+      <h3 id="use">berth use</h3>
+      <p>Sets the default app, so <code>--app</code> can be left out. These docs keep <code>--app</code> so each line stands alone.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth use "$APP"</code></pre>
+      <h3 id="apps-config">berth apps config</h3>
+      <p>Sets allowed browser origins. Repeat <code>--cors</code> for more than one.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth apps config "$APP" --cors https://notes.example.com --cors http://localhost:5173</code></pre>
+      <h3 id="apps-export">berth apps export, restore</h3>
+      <p>Export writes a <code>pg_dump</code> file. Restore creates a new app from one.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth apps export "$APP" -o backup.dump
+berth apps restore "${APP}_copy" backup.dump</code></pre>
+      <h3 id="apps-delete">berth apps delete</h3>
+      <pre class="code" data-lang="bash" data-check><code>berth apps delete "${APP}_copy" --yes</code></pre>
+
+      <h2 id="keys">App keys</h2>
+      <pre class="code" data-lang="bash" data-check><code>berth keys list --app "$APP"
+PUBLISHABLE_KEY=$(berth keys create --app "$APP" --type publishable --name web --json | jq -er .secret)
+KEY_ID=$(berth keys create --app "$APP" --type secret --name old-worker --json | jq -er .key.id)
+berth keys revoke --app "$APP" "$KEY_ID"</code></pre>
+
+      <h2 id="tables">Tables</h2>
+      <p>Columns are <code>name:type</code> with optional <code>:notnull</code> and <code>:unique</code>. Types: <code>text</code>, <code>integer</code>, <code>bigint</code>, <code>numeric</code>, <code>double</code>, <code>boolean</code>, <code>date</code>, <code>timestamptz</code>, <code>uuid</code>, <code>jsonb</code>, <code>text[]</code>, <code>integer[]</code>. Quote array types in zsh.</p>
+      <h3 id="tables-create">berth tables create</h3>
+      <pre class="code" data-lang="bash" data-check><code>berth tables create --app "$APP" notes title:text:notnull slug:text:unique done:boolean 'tags:text[]' --updated-at
+berth tables create --app "$APP" events name:text meta:jsonb --no-timestamps --read authenticated --write authenticated</code></pre>
+      <h3 id="tables-list">berth tables list, show</h3>
+      <pre class="code" data-lang="bash" data-check><code>berth tables list --app "$APP"
+berth tables show --app "$APP" notes</code></pre>
+      <h3 id="tables-rename">berth tables rename, policy, drop</h3>
+      <pre class="code" data-lang="bash" data-check><code>berth tables rename --app "$APP" events activity
+berth tables policy --app "$APP" activity --read owner --write owner
+berth tables drop --app "$APP" activity --yes</code></pre>
+
+      <h2 id="columns">Columns</h2>
+      <pre class="code" data-lang="bash" data-check><code>berth columns add --app "$APP" notes priority:integer --default 0 --not-null
+berth tables create --app "$APP" profiles display_name:text
+berth columns add --app "$APP" notes profile_id:uuid --references profiles.id --on-delete set-null
+berth columns rename --app "$APP" notes priority rank
+berth columns alter --app "$APP" notes rank --type bigint --drop-default --nullable
+berth columns drop --app "$APP" notes rank --yes</code></pre>
+
+      <h2 id="indexes">Indexes</h2>
+      <pre class="code" data-lang="bash" data-check><code>berth indexes create --app "$APP" notes done created_at --name notes_done_created
+berth indexes list --app "$APP" notes
+berth indexes drop --app "$APP" notes notes_done_created</code></pre>
+
+      <h2 id="rows">Rows</h2>
+      <h3 id="rows-add">berth rows add</h3>
+      <p>Values are <code>name=value</code>, converted to each column's type. <code>null</code> means SQL null. Use <code>--data</code> for JSON, or <code>--file</code> to read it from a file.</p>
+      <pre class="code" data-lang="bash" data-check><code>ROW_ID=$(berth rows add --app "$APP" notes title="Buy milk" slug=milk done=false --json | jq -er .row.id)
+berth rows add --app "$APP" notes --data '{"title":"Fix the sink","slug":"sink","tags":["home"]}'
+berth rows add --app "$APP" notes --data '[{"title":"Read","slug":"read"},{"title":"Run","slug":"run"}]'</code></pre>
+      <h3 id="rows-list">berth rows list</h3>
+      <pre class="code" data-lang="bash" data-check><code>berth rows list --app "$APP" notes --where done.eq=false --select id,title --order created_at.desc --limit 2 --count
+berth rows list --app "$APP" notes --limit 1 --offset 1
+berth rows list --app "$APP" notes --limit 2 --all</code></pre>
+      <p><code>--cursor</code> takes the <code>next_cursor</code> from a previous <code>--json</code> page.</p>
+      <h3 id="rows-get">berth rows get, update, upsert</h3>
+      <pre class="code" data-lang="bash" data-check><code>berth rows get --app "$APP" notes "$ROW_ID"
+berth rows update --app "$APP" notes "$ROW_ID" done=true
+berth rows update --app "$APP" notes --where slug.eq=sink done=true
+berth rows upsert --app "$APP" notes --on-conflict slug slug=milk title="Buy oat milk"</code></pre>
+      <h3 id="rows-rm">berth rows rm, delete</h3>
+      <pre class="code" data-lang="bash" data-check><code>berth rows rm --app "$APP" notes "$ROW_ID"
+berth rows delete --app "$APP" notes --where done.eq=true --yes</code></pre>
+      <h3 id="import">berth import</h3>
+      <p>CSV with a header row, or NDJSON. All or nothing.</p>
+      <pre class="code" data-lang="bash" data-check><code>printf 'title,slug\nPlan trip,trip\nPay rent,rent\n' &gt; notes.csv
+berth import --app "$APP" notes notes.csv
+printf '%s\n' '{"title":"Book flights","slug":"flights"}' &gt; notes.ndjson
+berth import --app "$APP" notes notes.ndjson</code></pre>
+      <h3 id="watch">berth watch</h3>
+      <p>Prints row events as they happen, until Ctrl+C.</p>
+      <pre class="code" data-lang="bash"><code>berth watch --app "$APP" notes --events insert,update,delete</code></pre>
+
+      <h2 id="auth">End-user auth</h2>
+      <pre class="code" data-lang="bash" data-check><code>berth auth signup --app "$APP" --email ada@example.com --password 'correct horse battery'
+berth auth login --app "$APP" --email ada@example.com --password 'correct horse battery' --key "$PUBLISHABLE_KEY"</code></pre>
+      <pre class="code" data-lang="bash" data-check><code>berth auth users list --app "$APP"
+USER_ID=$(berth auth users create --app "$APP" grace@example.com --password 'another long password' --json | jq -er .user.id)
+berth auth users show --app "$APP" "$USER_ID"
+berth auth users ban --app "$APP" "$USER_ID"
+berth auth users ban --app "$APP" "$USER_ID" --unban
+berth auth users delete --app "$APP" "$USER_ID" --yes</code></pre>
+
+      <h2 id="storage">Storage</h2>
+      <pre class="code" data-lang="bash" data-check><code>berth storage buckets create --app "$APP" files --read authenticated --write owner --max-file-size 5000000
+berth storage buckets list --app "$APP"
+echo "hello" &gt; hello.txt
+berth storage upload --app "$APP" files hello.txt
+berth storage upload --app "$APP" files hello.txt docs/hello.txt --content-type text/plain
+berth storage ls --app "$APP" files --prefix docs/
+berth storage download --app "$APP" files docs/hello.txt -o hello-copy.txt
+berth storage sign --app "$APP" files docs/hello.txt --expires 3600
+berth storage rm --app "$APP" files docs/hello.txt
+berth storage buckets delete --app "$APP" files --force</code></pre>
+
+      <h2 id="functions">Functions</h2>
+      <pre class="code" data-lang="bash" data-check><code>cat &gt; hello.ts &lt;&lt;'EOF'
+export default (req: Request) =&gt; Response.json({ hello: "world", method: req.method });
+EOF
+berth functions deploy --app "$APP" hello hello.ts --verify key --timeout-ms 5000 --memory-mb 128
+berth functions list --app "$APP"
+berth functions show --app "$APP" hello
+berth functions invoke --app "$APP" hello --data '{"name":"Ada"}' --method POST
+berth functions logs --app "$APP" hello
+berth functions delete --app "$APP" hello</code></pre>
+
+      <h2 id="env">Env vars</h2>
+      <pre class="code" data-lang="bash" data-check><code>berth env set --app "$APP" GREETING=Hello STRIPE_MODE=test
+berth env list --app "$APP"
+berth env unset --app "$APP" STRIPE_MODE</code></pre>
+
+      <h2 id="webhooks">Webhooks</h2>
+      <pre class="code" data-lang="bash" data-check><code>WEBHOOK_ID=$(berth webhooks add --app "$APP" https://example.com/berth-webhook --table notes --events insert,update --json | jq -er .webhook.id)
+berth webhooks list --app "$APP"
+berth webhooks show --app "$APP" "$WEBHOOK_ID"
+berth webhooks update --app "$APP" "$WEBHOOK_ID" --events insert,update,delete --disable
+berth webhooks update --app "$APP" "$WEBHOOK_ID" --url https://example.com/berth-webhook-2 --enable
+berth webhooks test --app "$APP" "$WEBHOOK_ID"
+berth webhooks deliveries --app "$APP" "$WEBHOOK_ID"
+berth webhooks remove --app "$APP" "$WEBHOOK_ID"</code></pre>
+
+      <h2 id="sql">SQL, rpc, and logs</h2>
+      <p><code>berth rpc</code> calls a Postgres function by name. Arguments are <code>name=value</code> (parsed as JSON when they can be), or <code>--data</code> with a JSON object.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth sql --app "$APP" 'select title from notes where slug = $1' --param trip
+berth sql --app "$APP" 'create function add_nums(a integer, b integer) returns integer language sql as $$ select a + b $$'
+berth rpc --app "$APP" add_nums a=2 b=3
+berth rpc --app "$APP" add_nums --data '{"a": 40, "b": 2}'
+berth sql --app "$APP" --read-only --timeout-ms 2000 'select count(*) from notes'
+echo 'select slug, title from notes order by slug' &gt; report.sql
+berth sql --app "$APP" -f report.sql
+berth logs --app "$APP" --limit 5</code></pre>
+
+      <h2 id="completion">Shell completion</h2>
+      <pre class="code" data-lang="bash" data-check><code>berth completion bash &gt; berth.bash
+berth completion zsh &gt; _berth</code></pre>
+      <p>Source <code>berth.bash</code> from <code>~/.bashrc</code>, or put <code>_berth</code> in a folder on your zsh <code>fpath</code>.</p>
+
+      <h2 id="cleanup">Delete the app</h2>
+      <pre class="code" data-lang="bash" data-check><code>berth apps delete "$APP" --yes</code></pre>
+      <nav class="pager" aria-label="Pages">
+        <a href="/docs/sql/"><span>Previous</span>SQL, export, restore</a>
+        <a class="nx" href="/docs/api/"><span>Next</span>HTTP API reference</a>
+      </nav>
+    </article>
+
+    <aside class="doc-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#install">Install and global options</a></li>
+        <li><a href="#account">Signing in and account</a></li>
+        <li><a href="#apps">Apps</a></li>
+        <li><a href="#keys">App keys</a></li>
+        <li><a href="#tables">Tables</a></li>
+        <li><a href="#columns">Columns</a></li>
+        <li><a href="#indexes">Indexes</a></li>
+        <li><a href="#rows">Rows</a></li>
+        <li><a href="#auth">End-user auth</a></li>
+        <li><a href="#storage">Storage</a></li>
+        <li><a href="#functions">Functions</a></li>
+        <li><a href="#env">Env vars</a></li>
+        <li><a href="#webhooks">Webhooks</a></li>
+        <li><a href="#sql">SQL, rpc, and logs</a></li>
+        <li><a href="#completion">Shell completion</a></li>
+        <li><a href="#cleanup">Delete the app</a></li>
+      </ul>
+    </aside>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="/" aria-label="Berth home">
+          <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Berth</span>
+        </a>
+      </div>
+      <div>
+        <p class="foot-h">Start</p>
+        <ul>
+          <li><a href="/docs/">Quickstart</a></li>
+          <li><a href="/docs/keys/">Keys and security</a></li>
+          <li><a href="/docs/supabase/">From Supabase</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Build</p>
+        <ul>
+          <li><a href="/docs/auth/">End-user auth</a></li>
+          <li><a href="/docs/queries/">Queries</a></li>
+          <li><a href="/docs/storage/">Storage</a></li>
+          <li><a href="/docs/functions/">Functions</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Reference</p>
+        <ul>
+          <li><a href="/docs/cli/">CLI</a></li>
+          <li><a href="/docs/api/">HTTP API</a></li>
+          <li><a href="/docs/limits/">Limits and errors</a></li>
+          <li><a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Connect</p>
+        <ul>
+          <li><a href="mailto:hello@atberth.com?subject=Berth">Email</a></li>
+          <li><a href="/privacy/">Privacy</a></li>
+          <li><a href="/terms/">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-base">
+      <p>&copy; 2026 Berth. Private beta.</p>
+      <p>API base: https://api.atberth.com/v1</p>
+    </div>
+  </div>
+</footer>
+<script src="/main.js" defer></script>
+</body>
+</html>
