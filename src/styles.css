@@ -79,6 +79,8 @@ svg{display:block}
 .nav-links a{font-size:14px;color:var(--muted);padding:6px 12px;border-radius:8px;transition:color .2s,background .2s}
 .nav-links a:hover{color:var(--text);background:var(--panel-2)}
 .nav-actions{display:flex;align-items:center;gap:10px;margin-left:12px}
+.nav-signin{font-size:14px;font-weight:500;color:var(--text);padding:6px 12px;border-radius:8px;transition:background .2s}
+.nav-signin:hover{background:var(--panel-2)}
 .theme{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;transition:color .2s,border-color .2s}
 .theme:hover{color:var(--text);border-color:var(--line-2)}
 .theme svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
