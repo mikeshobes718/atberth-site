@@ -119,8 +119,12 @@
   // The console keeps its session on this origin. When one is live, the
   // header should say where you are going, not ask you to sign in again.
   (function () {
+    // Same order as the console: a key kept only for this tab wins, then a remembered one.
     var s = null;
-    try { s = JSON.parse(localStorage.getItem("berth-console-session") || "null"); } catch (e) {}
+    [function () { return sessionStorage; }, function () { return localStorage; }].some(function (store) {
+      try { s = JSON.parse(store().getItem("berth-console-session") || "null"); } catch (e) { s = null; }
+      return !!(s && s.token);
+    });
     if (!s || !s.token) return;
     if (s.expires_at && Date.parse(s.expires_at) < Date.now()) return;
     document.querySelectorAll('a[href="/app/"]').forEach(function (a) {

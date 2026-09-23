@@ -1,5 +1,6 @@
 import { cp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join, extname } from "node:path";
+import { createHash } from "node:crypto";
 
 const SRC = "src";
 const OUT = "dist";
@@ -56,6 +57,17 @@ for (const file of await walk(OUT)) {
   if (ext === ".html") text = minifyHtml(text);
   await writeFile(file, text);
   bytes += Buffer.byteLength(text);
+}
+
+// GitHub Pages caches for ten minutes and ignores deploys, so give the shared
+// script and stylesheet a content version or a returning visitor keeps the old one.
+const version = async (f) => createHash("sha1").update(await readFile(join(OUT, f))).digest("hex").slice(0, 10);
+const assets = { "/main.js": await version("main.js"), "/styles.css": await version("styles.css") };
+for (const file of await walk(OUT)) {
+  if (extname(file) !== ".html") continue;
+  const text = await readFile(file, "utf8");
+  const next = text.replace(/(src|href)="(\/main\.js|\/styles\.css)"/g, (_, attr, path) => `${attr}="${path}?v=${assets[path]}"`);
+  if (next !== text) await writeFile(file, next);
 }
 
 if (problems.length) {
