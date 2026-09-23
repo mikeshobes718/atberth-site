@@ -114,6 +114,7 @@ export default async function keys(ctx) {
             load();
             modal({
               title: "Key created",
+              persist: true,
               text: out.key.name + ", " + t,
               body: secretReveal(out.secret, t === "secret" ? "Full access to " + slug + ". Copy it now, it is shown once." : "Copy it now. Publishable keys are safe to ship in apps."),
               actions: [{ label: "Done", kind: "primary" }],

@@ -234,6 +234,7 @@ export default async function account(ctx) {
             drawKeys();
             modal({
               title: "Account key created",
+              persist: true,
               wide: true,
               body: h("div.stack", secretReveal(out.secret), h("div.field", h("label", "Save it for the CLI"), codeBlock("berth login --token " + out.secret))),
               actions: [{ label: "Done", kind: "primary" }],

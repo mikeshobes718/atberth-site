@@ -281,6 +281,10 @@ export async function busy(btn, fn) {
 
 /* overlays */
 const stack = [];
+const persistent = new WeakSet();
+export function closeOverlays() {
+  for (const close of stack.slice().reverse()) if (!persistent.has(close)) close();
+}
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && stack.length) {
     e.preventDefault();
@@ -311,7 +315,8 @@ function focusFirst(el) {
 }
 
 // modal({title, text, body, actions: [{label, kind, onClick(close) -> truthy to keep open}], wide})
-export function modal({ title, text, body, actions = [], wide = false, onClose }) {
+// persist: stays open across page navigation (used for secrets shown once).
+export function modal({ title, text, body, actions = [], wide = false, onClose, persist = false }) {
   let done;
   const p = new Promise((r) => (done = r));
   const el = h("div.modal" + (wide ? ".wide" : ""), { role: "dialog", "aria-modal": "true", "aria-label": title });
@@ -364,7 +369,9 @@ export function modal({ title, text, body, actions = [], wide = false, onClose }
       }
     });
   }
-  remove = layer(el, () => close());
+  const closer = () => close();
+  if (persist) persistent.add(closer);
+  remove = layer(el, closer);
   focusFirst(el);
   return p;
 }

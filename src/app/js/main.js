@@ -1,5 +1,5 @@
 import { api, get, post, session, login, useKey, logout, setUnauthorizedHandler, ApiError, enc } from "./api.js";
-import { h, mount, clear, append, icon, logo, avatar, toast, toastError, menu, modal, field, input, busy, spinner, fmtNum } from "./ui.js";
+import { h, mount, clear, append, icon, logo, avatar, toast, toastError, menu, modal, field, input, busy, spinner, fmtNum, closeOverlays } from "./ui.js";
 import { state, go, route, onRoute, loadApps, appNav, sectionTitle } from "./state.js";
 import { openPalette } from "./palette.js";
 
@@ -415,6 +415,7 @@ function renderTop() {
 }
 
 function cleanupPage() {
+  closeOverlays();
   for (const fn of cleanups) {
     try {
       fn();

@@ -95,6 +95,7 @@ export default async function webhooks(ctx) {
             load();
             modal({
               title: "Webhook added",
+              persist: true,
               text: "Use this secret to check the Berth-Signature header on every delivery.",
               body: secretReveal(out.secret),
               actions: [{ label: "I saved it", kind: "primary" }],

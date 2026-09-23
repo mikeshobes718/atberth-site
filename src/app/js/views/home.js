@@ -189,6 +189,7 @@ export function showKeys(out, title) {
     title: title + ": " + slug,
     text: "Save both keys now. Berth only shows them once.",
     wide: true,
+    persist: true,
     body: h(
       "div.stack",
       h("div.field", h("label", "Secret key ", h("span.badge.bad", "server only")), secretReveal(out.keys.secret, "Full access to this app. Keep it on your server, in CI, or in functions. Never ship it in an app.")),
