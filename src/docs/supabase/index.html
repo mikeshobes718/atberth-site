@@ -174,7 +174,7 @@ session = await berth("/auth/login", { method: "POST", body: { email, password }
       <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/signup \
   -H "apikey: $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"email":"ada@example.com","password":"correct horse battery"}' | jq .user.email</code></pre>
+  -d '{"email":"ada@example.com","password":"correct horse battery 1"}' | jq .user.email</code></pre>
       <p>Users do not move over with their Supabase passwords. Create them with <code>POST /auth/users</code> and let them sign in with an email code, then set a password.</p>
 
       <h2 id="rls">Row level security</h2>

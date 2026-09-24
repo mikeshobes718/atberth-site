@@ -146,6 +146,7 @@ echo "$CREATED" | jq .app</code></pre>
       <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP \
   -H "Authorization: Bearer $SECRET_KEY"</code></pre>
       <p class="ep"><span class="m m-patch">PATCH</span>/v1/apps/{app}</p>
+      <p>Body <code>{"cors_origins"?, "auth"?}</code>. <code>auth</code> takes <code>email</code> (password policy and <code>require_verification</code>), <code>limits</code> (auth rate limits and lockout), <code>apple</code>, and <code>google</code>. Fields you leave out keep their value, and <code>null</code> resets a group. See <a href="/docs/auth/#protection">policy, limits, and lockout</a>.</p>
       <pre class="code" data-lang="bash" data-check><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP \
   -H "Authorization: Bearer $SECRET_KEY" \
   -H "Content-Type: application/json" \
@@ -326,14 +327,14 @@ curl -sS -X POST https://api.atberth.com/v1/apps/$APP/tables/notes/rows \
       <pre class="code" data-lang="bash" data-check><code>SESSION=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/signup \
   -H "apikey: $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"email":"ada@example.com","password":"correct horse battery","data":{"name":"Ada"}}')
+  -d '{"email":"ada@example.com","password":"correct horse battery 1","data":{"name":"Ada"}}')
 ACCESS_TOKEN=$(echo "$SESSION" | jq -er .access_token)
 REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)</code></pre>
       <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/auth/login</p>
       <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/login \
   -H "apikey: $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"email":"ada@example.com","password":"correct horse battery"}' | jq .user</code></pre>
+  -d '{"email":"ada@example.com","password":"correct horse battery 1"}' | jq .user</code></pre>
       <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/auth/code</p>
       <p>Body <code>{"email"}</code>. 202, emails a 6 digit code and creates the user if new.</p>
       <pre class="code" data-lang="bash"><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/code \
@@ -346,8 +347,18 @@ REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)</code></pre>
   -H "apikey: $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
   -d '{"email":"ada@example.com","code":"123456"}'</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/auth/reset</p>
+      <p>Body <code>{"email"}</code>: 202 <code>{"sent": true}</code> whether or not the email has an account. Emails a reset code only to an existing user and never creates one (<code>/auth/recover</code> is the same). Body <code>{"email", "code", "password"}</code>: sets the new password, signs out every other session, and returns a session. A wrong or expired code is 401.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/reset \
+  -H "apikey: $PUBLISHABLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ada@example.com"}'</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/auth/settings</p>
+      <p>Any key. The sign in methods that are on and the password policy: <code>{"password": {min_length, max_length, require_letter, require_number, require_symbol}, "email_verification_required", "providers", ...}</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/auth/settings \
+  -H "apikey: $PUBLISHABLE_KEY"</code></pre>
       <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/auth/refresh</p>
-      <p>Body <code>{"refresh_token"}</code>. Returns a new session and a new refresh token. Reusing an old refresh token revokes the whole chain.</p>
+      <p>Body <code>{"refresh_token"}</code>. Returns a new session and a new refresh token. Reusing an old refresh token more than 10 seconds after it was swapped revokes the whole chain. Within 10 seconds, a second refresh of the same token also succeeds.</p>
       <pre class="code" data-lang="bash" data-check><code>SESSION=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/refresh \
   -H "apikey: $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
@@ -363,6 +374,20 @@ REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)</code></pre>
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"data":{"name":"Ada Lovelace"}}'</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/auth/verify-email</p>
+      <p>User token. Body <code>{}</code>: 202 <code>{"sent": true}</code>, emails a verification code (separate from sign in codes). Body <code>{"code"}</code>: returns <code>{"user", "verified": true}</code> and sets <code>email_verified</code>. Already verified: 200 <code>{"user", "verified": true}</code>, nothing sent.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/verify-email \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"code":"123456"}'</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/auth/sessions</p>
+      <p>User token. <code>{"sessions": [{id, user_agent, ip, created_at, refreshed_at, expires_at, current}]}</code>: one per sign in, most recently refreshed first.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/auth/sessions \
+  -H "Authorization: Bearer $ACCESS_TOKEN"</code></pre>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/auth/sessions/{session_id}</p>
+      <p>User token. Signs out that session: its refresh token and access tokens stop working. Returns <code>{"revoked": true, "id"}</code>, or 404 if it is not one of the user's active sessions.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X DELETE https://api.atberth.com/v1/apps/$APP/auth/sessions/$SESSION_ID \
+  -H "Authorization: Bearer $ACCESS_TOKEN"</code></pre>
       <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/auth/logout</p>
       <p>Body <code>{"all"?: bool}</code>. Returns <code>{"signed_out": true}</code>.</p>
       <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/logout \

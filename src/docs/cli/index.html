@@ -205,10 +205,10 @@ berth import --app "$APP" notes notes.ndjson</code></pre>
       <pre class="code" data-lang="bash"><code>berth watch --app "$APP" notes --events insert,update,delete</code></pre>
 
       <h2 id="auth">End-user auth</h2>
-      <pre class="code" data-lang="bash" data-check><code>berth auth signup --app "$APP" --email ada@example.com --password 'correct horse battery'
-berth auth login --app "$APP" --email ada@example.com --password 'correct horse battery' --key "$PUBLISHABLE_KEY"</code></pre>
+      <pre class="code" data-lang="bash" data-check><code>berth auth signup --app "$APP" --email ada@example.com --password 'correct horse battery 1'
+berth auth login --app "$APP" --email ada@example.com --password 'correct horse battery 1' --key "$PUBLISHABLE_KEY"</code></pre>
       <pre class="code" data-lang="bash" data-check><code>berth auth users list --app "$APP"
-USER_ID=$(berth auth users create --app "$APP" grace@example.com --password 'another long password' --json | jq -er .user.id)
+USER_ID=$(berth auth users create --app "$APP" grace@example.com --password 'another long password 2' --json | jq -er .user.id)
 berth auth users show --app "$APP" "$USER_ID"
 berth auth users ban --app "$APP" "$USER_ID"
 berth auth users ban --app "$APP" "$USER_ID" --unban

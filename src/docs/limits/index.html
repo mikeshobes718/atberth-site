@@ -104,6 +104,7 @@
           <tr><td>request logs kept</td><td>7 days</td></tr>
           <tr><td>end users per app</td><td>10,000</td></tr>
           <tr><td>login codes</td><td>1 per minute per email, 10 minutes valid, 5 attempts</td></tr>
+          <tr><td>end-user sign in (per app, adjustable)</td><td>10 requests per email and 300 per IP every 15 minutes, per action. 10 wrong passwords in a row lock that email for 10 minutes. See <a href="/docs/auth/#protection">policy, limits, and lockout</a>.</td></tr>
         </tbody>
       </table></div>
       <p>See where an app stands:</p>
@@ -131,6 +132,8 @@ curl -sS https://api.atberth.com/v1/apps/$APP/usage \
           <tr><td>400</td><td><code>invalid_body</code></td><td>body missing, not JSON, or wrong shape</td></tr>
           <tr><td>400</td><td><code>invalid_name</code></td><td>name breaks the naming rule</td></tr>
           <tr><td>400</td><td><code>invalid_type</code></td><td>unknown column type</td></tr>
+          <tr><td>400</td><td><code>weak_password</code></td><td>the password breaks the app's password policy</td></tr>
+          <tr><td>400</td><td><code>current_password_required</code></td><td>changing a password needs <code>current_password</code></td></tr>
           <tr><td>400</td><td><code>invalid_filter</code></td><td>bad filter, order, select, or cursor</td></tr>
           <tr><td>400</td><td><code>invalid_value</code></td><td>a value could not be stored in its column</td></tr>
           <tr><td>400</td><td><code>not_null_violation</code></td><td>a required column was missing</td></tr>
@@ -139,6 +142,8 @@ curl -sS https://api.atberth.com/v1/apps/$APP/usage \
           <tr><td>401</td><td><code>unauthorized</code></td><td>missing, unknown, revoked, or expired credential</td></tr>
           <tr><td>403</td><td><code>forbidden</code></td><td>the credential is valid but cannot do this</td></tr>
           <tr><td>403</td><td><code>policy_violation</code></td><td>a table or bucket policy blocked the request</td></tr>
+          <tr><td>403</td><td><code>wrong_password</code></td><td><code>current_password</code> is wrong. Counts toward the sign in lockout.</td></tr>
+          <tr><td>403</td><td><code>email_not_verified</code></td><td>the app requires a verified email before a password sign in</td></tr>
           <tr><td>403</td><td><code>read_only</code></td><td>a write was sent in read only SQL mode</td></tr>
           <tr><td>403</td><td><code>quota_exceeded</code></td><td>an account limit (apps, rows, storage, database size) was reached</td></tr>
           <tr><td>403</td><td><code>origin_not_allowed</code></td><td>browser origin not in the app's <code>cors_origins</code></td></tr>
@@ -150,7 +155,7 @@ curl -sS https://api.atberth.com/v1/apps/$APP/usage \
           <tr><td>409</td><td><code>idempotency_conflict</code></td><td>same Idempotency-Key with a different request</td></tr>
           <tr><td>413</td><td><code>payload_too_large</code></td><td>body over the limit for that endpoint</td></tr>
           <tr><td>415</td><td><code>unsupported_media_type</code></td><td>wrong Content-Type</td></tr>
-          <tr><td>429</td><td><code>rate_limited</code></td><td>requests per minute exceeded. See <code>Retry-After</code>.</td></tr>
+          <tr><td>429</td><td><code>rate_limited</code></td><td>requests per minute, an end-user sign in limit, or a sign in lockout was exceeded. See <code>Retry-After</code>.</td></tr>
           <tr><td>500</td><td><code>server_error</code></td><td>bug on our side, includes <code>request_id</code></td></tr>
           <tr><td>502</td><td><code>function_error</code></td><td>the function crashed or returned nothing</td></tr>
           <tr><td>503</td><td><code>unavailable</code></td><td>temporarily overloaded</td></tr>

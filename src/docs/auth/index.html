@@ -96,7 +96,7 @@
       <pre class="code" data-lang="bash" data-check><code>SESSION=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/signup \
   -H "Authorization: Bearer $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"email":"ada@example.com","password":"correct horse battery","data":{"name":"Ada"}}')
+  -d '{"email":"ada@example.com","password":"correct horse battery 1","data":{"name":"Ada"}}')
 ACCESS_TOKEN=$(echo "$SESSION" | jq -er .access_token)
 REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)
 USER_ID=$(echo "$SESSION" | jq -er .user.id)
@@ -105,7 +105,7 @@ echo "$USER_ID"</code></pre>
       <pre class="code" data-lang="bash" data-check><code>SESSION=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/login \
   -H "Authorization: Bearer $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"email":"ada@example.com","password":"correct horse battery"}')
+  -d '{"email":"ada@example.com","password":"correct horse battery 1"}')
 ACCESS_TOKEN=$(echo "$SESSION" | jq -er .access_token)
 REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)</code></pre>
       <p>The CLI can do both for testing: <code>berth auth signup --app "$APP" --email ada@example.com --password '...'</code> and <code>berth auth login</code> with the same flags.</p>
@@ -120,6 +120,30 @@ REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)</code></pre>
   -H "Authorization: Bearer $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
   -d '{"email":"ada@example.com","code":"123456"}'</code></pre>
+
+      <h2 id="reset">Password reset</h2>
+      <p>Ask for a reset code with only the email. The reply is <code>202 {"sent": true}</code> whether or not the address has an account, so it never reveals who signed up, and it never creates a user. <code>POST /auth/recover</code> does the same.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/reset \
+  -H "Authorization: Bearer $PUBLISHABLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ada@example.com"}'</code></pre>
+      <p>Then send the code with the new password to the same route. It signs the user in and signs out every other session. A wrong or expired code is 401.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/reset \
+  -H "Authorization: Bearer $PUBLISHABLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ada@example.com","code":"123456","password":"a brand new password 3"}'</code></pre>
+
+      <h2 id="verify-email">Verify an email address</h2>
+      <p>Every user has <code>email_verified</code> (true or false). Signing in with a code, Apple, or Google verifies the address. For a password signup, the signed-in user asks for a verification code, then sends it back. These codes are separate from sign in codes.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/verify-email \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}'</code></pre>
+      <pre class="code" data-lang="bash"><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/verify-email \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"code":"123456"}'</code></pre>
+      <p>The reply is <code>{"user", "verified": true}</code>. The <code>email_verified</code> claim in access tokens changes on the next refresh.</p>
 
       <h2 id="me">The signed-in user</h2>
       <p>Send the publishable key in <code>apikey</code> and the user token in <code>Authorization</code>. The token alone also works.</p>
@@ -144,6 +168,7 @@ REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)</code></pre>
         <tbody>
           <tr><td><code>sub</code></td><td>the user id</td></tr>
           <tr><td><code>email</code></td><td>the user's email</td></tr>
+          <tr><td><code>email_verified</code></td><td>whether the email was verified when the token was issued</td></tr>
           <tr><td><code>aud</code></td><td>the app slug</td></tr>
           <tr><td><code>iss</code></td><td><code>berth</code></td></tr>
           <tr><td><code>sid</code></td><td>the session id, shared by the refresh chain</td></tr>
@@ -162,8 +187,9 @@ SESSION=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/refresh \
   -d "{\"refresh_token\":\"$REFRESH_TOKEN\"}")
 ACCESS_TOKEN=$(echo "$SESSION" | jq -er .access_token)
 REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)</code></pre>
-      <p>If an old refresh token is ever used again, Berth treats it as stolen and revokes the whole chain, including the newest tokens. This answers 401:</p>
-      <pre class="code" data-lang="bash" data-check="raw"><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/refresh \
+      <p>If an old refresh token is used again more than 10 seconds after it was swapped, Berth treats it as stolen and revokes the whole chain, including the newest tokens. Within those 10 seconds a second refresh of the same token still works, so a retry or two tabs refreshing at once don't sign the user out. This answers 401:</p>
+      <pre class="code" data-lang="bash" data-check="raw"><code>sleep 11
+curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/refresh \
   -H "Authorization: Bearer $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
   -d "{\"refresh_token\":\"$OLD_REFRESH_TOKEN\"}"</code></pre>
@@ -171,9 +197,19 @@ REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)</code></pre>
       <pre class="code" data-lang="bash" data-check><code>SESSION=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/login \
   -H "Authorization: Bearer $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"email":"ada@example.com","password":"correct horse battery"}')
+  -d '{"email":"ada@example.com","password":"correct horse battery 1"}')
 ACCESS_TOKEN=$(echo "$SESSION" | jq -er .access_token)
 REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)</code></pre>
+
+      <h2 id="devices">Devices and sessions</h2>
+      <p>Each sign in is one session. Refreshing keeps it. List the signed-in user's sessions to build a "signed-in devices" screen. <code>current</code> marks the one making the call, and <code>created_at</code> is when that device signed in.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/auth/sessions \
+  -H "Authorization: Bearer $ACCESS_TOKEN" | jq '.sessions[] | {id, user_agent, created_at, current}'</code></pre>
+      <p>Sign out one other device. Its refresh token and access tokens stop working at once.</p>
+      <pre class="code" data-lang="bash" data-check><code>OTHER=$(curl -sS https://api.atberth.com/v1/apps/$APP/auth/sessions \
+  -H "Authorization: Bearer $ACCESS_TOKEN" | jq -er 'first(.sessions[] | select(.current | not) | .id)')
+curl -sS -X DELETE https://api.atberth.com/v1/apps/$APP/auth/sessions/$OTHER \
+  -H "Authorization: Bearer $ACCESS_TOKEN"</code></pre>
 
       <h2 id="logout">Sign out</h2>
       <p>Ends this session. Send <code>{"all": true}</code> to end every session of the user.</p>
@@ -188,7 +224,7 @@ REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)</code></pre>
       <pre class="code" data-lang="bash" data-check><code>USER_ID=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/users \
   -H "Authorization: Bearer $SECRET_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"email":"grace@example.com","password":"another long password"}' | jq -er .user.id)
+  -d '{"email":"grace@example.com","password":"another long password 2"}' | jq -er .user.id)
 berth auth users show --app "$APP" "$USER_ID"</code></pre>
       <pre class="code" data-lang="bash" data-check><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP/auth/users/$USER_ID \
   -H "Authorization: Bearer $SECRET_KEY" \
@@ -196,6 +232,36 @@ berth auth users show --app "$APP" "$USER_ID"</code></pre>
   -d '{"banned":true}'
 berth auth users ban --app "$APP" "$USER_ID" --unban</code></pre>
       <pre class="code" data-lang="bash" data-check><code>berth auth users delete --app "$APP" "$USER_ID" --yes</code></pre>
+
+      <h2 id="protection">Password policy, rate limits, and lockout</h2>
+      <p>Any key can read the app's password rules, so a signup form can show them:</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/auth/settings \
+  -H "Authorization: Bearer $PUBLISHABLE_KEY" | jq .password</code></pre>
+      <p>By default a password is 8 to 200 characters with a letter and a number. Signup, reset, and password changes all enforce it, and a weak one is <code>400 weak_password</code>.</p>
+      <p>Signup, login, code, reset, and refresh are rate limited separately. Each allows <code>per_email</code> requests per email (per refresh token for refresh) and <code>per_ip</code> requests per IP address in every <code>window_seconds</code>. Going over is <code>429 rate_limited</code> with a <code>Retry-After</code> header.</p>
+      <p>After <code>lockout_attempts</code> wrong passwords in a row, that email is locked for <code>lockout_seconds</code>, even for the right password (also 429 with <code>Retry-After</code>). Each further lock doubles, up to a day. A right password resets the count.</p>
+      <p>Change any of it with the secret key. Fields you leave out keep their value, and <code>null</code> resets a group to the defaults.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"auth":{"email":{"min_password_length":10,"password_require_symbol":false},
+               "limits":{"per_email":10,"per_ip":300,"window_seconds":900,
+                         "lockout_attempts":10,"lockout_seconds":600}}}' | jq .app.auth</code></pre>
+      <div class="tbl"><table>
+        <thead><tr><th>Setting</th><th>Default</th><th>Range</th></tr></thead>
+        <tbody>
+          <tr><td><code>email.min_password_length</code></td><td>8</td><td>8 to 128</td></tr>
+          <tr><td><code>email.password_require_number</code></td><td>true</td><td></td></tr>
+          <tr><td><code>email.password_require_symbol</code></td><td>false</td><td>any character that is not a letter, digit, or space</td></tr>
+          <tr><td><code>email.require_verification</code></td><td>false</td><td>when true, password users must verify their email before they can sign in</td></tr>
+          <tr><td><code>limits.per_email</code></td><td>10</td><td>1 to 10,000</td></tr>
+          <tr><td><code>limits.per_ip</code></td><td>300</td><td>1 to 100,000</td></tr>
+          <tr><td><code>limits.window_seconds</code></td><td>900</td><td>10 to 86,400</td></tr>
+          <tr><td><code>limits.lockout_attempts</code></td><td>10</td><td>3 to 100</td></tr>
+          <tr><td><code>limits.lockout_seconds</code></td><td>600</td><td>10 to 86,400</td></tr>
+        </tbody>
+      </table></div>
+      <p>To hear about sign ups, sign ins, failed sign ins, and password changes, add a webhook for <a href="/docs/webhooks/#auth-events">auth events</a>.</p>
 
       <h2 id="from-a-phone">Calling from a phone or browser</h2>
       <p>Ship the base URL and the publishable key. Nothing else. Then sign in and send the user token on each request.</p>
@@ -286,11 +352,15 @@ fun notes(accessToken: String): String {
         <li><a href="#sessions">Sessions</a></li>
         <li><a href="#password">Email and password</a></li>
         <li><a href="#email-code">Email code</a></li>
+        <li><a href="#reset">Password reset</a></li>
+        <li><a href="#verify-email">Verify an email address</a></li>
         <li><a href="#me">The signed-in user</a></li>
         <li><a href="#jwt">JWT claims</a></li>
         <li><a href="#refresh">Refresh and rotation</a></li>
+        <li><a href="#devices">Devices and sessions</a></li>
         <li><a href="#logout">Sign out</a></li>
         <li><a href="#manage-users">Managing users from your server</a></li>
+        <li><a href="#protection">Policy, limits, and lockout</a></li>
         <li><a href="#from-a-phone">Calling from a phone or browser</a></li>
       </ul>
     </aside>

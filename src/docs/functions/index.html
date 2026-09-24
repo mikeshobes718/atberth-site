@@ -150,7 +150,7 @@ berth functions invoke --app "$APP" digest --data 'hello' --content-type text/pl
       <pre class="code" data-lang="bash" data-check><code>ACCESS_TOKEN=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/signup \
   -H "Authorization: Bearer $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"email":"ada@example.com","password":"correct horse battery"}' | jq -er .access_token)
+  -d '{"email":"ada@example.com","password":"correct horse battery 1"}' | jq -er .access_token)
 curl -sS https://api.atberth.com/v1/apps/$APP/functions/whoami \
   -H "apikey: $PUBLISHABLE_KEY" \
   -H "Authorization: Bearer $ACCESS_TOKEN"</code></pre>

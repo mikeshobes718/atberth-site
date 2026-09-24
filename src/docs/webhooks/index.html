@@ -102,7 +102,7 @@
       </table></div>
 
       <h2 id="create">Create a webhook</h2>
-      <p>Point it at an HTTPS endpoint you control. Leave out <code>table</code> for every table and <code>events</code> for all three types. The signing secret is returned once.</p>
+      <p>Point it at an HTTPS endpoint you control. Leave out <code>table</code> for every table and <code>events</code> for all three row types. The signing secret is returned once.</p>
       <pre class="code" data-lang="bash" data-check><code>berth tables create --app "$APP" notes title:text:notnull</code></pre>
       <pre class="code" data-lang="bash" data-check><code>HOOK=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/webhooks \
   -H "Authorization: Bearer $SECRET_KEY" \
@@ -112,6 +112,31 @@ WEBHOOK_ID=$(echo "$HOOK" | jq -er '.webhook.id')
 WEBHOOK_SECRET=$(echo "$HOOK" | jq -er '.secret')
 berth webhooks list --app "$APP"</code></pre>
       <p>With the CLI: <code>berth webhooks add --app "$APP" https://example.com/berth-webhook --table notes --events insert,update</code>. Private, loopback, and cloud metadata addresses are refused.</p>
+
+      <h2 id="auth-events">Auth events</h2>
+      <p>A webhook can also hear about your app's <a href="/docs/auth/">end users</a>: <code>auth.signup</code>, <code>auth.login</code>, <code>auth.login_failed</code>, and <code>auth.password_changed</code>. Webhooks only get them when <code>events</code> lists them, and <code>table</code> does not filter them. They are signed and retried like row events.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/webhooks \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/berth-auth","events":["auth.signup","auth.login_failed"],"description":"security log"}' | jq .webhook.events</code></pre>
+      <pre class="code" data-lang="json"><code>{
+  "id": "evt_auth_...",
+  "type": "auth.login_failed",
+  "app": "notes_app",
+  "user": {"id": "...", "email": "ada@example.com"},
+  "context": {"method": "password", "reason": "wrong_password", "ip": "...", "user_agent": "NotesApp/1.2"},
+  "occurred_at": "2026-09-24T18:00:00Z"
+}</code></pre>
+      <div class="tbl"><table>
+        <thead><tr><th>Type</th><th>When</th></tr></thead>
+        <tbody>
+          <tr><td><code>auth.signup</code></td><td>a new user, from any sign in method</td></tr>
+          <tr><td><code>auth.login</code></td><td>a sign in that returned a session (not a refresh)</td></tr>
+          <tr><td><code>auth.login_failed</code></td><td>a wrong password (<code>reason</code> <code>wrong_password</code>) or a banned user (<code>banned</code>). For an email with no account, <code>user.id</code> is null.</td></tr>
+          <tr><td><code>auth.password_changed</code></td><td>a reset, the user changing it, or your server setting it</td></tr>
+        </tbody>
+      </table></div>
+      <p><code>context.method</code> is <code>password</code>, <code>code</code>, <code>apple</code>, <code>google</code>, <code>reset</code>, <code>self</code> (the user changed it), or <code>admin</code> (your server did).</p>
 
       <h2 id="test">Test and inspect deliveries</h2>
       <p>Send a <code>ping</code>, write a row, then look at what was sent and what your server answered:</p>
@@ -195,6 +220,7 @@ curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP/webhooks/$WEBHOOK_ID \
       <ul>
         <li><a href="#payload">Payload</a></li>
         <li><a href="#create">Create a webhook</a></li>
+        <li><a href="#auth-events">Auth events</a></li>
         <li><a href="#test">Test and inspect deliveries</a></li>
         <li><a href="#retries">Retries</a></li>
         <li><a href="#verify">Verify the signature</a></li>

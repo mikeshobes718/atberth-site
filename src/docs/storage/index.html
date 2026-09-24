@@ -107,7 +107,7 @@ berth storage buckets list --app "$APP"</code></pre>
       <pre class="code" data-lang="bash" data-check><code>SESSION=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/signup \
   -H "Authorization: Bearer $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"email":"ada@example.com","password":"correct horse battery"}')
+  -d '{"email":"ada@example.com","password":"correct horse battery 1"}')
 ACCESS_TOKEN=$(echo "$SESSION" | jq -er .access_token)
 USER_ID=$(echo "$SESSION" | jq -er .user.id)
 echo 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' | base64 -d &gt; avatar.png</code></pre>

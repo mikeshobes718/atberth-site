@@ -108,11 +108,11 @@ berth tables show --app "$APP" notes</code></pre>
       <pre class="code" data-lang="bash" data-check><code>ACCESS_TOKEN=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/signup \
   -H "Authorization: Bearer $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"email":"ada@example.com","password":"correct horse battery"}' | jq -er .access_token)
+  -d '{"email":"ada@example.com","password":"correct horse battery 1"}' | jq -er .access_token)
 GRACE_TOKEN=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/signup \
   -H "Authorization: Bearer $PUBLISHABLE_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"email":"grace@example.com","password":"another long password"}' | jq -er .access_token)</code></pre>
+  -d '{"email":"grace@example.com","password":"another long password 2"}' | jq -er .access_token)</code></pre>
       <p>Ada writes a note. <code>owner_id</code> is filled in from her token:</p>
       <pre class="code" data-lang="bash" data-check><code>ROW_ID=$(curl -sS -X POST https://api.atberth.com/v1/apps/$APP/tables/notes/rows \
   -H "apikey: $PUBLISHABLE_KEY" \
