@@ -358,7 +358,7 @@ REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)</code></pre>
       <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/auth/me \
   -H "Authorization: Bearer $ACCESS_TOKEN"</code></pre>
       <p class="ep"><span class="m m-patch">PATCH</span>/v1/apps/{app}/auth/me</p>
-      <p>Body <code>{"password"?, "data"?}</code>.</p>
+      <p>Body <code>{"password"?, "current_password"?, "data"?}</code>. To change the password, send the current one too: a wrong one is <code>403 wrong_password</code> and counts toward the sign-in lockout. Users who have never set a password (code, Apple or Google sign in) can set a first one without it.</p>
       <pre class="code" data-lang="bash" data-check><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP/auth/me \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \

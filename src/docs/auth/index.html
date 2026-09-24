@@ -131,6 +131,11 @@ REFRESH_TOKEN=$(echo "$SESSION" | jq -er .refresh_token)</code></pre>
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"data":{"name":"Ada Lovelace"}}'</code></pre>
+      <p>Changing the password takes the current one as well, so a borrowed phone or a leaked access token can't take over the account. A wrong <code>current_password</code> is <code>403 wrong_password</code> and counts toward the same lockout as a wrong sign in. Users who have only ever signed in with a code, Apple or Google have no password yet and can set one without it.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP/auth/me \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"current_password":"old password 1","password":"new password 2"}'</code></pre>
 
       <h2 id="jwt">JWT claims</h2>
       <p>Access tokens are HS256 JWTs that expire after an hour. Your server can read the claims, but should check a token by calling <code>/auth/me</code>, since Berth holds the signing secret.</p>
