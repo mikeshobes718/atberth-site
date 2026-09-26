@@ -1,5 +1,5 @@
 import { api, get, post, patch, del, enc } from "../api.js";
-import { h, mount, icon, toast, toastError, modal, confirmDanger, field, input, empty, errorBox, loading, badge, timeEl, fmtNum, fmtBytes, busy, toggle, copyBtn, codeBlock, areaChart, seg } from "../ui.js";
+import { h, mount, icon, toast, toastError, modal, closeOverlays, confirmDanger, field, input, empty, errorBox, loading, badge, timeEl, fmtNum, fmtBytes, busy, toggle, copyBtn, codeBlock, areaChart, seg } from "../ui.js";
 import { replace, appPath } from "../state.js";
 
 const SITE_DOMAIN = "atberth.com";
@@ -110,24 +110,27 @@ export default async function sites(ctx) {
     const name = input({ placeholder: "my-site", autofocus: true });
     const hint = h("div.hint", "Becomes my-site." + SITE_DOMAIN + ". Letters, numbers and hyphens.");
     name.addEventListener("input", () => (hint.textContent = "Becomes " + (name.value.trim().toLowerCase() || "my-site") + "." + SITE_DOMAIN + ". Letters, numbers and hyphens."));
-    const btn = h("button.btn.primary", { type: "button" }, "Create site");
-    const close = modal({
+    modal({
       title: "New site",
-      body: h("div", h("div.field", h("label", "Name"), name, hint)),
-      actions: [btn],
+      body: h("form", { id: "modal-form", onsubmit: (e) => e.preventDefault() }, h("div.field", h("label", "Name"), name, hint)),
+      actions: [
+        { label: "Cancel" },
+        {
+          label: "Create site",
+          kind: "primary",
+          submit: true,
+          onClick: async () => {
+            const v = name.value.trim().toLowerCase();
+            if (!NAME_RE.test(v) || v.includes("--")) {
+              toast("Use 1 to 42 letters, numbers or single hyphens.", { bad: true });
+              return true;
+            }
+            await post(base, { name: v });
+            setTimeout(() => (location.hash = appPath(slug, "sites", v)), 0);
+          },
+        },
+      ],
     });
-    btn.onclick = () =>
-      busy(btn, async () => {
-        const v = name.value.trim().toLowerCase();
-        if (!NAME_RE.test(v) || v.includes("--")) return toast("Use 1 to 42 letters, numbers or single hyphens.", { bad: true });
-        try {
-          await post(base, { name: v });
-          close();
-          location.hash = appPath(slug, "sites", v);
-        } catch (e) {
-          toastError(e);
-        }
-      });
   }
 
   await load();
@@ -301,11 +304,10 @@ export default async function sites(ctx) {
     }
 
     function deployDialog(preview) {
-      let close;
-      close = modal({
+      modal({
         title: preview ? "Preview deploy" : "Deploy " + name,
         text: preview ? "A preview gets its own link and does not change the live site. Publish it when it looks right." : "Only files that changed are uploaded. The switch is instant, and you can roll back any time.",
-        body: dropZone(preview, () => { close(); tab = "deploys"; drawTabs(); deploys(); }),
+        body: dropZone(preview, () => { closeOverlays(); tab = "deploys"; drawTabs(); deploys(); }),
         wide: true,
       });
     }
