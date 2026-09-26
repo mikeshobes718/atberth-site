@@ -243,6 +243,22 @@ h2.h3{font-size:clamp(24px,2.6vw,30px);letter-spacing:-.03em;margin-top:10px}
 .app-grid a:hover .arr{transform:translate(2px,-2px);color:var(--accent-ink)}
 
 /* cta */
+.plans-head{max-width:640px}
+.plans{margin-top:40px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch}
+.plan{display:flex;flex-direction:column;gap:14px;padding:28px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel)}
+.plan-hi{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 24px 60px -30px var(--glow-a)}
+.plan-n{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:15px;font-weight:600}
+.plan-tag{font-size:12px;font-weight:500;color:var(--accent-ink);padding:3px 9px;border:1px solid var(--line-2);border-radius:999px}
+.plan-p{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.plan-a{font-size:40px;font-weight:600;letter-spacing:-.03em;line-height:1.1}
+.plan-u{font-size:14px;color:var(--muted)}
+.plan-d{color:var(--muted);font-size:15px}
+.plan-f{display:flex;flex-direction:column;gap:9px;padding-top:14px;border-top:1px solid var(--line);font-size:14.5px;flex:1}
+.plan-f li{position:relative;padding-left:22px}
+.plan-f li::before{content:"";position:absolute;left:2px;top:.55em;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.plan .btn{justify-content:center;margin-top:6px}
+.plans-note{margin-top:20px;font-size:14px;color:var(--dim)}
+@media (max-width:900px){.plans{grid-template-columns:1fr}}
 .cta-sec{padding-bottom:120px}
 .cta{position:relative;overflow:hidden;text-align:center;border:1px solid var(--line);border-radius:24px;padding:88px 24px;background:var(--panel)}
 .cta-glow{position:absolute;inset:auto -20% -60% -20%;height:120%;background:radial-gradient(50% 50% at 50% 100%,var(--glow-a),transparent 70%);pointer-events:none}
