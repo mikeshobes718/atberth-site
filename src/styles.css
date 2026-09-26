@@ -437,3 +437,29 @@ h2.h3{font-size:clamp(24px,2.6vw,30px);letter-spacing:-.03em;margin-top:10px}
   .doc .code{font-size:12.5px}
 }
 
+
+/* Phone menu */
+.nav-menu{display:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--line-2);align-items:center;justify-content:center;color:var(--text);background:transparent}
+.nav-menu svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+.nav-menu path{transition:transform .25s var(--ease),opacity .2s;transform-origin:12px 12px}
+.menu-open .nav-menu .l1{transform:translateY(5px) rotate(45deg)}
+.menu-open .nav-menu .l2{opacity:0}
+.menu-open .nav-menu .l3{transform:translateY(-5px) rotate(-45deg)}
+.nav-panel{display:none}
+@media (max-width:900px){
+  .nav-menu{display:inline-flex}
+  header.nav{position:sticky}
+  .nav-panel{display:block;position:absolute;left:0;right:0;top:100%;background:var(--bg);border-bottom:1px solid var(--line);box-shadow:0 24px 40px -24px rgba(0,0,0,.45);padding:8px 16px 18px;opacity:0;transform:translateY(-6px);pointer-events:none;visibility:hidden;transition:opacity .2s,transform .2s var(--ease),visibility 0s .2s;max-height:calc(100vh - 64px);overflow:auto}
+  .menu-open .nav-panel{opacity:1;transform:none;pointer-events:auto;visibility:visible;transition:opacity .2s,transform .2s var(--ease)}
+  .nav-panel-links{display:flex;flex-direction:column}
+  .nav-panel-links a{padding:14px 8px;font-size:17px;color:var(--text);border-bottom:1px solid var(--line)}
+  .nav-panel-links a[aria-current="page"]{color:var(--accent-ink)}
+  .nav-panel-actions{display:flex;gap:10px;margin-top:16px}
+  .nav-panel-actions .btn{flex:1;justify-content:center}
+}
+/* Jump to top / bottom */
+.jump{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));z-index:60;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--btn-bg);color:var(--btn-fg);border:0;box-shadow:0 10px 30px -10px rgba(0,0,0,.5);opacity:0;transform:translateY(12px) scale(.9);pointer-events:none;transition:opacity .25s,transform .25s var(--ease);cursor:pointer}
+.jump.show{opacity:1;transform:none;pointer-events:auto}
+.jump svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.jump:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media (prefers-reduced-motion:reduce){.jump,.jump svg,.nav-panel,.nav-menu path{transition:none}}

@@ -132,3 +132,93 @@
     });
   })();
 })();
+
+// Phone menu: the header links are hidden under 900px, so give them a menu button.
+(function () {
+  var header = document.querySelector("header.nav");
+  var links = header && header.querySelector(".nav-links");
+  var actions = header && header.querySelector(".nav-actions");
+  if (!header || !links || !actions) return;
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "nav-menu";
+  btn.setAttribute("aria-label", "Open menu");
+  btn.setAttribute("aria-expanded", "false");
+  btn.setAttribute("aria-controls", "nav-panel");
+  btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="l1" d="M4 7h16"/><path class="l2" d="M4 12h16"/><path class="l3" d="M4 17h16"/></svg>';
+  actions.appendChild(btn);
+  var panel = document.createElement("nav");
+  panel.id = "nav-panel";
+  panel.className = "nav-panel";
+  panel.setAttribute("aria-label", "Menu");
+  var list = document.createElement("div");
+  list.className = "nav-panel-links";
+  links.querySelectorAll("a").forEach(function (a) { list.appendChild(a.cloneNode(true)); });
+  panel.appendChild(list);
+  var foot = document.createElement("div");
+  foot.className = "nav-panel-actions";
+  var signin = actions.querySelector(".nav-signin");
+  var cta = actions.querySelector(".btn");
+  if (signin) { var s1 = signin.cloneNode(true); s1.className = "btn btn-ghost"; foot.appendChild(s1); }
+  if (cta) { var c1 = cta.cloneNode(true); c1.className = "btn btn-light"; foot.appendChild(c1); }
+  panel.appendChild(foot);
+  header.appendChild(panel);
+  function set(open) {
+    header.classList.toggle("menu-open", open);
+    btn.setAttribute("aria-expanded", String(open));
+    btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+  }
+  btn.addEventListener("click", function () { set(!header.classList.contains("menu-open")); });
+  panel.addEventListener("click", function (e) { if (e.target.closest("a")) set(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") set(false); });
+  document.addEventListener("click", function (e) { if (!header.contains(e.target)) set(false); });
+  window.addEventListener("resize", function () { if (window.innerWidth > 900) set(false); });
+  // Keep "Sign in" / "Open console" in the panel in step with the header.
+  if (signin && window.MutationObserver) {
+    new MutationObserver(function () {
+      var mine = foot.querySelector("a");
+      if (mine && signin) { mine.textContent = signin.textContent; mine.href = signin.href; }
+    }).observe(signin, { childList: true, characterData: true, subtree: true, attributes: true });
+  }
+})();
+
+// Jump button: only on long pages, only while scrolling, pointing the way you're going.
+(function () {
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "jump";
+  btn.setAttribute("aria-label", "Back to top");
+  btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>';
+  document.body.appendChild(btn);
+  var lastY = window.scrollY, dir = "up", timer = 0, hover = false;
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function hide() { if (!hover) btn.classList.remove("show"); }
+  function update() {
+    var y = window.scrollY, vh = window.innerHeight;
+    var total = document.documentElement.scrollHeight;
+    var toBottom = total - (y + vh);
+    if (Math.abs(y - lastY) < 4) return;
+    dir = y > lastY ? "down" : "up";
+    lastY = y;
+    var longPage = total > vh * 2.5;
+    var want = longPage && (dir === "down" ? (y > vh * 0.5 && toBottom > vh * 1.2) : y > vh * 1.2);
+    if (btn.classList.contains("down") !== (dir === "down")) {
+      btn.querySelector("path").setAttribute("d", dir === "down" ? "M12 5v14M6 13l6 6 6-6" : "M12 19V5M6 11l6-6 6 6");
+    }
+    btn.classList.toggle("down", dir === "down");
+    btn.setAttribute("aria-label", dir === "down" ? "Jump to bottom" : "Back to top");
+    btn.classList.toggle("show", want);
+    clearTimeout(timer);
+    if (want) timer = setTimeout(hide, 2200);
+  }
+  window.addEventListener("scroll", update, { passive: true });
+  btn.addEventListener("mouseenter", function () { hover = true; clearTimeout(timer); });
+  btn.addEventListener("mouseleave", function () { hover = false; timer = setTimeout(hide, 1200); });
+  btn.addEventListener("focus", function () { btn.classList.add("show"); clearTimeout(timer); });
+  btn.addEventListener("click", function () {
+    var down = btn.classList.contains("down");
+    window.scrollTo({ top: down ? document.documentElement.scrollHeight : 0, behavior: reduce ? "auto" : "smooth" });
+    btn.classList.remove("show");
+    btn.blur();
+  });
+})();
