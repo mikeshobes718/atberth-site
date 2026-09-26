@@ -188,8 +188,10 @@
   btn.type = "button";
   btn.className = "jump";
   btn.setAttribute("aria-label", "Back to top");
-  btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>';
+  btn.innerHTML = '<svg class="jump-ring" viewBox="0 0 46 46" aria-hidden="true"><circle class="bar" cx="23" cy="23" r="22.1" pathLength="100"/></svg>' +
+    '<svg class="jump-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>';
   document.body.appendChild(btn);
+  var bar = btn.querySelector(".bar");
   var lastY = window.scrollY, dir = "up", timer = 0, hover = false;
   var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   function hide() { if (!hover) btn.classList.remove("show"); }
@@ -202,9 +204,7 @@
     lastY = y;
     var longPage = total > vh * 2.5;
     var want = longPage && (dir === "down" ? (y > vh * 0.5 && toBottom > vh * 1.2) : y > vh * 1.2);
-    if (btn.classList.contains("down") !== (dir === "down")) {
-      btn.querySelector("path").setAttribute("d", dir === "down" ? "M12 5v14M6 13l6 6 6-6" : "M12 19V5M6 11l6-6 6 6");
-    }
+    bar.style.strokeDashoffset = String(100 * (1 - Math.min(1, Math.max(0, y / Math.max(1, total - vh)))));
     btn.classList.toggle("down", dir === "down");
     btn.setAttribute("aria-label", dir === "down" ? "Jump to bottom" : "Back to top");
     btn.classList.toggle("show", want);

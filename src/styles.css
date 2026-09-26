@@ -461,8 +461,14 @@ h2.h3{font-size:clamp(24px,2.6vw,30px);letter-spacing:-.03em;margin-top:10px}
   .nav-panel-actions .btn{flex:1;justify-content:center}
 }
 /* Jump to top / bottom */
-.jump{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));z-index:60;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--btn-bg);color:var(--btn-fg);border:0;box-shadow:0 10px 30px -10px rgba(0,0,0,.5);opacity:0;transform:translateY(12px) scale(.9);pointer-events:none;transition:opacity .25s,transform .25s var(--ease);cursor:pointer}
-.jump.show{opacity:1;transform:none;pointer-events:auto}
-.jump svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.jump{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:60;width:46px;height:46px;padding:0;margin:0;border:0;border-radius:999px;color:var(--text);background:color-mix(in srgb,var(--bg) 58%,transparent);-webkit-backdrop-filter:blur(20px) saturate(1.8);backdrop-filter:blur(20px) saturate(1.8);box-shadow:inset 0 0 0 1px var(--line-2),inset 0 1px 0 rgba(255,255,255,.07),0 10px 28px -10px rgba(0,0,0,.45),0 2px 8px -3px rgba(0,0,0,.25);opacity:0;transform:translateY(10px) scale(.86);filter:blur(4px);pointer-events:none;transition:opacity .3s var(--ease),transform .45s cubic-bezier(.3,1.45,.45,1),filter .3s var(--ease);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.jump.show{opacity:1;transform:none;filter:none;pointer-events:auto}
+.jump.show:hover{transform:scale(1.06)}
+.jump.show:active{transform:scale(.93);transition-duration:.12s}
+.jump-ring{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg);pointer-events:none}
+.jump-ring circle{fill:none;stroke-width:1.75;stroke-linecap:round}
+.jump-ring .bar{stroke:var(--accent);stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset .12s linear}
+.jump-arrow{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;display:block;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .5s cubic-bezier(.3,1.45,.45,1)}
+.jump.down .jump-arrow{transform:rotate(180deg)}
 .jump:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-@media (prefers-reduced-motion:reduce){.jump,.jump svg,.nav-panel,.nav-menu path{transition:none}}
+@media (prefers-reduced-motion:reduce){.jump,.jump-arrow,.jump-ring .bar,.nav-panel,.nav-menu path{transition:none}}
