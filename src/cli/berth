@@ -310,7 +310,7 @@ def http(method: str, path: str, token: str | None = None, *, body=NOBODY, data=
         finally:
             if fh:
                 fh.close()
-        if status in (429, 503) and attempt < 2:
+        if (status == 429 or (status == 503 and method == "GET")) and attempt < 2:
             try:
                 wait = int(res.headers.get("Retry-After") or 2)
             except ValueError:
@@ -753,13 +753,21 @@ def cmd_apps_usage(args) -> None:
 
     def human():
         usage_ = payload.get("usage") or {}
-        limits = payload.get("limits") or {}
-        rows = [{"metric": k, "used": v, "limit": limits.get(k, "")} for k, v in usage_.items()]
+        limits = payload.get("limits")
+        rows = []
+        for key, value in usage_.items():
+            if isinstance(value, dict):
+                for sub_key, sub_value in value.items():
+                    rows.append({"metric": f"{key}.{sub_key}", "used": sub_value, "limit": ""})
+                continue
+            limit = limits.get(key, "") if isinstance(limits, dict) else (limits or "")
+            rows.append({"metric": key, "used": value, "limit": limit})
         print_table(rows)
-        extra = {k: v for k, v in limits.items() if k not in usage_}
-        if extra:
-            print("limits:")
-            print_kv(extra, "  ")
+        if isinstance(limits, dict):
+            extra = {k: v for k, v in limits.items() if k not in usage_}
+            if extra:
+                print("other limits:")
+                print_kv(extra, "  ")
     emit(payload, human)
 
 
@@ -1481,7 +1489,10 @@ def cmd_buckets_update(args) -> None:
 def cmd_buckets_delete(args) -> None:
     app = resolve_app(args)
     query = [("force", "true")] if args.force else None
-    payload = app_api(app, "DELETE", app_path(app, "storage", "buckets", args.name), query=query)
+    resp = app_http(app, "DELETE", app_path(app, "storage", "buckets", args.name), query=query)
+    if not resp.ok and not args.force and resp.status in (400, 409):
+        note("Pass --force to delete the bucket and every file in it.")
+    payload = check(resp)
     emit(payload, f"Deleted bucket {args.name}.")
 
 
@@ -1538,6 +1549,216 @@ def cmd_functions_list(args) -> None:
     emit(payload, lambda: print_table(first_list(payload, "functions"), empty="No functions yet."))
 
 
+# Sites
+
+SKIP_DIRS = {".git", "node_modules", ".DS_Store", ".next/cache", ".vercel", ".netlify"}
+
+
+def site_files(root: Path) -> dict:
+    files = {}
+    for path in sorted(root.rglob("*")):
+        rel = path.relative_to(root).as_posix()
+        parts = rel.split("/")
+        if any(p.startswith(".") and p != ".well-known" for p in parts) or "node_modules" in parts:
+            continue
+        if path.is_symlink():
+            usage(f"{rel} is a symlink. Deploy real files.")
+        if path.is_file():
+            files[rel] = path
+    return files
+
+
+def sha256_file(path: Path) -> str:
+    import hashlib
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def human_bytes(n: int) -> str:
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1024 or unit == "GB":
+            return f"{n:.0f} {unit}" if unit == "B" else f"{n:.1f} {unit}"
+        n /= 1024
+    return str(n)
+
+
+def cmd_sites_list(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "sites"))
+    rows = [{"name": s["name"], "url": s["url"], "live": (s.get("current_deploy") or {}).get("id", "")[:8] or "-",
+             "domains": ", ".join(d["domain"] for d in s.get("domains") or []) or "-",
+             "password": "yes" if s.get("password_protected") else ""} for s in first_list(payload, "sites")]
+    emit(payload, lambda: print_table(rows, empty="No sites yet. Deploy one: berth sites deploy ./dist --site my-site"))
+
+
+def cmd_sites_create(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "POST", app_path(app, "sites"), body={"name": args.name})
+    emit(payload, lambda: print(f"Created {payload['site']['url']}. Deploy to it: berth sites deploy ./dist --site {args.name}"))
+
+
+def cmd_sites_deploy(args) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+    app = resolve_app(args)
+    root = Path(args.dir).expanduser()
+    if not root.is_dir():
+        usage(f"{args.dir} is not a folder. Point at your build output, like ./dist, ./build, or ./out.")
+    files = site_files(root)
+    if not files:
+        usage(f"{args.dir} has no files to deploy.")
+    if "index.html" not in files:
+        note(f"Note: {args.dir} has no index.html at the top, so the home page will be a 404.")
+    name = args.site or root.resolve().name.lower().replace("_", "-")
+    resp = app_http(app, "GET", app_path(app, "sites", name))
+    if resp.status == 404:
+        app_api(app, "POST", app_path(app, "sites"), body={"name": name})
+        note(f"Created site {name}.")
+    elif not resp.ok:
+        fail(resp)
+    hashes = {rel: sha256_file(path) for rel, path in files.items()}
+    by_sha = {sha: files[rel] for rel, sha in hashes.items()}
+    total = sum(p.stat().st_size for p in files.values())
+    body = {"files": hashes, "preview": bool(args.preview)}
+    if args.message:
+        body["message"] = args.message
+    start = app_api(app, "POST", app_path(app, "sites", name, "deploys"), body=body, timeout=120)
+    deploy_id = start["deploy"]["id"]
+    missing = start.get("missing") or []
+    if not JSON:
+        note(f"{plural(len(files), 'file')}, {human_bytes(total)}. Uploading {plural(len(missing), 'new file')}.")
+
+    def upload(sha: str) -> None:
+        r = app_http(app, "PUT", app_path(app, "sites", name, "files", sha), data=by_sha[sha],
+                     ctype="application/octet-stream", timeout=300)
+        if not r.ok:
+            fail(r)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(upload, missing))
+    payload = app_api(app, "POST", app_path(app, "sites", name, "deploys", deploy_id, "finish"), body={}, timeout=180)
+
+    def human():
+        for w in payload["deploy"].get("warnings") or []:
+            note("Warning: " + w)
+        if args.preview:
+            print(f"Preview ready: {payload['url']}")
+            print(f"Make it live: berth sites promote {name} {deploy_id}")
+        else:
+            print(f"Live: {payload['url']}")
+            print(f"This deploy: {payload['deploy']['url']}")
+    emit(payload, human)
+
+
+def cmd_sites_deploys(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "sites", args.name, "deploys"), query=[("limit", args.limit)] if args.limit else None)
+    rows = [{"id": d["id"], "status": ("live" if d["current"] else d["status"]) + (" preview" if d["preview"] else ""),
+             "files": d["files"], "size": human_bytes(d["bytes"]), "created": d["created_at"], "message": d.get("message") or ""}
+            for d in first_list(payload, "deploys")]
+    emit(payload, lambda: print_table(rows, empty="No deploys yet."))
+
+
+def cmd_sites_promote(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "POST", app_path(app, "sites", args.name, "deploys", args.deploy, "promote"), body={})
+    emit(payload, lambda: print(f"{args.deploy[:8]} is live at {payload['url']}."))
+
+
+def cmd_sites_rollback(args) -> None:
+    app = resolve_app(args)
+    deploys = first_list(app_api(app, "GET", app_path(app, "sites", args.name, "deploys")), "deploys")
+    ready = [d for d in deploys if d["status"] == "ready" and not d["preview"]]
+    idx = next((i for i, d in enumerate(ready) if d["current"]), None)
+    if idx is None or idx + 1 >= len(ready):
+        die("There is no earlier deploy to roll back to.")
+    target = ready[idx + 1]
+    payload = app_api(app, "POST", app_path(app, "sites", args.name, "deploys", target["id"], "promote"), body={})
+    emit(payload, lambda: print(f"Rolled back to {target['id'][:8]} ({target['created_at']}). Live at {payload['url']}."))
+
+
+def cmd_sites_delete(args) -> None:
+    app = resolve_app(args)
+    if not args.yes:
+        usage(f"This deletes {args.name}, every deploy, and its domains. Add --yes to confirm.")
+    payload = app_api(app, "DELETE", app_path(app, "sites", args.name))
+    emit(payload, lambda: print(f"Deleted {args.name}."))
+
+
+def print_domain(d: dict) -> None:
+    state = "ready" if d["verified"] else "waiting for DNS"
+    extra = " (primary)" if d.get("primary") else (f" -> redirects to {d['redirect_to']}" if d.get("redirect_to") else "")
+    print(f"{d['domain']}: {state}{extra}")
+    if not d["verified"]:
+        for rec in d.get("dns") or []:
+            print(f"  Add a {rec['type']} record: name {rec['name']}, value {rec['value']}")
+        print("  Then run: berth sites domains verify SITE " + d["domain"])
+
+
+def cmd_sites_domains_list(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "sites", args.name, "domains"))
+    emit(payload, lambda: [print_domain(d) for d in first_list(payload, "domains")] or print("No custom domains yet."))
+
+
+def cmd_sites_domains_add(args) -> None:
+    app = resolve_app(args)
+    body = {"domain": args.domain}
+    if args.primary:
+        body["primary"] = True
+    if args.redirect_to:
+        body["redirect_to"] = args.redirect_to
+    payload = app_api(app, "POST", app_path(app, "sites", args.name, "domains"), body=body)
+    emit(payload, lambda: print_domain(payload["domain"]))
+
+
+def cmd_sites_domains_verify(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "POST", app_path(app, "sites", args.name, "domains", args.domain, "verify"), body={})
+    emit(payload, lambda: print_domain(payload["domain"]))
+
+
+def cmd_sites_domains_remove(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "DELETE", app_path(app, "sites", args.name, "domains", args.domain))
+    emit(payload, lambda: print(f"Removed {args.domain}."))
+
+
+def cmd_sites_password(args) -> None:
+    app = resolve_app(args)
+    body: dict = {}
+    if args.clear:
+        body["password"] = None
+    elif args.set is not None:
+        body["password"] = args.set if args.set != "-" else prompt("Site password", secret=True)
+    if args.previews_only is not None:
+        body["protect"] = "previews" if args.previews_only else "all"
+    if not body:
+        usage("Use --set PASSWORD, --clear, or --previews-only / --whole-site.")
+    payload = app_api(app, "PATCH", app_path(app, "sites", args.name), body=body)
+    s = payload["site"]
+    emit(payload, lambda: print(("Password on" + (" for previews only." if s["protect"] == "previews" else " for the whole site."))
+                                if s["password_protected"] else "No password. The site is public."))
+
+
+def cmd_sites_stats(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "sites", args.name, "analytics"), query=[("days", args.days)])
+
+    def human():
+        t = payload["totals"]
+        print(f"Last {args.days} days: {t['visitors']} visitors (sum of daily), {t['requests']} requests, "
+              f"{human_bytes(t['bytes'])} sent, {t['not_found']} not found.")
+        if payload["top_pages"]:
+            print("\nTop pages")
+            print_table([{"page": x["key"], "views": x["count"]} for x in payload["top_pages"][:10]])
+        if payload["top_referrers"]:
+            print("\nTop referrers")
+            print_table([{"from": x["key"], "visits": x["count"]} for x in payload["top_referrers"][:10]])
+    emit(payload, human)
+
+
 def cmd_functions_deploy(args) -> None:
     app = resolve_app(args)
     path = file_arg(args.file)
@@ -1552,11 +1773,18 @@ def cmd_functions_deploy(args) -> None:
         body["timeout_ms"] = args.timeout_ms
     if args.memory_mb is not None:
         body["memory_mb"] = args.memory_mb
+    if args.no_schedule:
+        body["schedule"] = None
+    elif args.schedule:
+        body["schedule"] = args.schedule
     payload = app_api(app, "PUT", app_path(app, "functions", args.name, "deployment"), body=body, timeout=120)
 
     def human():
         print(f"Deployed {args.name} to {app}.")
         print(f"URL: {api_base()}{app_path(app, 'functions', args.name)}")
+        sched = (payload.get("function") or {}).get("schedule")
+        if sched:
+            print(f"Schedule: {sched} (UTC)")
     emit(payload, human)
 
 
@@ -1742,6 +1970,38 @@ def cmd_sql(args) -> None:
         if payload.get("truncated"):
             tail += " (truncated to the first 1000 rows)"
         print(tail)
+    emit(payload, human)
+
+
+def cmd_rpc(args) -> None:
+    app = resolve_app(args)
+    body: dict = {}
+    if args.data:
+        try:
+            body = json.loads(args.data)
+        except ValueError:
+            usage("--data must be a JSON object.")
+        if not isinstance(body, dict):
+            usage("--data must be a JSON object.")
+    for pair in args.arg or []:
+        key, sep, value = pair.partition("=")
+        if not sep or not key:
+            usage(f"Write arguments as name=value, not {pair}.")
+        try:
+            body[key] = json.loads(value)
+        except ValueError:
+            body[key] = value
+    payload = app_api(app, "POST", app_path(app, "rpc", args.function), body=body)
+    if isinstance(payload, dict) and set(payload) == {"data"}:
+        payload = payload["data"]
+    elif isinstance(payload, dict) and set(payload) == {"body"} and payload["body"].strip() == "null":
+        payload = None
+
+    def human():
+        if isinstance(payload, list) and payload and all(isinstance(r, dict) for r in payload):
+            print_table(payload)
+        else:
+            print(json.dumps(payload, indent=2, ensure_ascii=False))
     emit(payload, human)
 
 
@@ -2255,6 +2515,73 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("key", metavar="KEY")
     p.add_argument("--expires", type=int, default=3600, metavar="SECONDS", help="Default 3600.")
 
+    # sites
+    si = group(sub, "sites", "Host static sites at <name>.atberth.com or your own domain.",
+               ["berth sites deploy ./dist --app demo --site my-site", "berth sites domains add --app demo my-site www.example.com"])
+    p = cmd(si, "list", cmd_sites_list, "List sites.", "berth sites list --app demo")
+    app_opt(p)
+    p = cmd(si, "create", cmd_sites_create, "Create a site at NAME.atberth.com.", "berth sites create --app demo my-site")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    p = cmd(si, "deploy", cmd_sites_deploy, "Deploy a build folder. Only changed files are uploaded.",
+            ["berth sites deploy ./dist --app demo --site my-site", "berth sites deploy ./dist --app demo --site my-site --preview -m 'new pricing'"])
+    app_opt(p)
+    p.add_argument("dir", metavar="DIR", help="The build output folder: dist, build, out, public...")
+    p.add_argument("--site", metavar="NAME", help="Site name. Default: the folder's name. Created if new.")
+    p.add_argument("--preview", action="store_true", help="Deploy to a preview URL without changing the live site.")
+    p.add_argument("-m", "--message", help="A note for this deploy, like a commit message.")
+    p = cmd(si, "deploys", cmd_sites_deploys, "Deploy history.", "berth sites deploys --app demo my-site")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    p.add_argument("--limit", type=int)
+    p = cmd(si, "promote", cmd_sites_promote, "Make a deploy live (publish a preview or pick any older deploy).",
+            "berth sites promote --app demo my-site 3f2a9c10-...")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    p.add_argument("deploy", metavar="DEPLOY_ID")
+    p = cmd(si, "rollback", cmd_sites_rollback, "Go back to the previous live deploy.", "berth sites rollback --app demo my-site")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    p = cmd(si, "delete", cmd_sites_delete, "Delete a site and everything in it.", "berth sites delete --app demo my-site --yes")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    p.add_argument("--yes", action="store_true")
+    dm = group(si, "domains", "Custom domains with automatic HTTPS.", "berth sites domains add --app demo my-site example.com --primary")
+    p = cmd(dm, "list", cmd_sites_domains_list, "List a site's domains and the DNS they need.", "berth sites domains list --app demo my-site")
+    app_opt(p)
+    p.add_argument("name", metavar="SITE")
+    p = cmd(dm, "add", cmd_sites_domains_add, "Add a domain.",
+            ["berth sites domains add --app demo my-site example.com --primary",
+             "berth sites domains add --app demo my-site www.example.com --redirect-to example.com"])
+    app_opt(p)
+    p.add_argument("name", metavar="SITE")
+    p.add_argument("domain", metavar="DOMAIN")
+    p.add_argument("--primary", action="store_true", help="Make this the site's main address. Others redirect to it.")
+    p.add_argument("--redirect-to", metavar="DOMAIN", help="Redirect this domain to another one, e.g. www to the bare domain.")
+    p = cmd(dm, "verify", cmd_sites_domains_verify, "Check DNS again.", "berth sites domains verify --app demo my-site example.com")
+    app_opt(p)
+    p.add_argument("name", metavar="SITE")
+    p.add_argument("domain", metavar="DOMAIN")
+    p = cmd(dm, "remove", cmd_sites_domains_remove, "Remove a domain.", "berth sites domains remove --app demo my-site example.com")
+    app_opt(p)
+    p.add_argument("name", metavar="SITE")
+    p.add_argument("domain", metavar="DOMAIN")
+    p = cmd(si, "password", cmd_sites_password, "Password-protect a site or just its previews.",
+            ["berth sites password --app demo my-site --set -", "berth sites password --app demo my-site --set hunter22 --previews-only",
+             "berth sites password --app demo my-site --clear"])
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--set", metavar="PASSWORD", help="Use - to type it without echo.")
+    g.add_argument("--clear", action="store_true")
+    g2 = p.add_mutually_exclusive_group()
+    g2.add_argument("--previews-only", dest="previews_only", action="store_const", const=True, default=None)
+    g2.add_argument("--whole-site", dest="previews_only", action="store_const", const=False)
+    p = cmd(si, "stats", cmd_sites_stats, "Visitors, top pages, referrers. No cookies.", "berth sites stats --app demo my-site --days 7")
+    app_opt(p)
+    p.add_argument("name", metavar="NAME")
+    p.add_argument("--days", type=int, default=30)
+
     # functions
     fn = group(sub, "functions", "Deploy and run TypeScript or JavaScript functions.",
                "berth functions deploy --app demo hello hello.ts")
@@ -2268,6 +2595,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--verify", choices=("key", "user", "none"), help="Who may call it. key: any app key; user: a signed-in user.")
     p.add_argument("--timeout-ms", type=int)
     p.add_argument("--memory-mb", type=int)
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--schedule", metavar="CRON", help='Also run it on a cron schedule in UTC, e.g. "*/15 * * * *" or @hourly.')
+    g.add_argument("--no-schedule", action="store_true", help="Remove the schedule. Redeploys keep it otherwise.")
     p = cmd(fn, "show", cmd_functions_show, "Show a function's deployment.", "berth functions show --app demo hello --source")
     app_opt(p)
     p.add_argument("name", metavar="NAME")
@@ -2338,6 +2668,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--param", action="append", metavar="VALUE", help="Value for $1, $2, ... Repeatable.")
     p.add_argument("--read-only", action="store_true", help="Reject writes.")
     p.add_argument("--timeout-ms", type=int)
+
+    p = cmd(sub, "rpc", cmd_rpc, "Call a Postgres function you created with berth sql.",
+            ["berth rpc --app demo add_nums a=2 b=3",
+             "berth rpc --app demo claim_job --data '{\"worker\": \"w1\", \"tags\": [\"a\"]}'"])
+    app_opt(p)
+    p.add_argument("function", metavar="FUNCTION")
+    p.add_argument("arg", nargs="*", metavar="NAME=VALUE", help="Named arguments. Values are read as JSON when they parse, else as text.")
+    p.add_argument("--data", metavar="JSON", help="All arguments as one JSON object.")
 
     p = cmd(sub, "logs", cmd_logs, "Show recent API requests to an app.", ["berth logs --app demo --limit 50", "berth logs --app demo --status 4xx"])
     app_opt(p)

@@ -11,6 +11,8 @@ const LIMIT_LABELS = {
   functions: ["Functions per app", fmtNum],
   webhooks: ["Webhooks per app", fmtNum],
   users: ["End users per app", fmtNum],
+  sites: ["Sites", fmtNum],
+  site_bytes: ["Size per site deploy", fmtBytes],
 };
 
 function takeIntent(key) {

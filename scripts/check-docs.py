@@ -41,7 +41,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 API = os.environ.get("BERTH_API", "https://api.atberth.com/v1").rstrip("/")
 ADMIN_TOKEN_PATH = os.path.expanduser("~/Library/Application Support/berth/platform.token")
 CLI_REPO = os.path.expanduser("~/Documents/berth-cli/berth")
-ORDER = ["", "keys", "auth", "policies", "queries", "realtime", "storage", "functions",
+ORDER = ["", "keys", "auth", "policies", "queries", "realtime", "storage", "functions", "sites",
          "webhooks", "sql", "cli", "api", "limits", "supabase"]
 
 SECRET_RE = re.compile(r"\b(?:bak|bsk|bpk)_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*|signature=[A-Za-z0-9%_-]+")

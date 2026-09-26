@@ -66,6 +66,7 @@
       <a href="/docs/realtime/">Realtime</a>
       <a href="/docs/storage/">Storage</a>
       <a href="/docs/functions/">Functions</a>
+      <a href="/docs/sites/">Sites</a>
       <a href="/docs/webhooks/">Webhooks</a>
       <a href="/docs/sql/">SQL, export, restore</a>
       <p class="group">Reference</p>
@@ -246,6 +247,21 @@ berth functions delete --app "$APP" hello</code></pre>
 berth env list --app "$APP"
 berth env unset --app "$APP" STRIPE_MODE</code></pre>
 
+      <h2 id="sites">Sites</h2>
+      <pre class="code" data-lang="bash" data-check><code>mkdir -p www && echo '&lt;h1&gt;Hi&lt;/h1&gt;' &gt; www/index.html
+SITE=$(echo "cli-$APP" | tr _ -)
+berth sites deploy ./www --app "$APP" --site "$SITE" -m "first"
+echo '&lt;h1&gt;Hi again&lt;/h1&gt;' &gt; www/index.html
+berth sites deploy ./www --app "$APP" --site "$SITE" --preview
+berth sites list --app "$APP"
+berth sites deploys --app "$APP" "$SITE"
+berth sites domains add --app "$APP" "$SITE" "$SITE.example.com"
+berth sites domains list --app "$APP" "$SITE"
+berth sites domains remove --app "$APP" "$SITE" "$SITE.example.com"
+berth sites stats --app "$APP" "$SITE" --days 7
+berth sites delete --app "$APP" "$SITE" --yes</code></pre>
+      <p><code>deploy</code> uploads only files the site doesn't have yet and creates the site on first use. <code>promote SITE DEPLOY_ID</code> makes any deploy live, <code>rollback SITE</code> returns to the previous one, <code>domains verify</code> checks DNS again, and <code>password --set - | --clear | --previews-only</code> protects a site. See <a href="/docs/sites/">Sites</a>.</p>
+
       <h2 id="webhooks">Webhooks</h2>
       <pre class="code" data-lang="bash" data-check><code>WEBHOOK_ID=$(berth webhooks add --app "$APP" https://example.com/berth-webhook --table notes --events insert,update --json | jq -er .webhook.id)
 berth webhooks list --app "$APP"
@@ -295,6 +311,7 @@ berth completion zsh &gt; _berth</code></pre>
         <li><a href="#storage">Storage</a></li>
         <li><a href="#functions">Functions</a></li>
         <li><a href="#env">Env vars</a></li>
+        <li><a href="#sites">Sites</a></li>
         <li><a href="#webhooks">Webhooks</a></li>
         <li><a href="#sql">SQL, rpc, and logs</a></li>
         <li><a href="#completion">Shell completion</a></li>

@@ -142,7 +142,7 @@
       <div class="sec-head reveal">
         <p class="kicker">Platform</p>
         <h2>What every app gets.<br><span class="soft">Nothing to assemble.</span></h2>
-        <p class="lede">Create an app with one command. It comes with a database, keys, sign in, policies, realtime, storage, functions, webhooks, SQL, and export. The <a href="/docs/">docs</a> cover each one.</p>
+        <p class="lede">Create an app with one command. It comes with a database, keys, sign in, policies, realtime, storage, functions, webhooks, SQL, export, and hosting for your site. The <a href="/docs/">docs</a> cover each one.</p>
       </div>
 
       <div class="bento">
@@ -227,6 +227,23 @@
           <h3>Export</h3>
           <p>Take a standard pg_dump of your app any time, and restore it as a new app.</p>
         </article>
+
+        <article class="card c-sites reveal">
+          <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 9.5h17M3.5 14.5h17M12 3.5c2.2 2.3 3.3 5.2 3.3 8.5s-1.1 6.2-3.3 8.5c-2.2-2.3-3.3-5.2-3.3-8.5s1.1-6.2 3.3-8.5z"/></svg></div>
+          <h3>Sites</h3>
+          <p>Host your website or front end at name.atberth.com or your own domain, with HTTPS, preview links, instant rollbacks, redirects, and cookie-free stats.</p>
+          <ul class="sub">
+            <li><span class="b" aria-hidden="true"></span>Only changed files upload. Switches are instant.</li>
+            <li><span class="b" aria-hidden="true"></span>Custom domains with automatic HTTPS</li>
+            <li><span class="b" aria-hidden="true"></span>Rewrite /api/* to your functions. No CORS.</li>
+            <li><span class="b" aria-hidden="true"></span>Password-protect a site or its previews</li>
+          </ul>
+          <pre class="code" aria-label="Example commands"><code><span class="c-k">berth</span> sites deploy ./dist --site my-site
+<span class="c-d">Live: https://my-site.atberth.com
+</span><span class="c-k">berth</span> sites deploy ./dist --site my-site --preview
+<span class="c-k">berth</span> sites domains add my-site example.com
+<span class="c-k">berth</span> sites rollback my-site</code></pre>
+        </article>
       </div>
     </div>
   </section>
@@ -274,6 +291,7 @@
           <li><span class="pip" aria-hidden="true"></span><span class="s-n">Keys and auth</span><span class="s-d">Account, secret, publishable keys. End-user sign in.</span><span class="bars" aria-hidden="true"></span></li>
           <li><span class="pip" aria-hidden="true"></span><span class="s-n">Row policies</span><span class="s-d">Postgres row level security</span><span class="bars" aria-hidden="true"></span></li>
           <li><span class="pip" aria-hidden="true"></span><span class="s-n">Realtime and storage</span><span class="s-d">SSE row events, buckets, signed URLs</span><span class="bars" aria-hidden="true"></span></li>
+          <li><span class="pip" aria-hidden="true"></span><span class="s-n">Sites</span><span class="s-d">Static hosting with HTTPS, custom domains, previews, rollbacks</span><span class="bars" aria-hidden="true"></span></li>
           <li><span class="pip pip-n" aria-hidden="true"></span><span class="s-n">Functions and webhooks</span><span class="s-d">Deno functions with cron schedules, signed webhooks with retries</span><span class="bars" aria-hidden="true"></span></li>
           <li><span class="pip pip-n" aria-hidden="true"></span><span class="s-n">SQL and export</span><span class="s-d mono">api.atberth.com/v1</span><span class="bars" aria-hidden="true"></span></li>
         </ul>
@@ -320,6 +338,7 @@
             <li>10,000 end users per app</li>
             <li>1,200 requests a minute</li>
             <li>20 functions and 20 webhooks per app</li>
+            <li>3 sites with custom domains and HTTPS</li>
             <li>Never paused for being idle</li>
           </ul>
           <a class="btn btn-ghost" href="/app/#/signup">Start free</a>
@@ -335,6 +354,7 @@
             <li>50,000 end users per app</li>
             <li>3,000 requests a minute</li>
             <li>50 functions and 50 webhooks per app</li>
+            <li>20 sites, up to 1 GB each</li>
             <li>Email support from the person who runs it</li>
           </ul>
           <a class="btn btn-light" href="/app/#/signup?plan=pro">Get Pro</a>

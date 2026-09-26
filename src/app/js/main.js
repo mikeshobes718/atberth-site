@@ -435,6 +435,7 @@ const VIEWS = {
   storage: () => import("./views/storage.js"),
   functions: () => import("./views/functions.js"),
   webhooks: () => import("./views/webhooks.js"),
+  sites: () => import("./views/sites.js"),
   keys: () => import("./views/keys.js"),
   logs: () => import("./views/logs.js"),
   settings: () => import("./views/settings.js"),

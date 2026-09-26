@@ -9,6 +9,7 @@
   <url><loc>https://atberth.com/docs/realtime/</loc><changefreq>monthly</changefreq></url>
   <url><loc>https://atberth.com/docs/storage/</loc><changefreq>monthly</changefreq></url>
   <url><loc>https://atberth.com/docs/functions/</loc><changefreq>monthly</changefreq></url>
+  <url><loc>https://atberth.com/docs/sites/</loc><changefreq>monthly</changefreq></url>
   <url><loc>https://atberth.com/docs/webhooks/</loc><changefreq>monthly</changefreq></url>
   <url><loc>https://atberth.com/docs/sql/</loc><changefreq>monthly</changefreq></url>
   <url><loc>https://atberth.com/docs/cli/</loc><changefreq>monthly</changefreq></url>

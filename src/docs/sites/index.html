@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sites. Berth docs</title>
+<meta name="description" content="Berth Sites hosts static sites and front ends at name.atberth.com or your own domain: atomic deploys that upload only changed files, preview links, instant rollback, automatic HTTPS, redirects, rewrites to functions, password protection, and cookie-free stats.">
+<link rel="canonical" href="https://atberth.com/docs/sites/">
+<meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Berth">
+<meta property="og:url" content="https://atberth.com/docs/sites/">
+<meta property="og:title" content="Sites. Berth docs">
+<meta property="og:description" content="Berth Sites hosts static sites and front ends at name.atberth.com or your own domain: atomic deploys that upload only changed files, preview links, instant rollback, automatic HTTPS, redirects, rewrites to functions, password protection, and cookie-free stats.">
+<meta property="og:image" content="https://atberth.com/assets/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+<script>
+(function(){var d=document.documentElement,t;try{t=localStorage.getItem("berth-theme")}catch(e){}if(t!=="light"&&t!=="dark")t=window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";d.setAttribute("data-theme",t);d.classList.add("js")})();
+</script>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/" aria-label="Berth home">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>Berth</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/#platform">Platform</a>
+      <a href="/docs/" aria-current="page">Docs</a>
+      <a href="/docs/cli/">CLI</a>
+      <a href="/docs/api/">API</a>
+      <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="nav-signin" href="/app/">Sign in</a>
+      <button class="theme" type="button" aria-label="Switch to light theme" data-theme-toggle>
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+      </button>
+      <a class="btn btn-sm btn-light" href="/docs/#quickstart">Quickstart</a>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="doc-main">
+  <div class="wrap doc-layout">
+    <nav class="doc-side" aria-label="Docs">
+      <p class="group">Get started</p>
+      <a href="/docs/">Overview and quickstart</a>
+      <a href="/docs/keys/">Keys and security</a>
+      <p class="group">Build</p>
+      <a href="/docs/auth/">End-user auth</a>
+      <a href="/docs/policies/">Row policies</a>
+      <a href="/docs/queries/">Queries</a>
+      <a href="/docs/realtime/">Realtime</a>
+      <a href="/docs/storage/">Storage</a>
+      <a href="/docs/functions/">Functions</a>
+      <a href="/docs/sites/" aria-current="page">Sites</a>
+      <a href="/docs/webhooks/">Webhooks</a>
+      <a href="/docs/sql/">SQL, export, restore</a>
+      <p class="group">Reference</p>
+      <a href="/docs/cli/">CLI reference</a>
+      <a href="/docs/api/">HTTP API reference</a>
+      <a href="/docs/limits/">Limits and errors</a>
+      <p class="group">Guides</p>
+      <a href="/docs/supabase/">Migrating from Supabase</a>
+    </nav>
+
+    <article class="doc">
+      <p class="crumb">Build</p>
+      <h1>Sites</h1>
+      <p class="lede">Host a website or a front end next to your backend. Deploy any static build and it's live at <code>name.atberth.com</code> with HTTPS, or on your own domain. Every deploy gets its own link, only changed files are uploaded, and rolling back takes one click.</p>
+
+      <h2 id="deploy">Deploy a site</h2>
+      <p>Point <code>berth sites deploy</code> at your build folder. The site is created on the first deploy. The CLI fingerprints every file and uploads only the ones Berth doesn't have yet, so a redeploy of a big site takes seconds.</p>
+      <pre class="code" data-lang="bash" data-check><code>mkdir -p site && printf '&lt;!doctype html&gt;&lt;title&gt;Hi&lt;/title&gt;&lt;h1&gt;Hello from Berth&lt;/h1&gt;' &gt; site/index.html
+SITE=$(echo "$APP" | tr _ -)
+berth sites deploy ./site --app "$APP" --site "$SITE" -m "first deploy"</code></pre>
+      <p>It's live at once. The first visit to a new address takes a few seconds while its HTTPS certificate is issued:</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS "https://$SITE.atberth.com/"</code></pre>
+      <p>In the <a href="/app/">console</a>, open your app, choose <b>Sites</b>, and drag your build folder onto the page.</p>
+
+      <h2 id="frameworks">Frameworks</h2>
+      <p>Build locally or in CI, then deploy the output folder.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Framework</th><th>Build</th><th>Deploy this folder</th></tr></thead>
+        <tbody>
+          <tr><td>Vite (React, Vue, Svelte, Solid)</td><td><code>npm run build</code></td><td><code>dist</code></td></tr>
+          <tr><td>Astro</td><td><code>npm run build</code></td><td><code>dist</code></td></tr>
+          <tr><td>Next.js</td><td><code>output: "export"</code> in next.config, then <code>next build</code></td><td><code>out</code></td></tr>
+          <tr><td>SvelteKit</td><td><code>@sveltejs/adapter-static</code>, then <code>npm run build</code></td><td><code>build</code></td></tr>
+          <tr><td>Nuxt</td><td><code>npx nuxi generate</code></td><td><code>.output/public</code></td></tr>
+          <tr><td>Create React App</td><td><code>npm run build</code></td><td><code>build</code></td></tr>
+          <tr><td>Gatsby</td><td><code>gatsby build</code></td><td><code>public</code></td></tr>
+          <tr><td>Hugo, Eleventy, Jekyll</td><td><code>hugo</code>, <code>npx @11ty/eleventy</code>, <code>jekyll build</code></td><td><code>public</code>, <code>_site</code>, <code>_site</code></td></tr>
+          <tr><td>Plain HTML</td><td>none</td><td>the folder with <code>index.html</code></td></tr>
+        </tbody>
+      </table></div>
+      <p>For a single-page app (React Router, Vue Router), turn on <code>spa</code> in <a href="#rules">berth.json</a> so every route serves <code>index.html</code>.</p>
+
+      <h2 id="previews">Previews and rollbacks</h2>
+      <p>Every deploy has its own address, <code>name--xxxxxxxx.atberth.com</code>. A preview deploy gets that link without touching the live site. Share it, then publish it when it looks right.</p>
+      <pre class="code" data-lang="bash" data-check><code>printf '&lt;h1&gt;New design&lt;/h1&gt;' &gt; site/index.html
+berth sites deploy ./site --app "$APP" --site "$SITE" --preview -m "new design"
+berth sites deploys --app "$APP" "$SITE"</code></pre>
+      <p>Make any deploy live, a preview or an older one, with <code>berth sites promote SITE DEPLOY_ID</code>. <code>berth sites rollback SITE</code> goes back to the previous live deploy. The switch is instant because nothing is re-uploaded. Preview links send <code>X-Robots-Tag: noindex</code> so search engines skip them.</p>
+
+      <h2 id="rules">Redirects, rewrites, headers</h2>
+      <p>Put a <code>berth.json</code> at the top of your build folder. Everything is optional.</p>
+      <pre class="code" data-lang="json"><code>{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "spa": false,
+  "notFound": "/404.html",
+  "redirects": [
+    { "source": "/blog/:slug", "destination": "/posts/:slug", "status": 301 },
+    { "source": "/docs/v1/*", "destination": "/docs/v2/:splat" }
+  ],
+  "rewrites": [
+    { "source": "/api/*", "function": "api" },
+    { "source": "/app/*", "destination": "/app/index.html" }
+  ],
+  "headers": [
+    { "source": "/*", "headers": { "X-Frame-Options": "DENY" } }
+  ]
+}</code></pre>
+      <div class="tbl"><table>
+        <thead><tr><th>Key</th><th>Default</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>cleanUrls</code></td><td>true</td><td><code>/about</code> serves <code>about.html</code>, and <code>/about.html</code> redirects to <code>/about</code>.</td></tr>
+          <tr><td><code>trailingSlash</code></td><td>unset</td><td>true adds a slash to page URLs, false removes it. Unset leaves URLs alone.</td></tr>
+          <tr><td><code>spa</code></td><td>false</td><td>Paths with no matching file serve <code>index.html</code>. Missing assets like <code>/app.js</code> still 404.</td></tr>
+          <tr><td><code>notFound</code></td><td><code>/404.html</code></td><td>The page shown, with status 404, when nothing matches.</td></tr>
+          <tr><td><code>redirects</code></td><td></td><td>Checked first. <code>:name</code> matches one segment, <code>*</code> matches the rest as <code>:splat</code>. Status 301 (default), 302, 303, 307, or 308. The query string is kept.</td></tr>
+          <tr><td><code>rewrites</code></td><td></td><td>Used when no file matches. Serve another file with <code>destination</code>, or run one of the app's functions with <code>function</code>.</td></tr>
+          <tr><td><code>headers</code></td><td></td><td>Added to every response whose path matches. Berth sets content type, caching, and ETag itself.</td></tr>
+        </tbody>
+      </table></div>
+      <p>Moving from Netlify? <code>_redirects</code> and <code>_headers</code> files work as they are. Lines with status 200 in <code>_redirects</code> are rewrites.</p>
+
+      <h2 id="functions">Your API on the same domain</h2>
+      <p>Rewrite a path to one of the app's <a href="/docs/functions/">functions</a>, and your site and its API share one origin: no CORS, no second domain. With <code>{"source": "/api/*", "function": "api"}</code>, a request to <code>/api/orders/7</code> runs the function <code>api</code> with the path <code>/orders/7</code>, the method, body, headers, and query. Deploy that function with <code>--verify none</code> for public endpoints, or <code>--verify user</code> to require a signed-in user's token.</p>
+
+      <h2 id="domains">Custom domains</h2>
+      <p>Add your domain, then create one DNS record where you bought it. HTTPS certificates are issued on the first visit and renew by themselves.</p>
+      <pre class="code" data-lang="bash"><code>berth sites domains add --app "$APP" my-site example.com --primary
+berth sites domains add --app "$APP" my-site www.example.com --redirect-to example.com</code></pre>
+      <div class="tbl"><table>
+        <thead><tr><th>Domain</th><th>Record</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>A bare domain, like <code>example.com</code></td><td><code>A</code> named <code>@</code>, or <code>ALIAS</code> if your DNS host has it</td><td>The address that <code>berth sites domains add</code> and the console show, or <code>my-site.atberth.com</code> for ALIAS</td></tr>
+          <tr><td>A subdomain, like <code>www.example.com</code> or <code>shop.example.com</code></td><td><code>CNAME</code> named <code>www</code> or <code>shop</code></td><td><code>my-site.atberth.com</code></td></tr>
+        </tbody>
+      </table></div>
+      <p>Then run <code>berth sites domains verify my-site example.com</code>, or press <b>Check DNS</b> in the console. The primary domain is the site's main address: <code>my-site.atberth.com</code> and your other domains redirect to it with the path kept.</p>
+
+      <h2 id="password">Password protection</h2>
+      <p>Protect the whole site, or only preview links, which is handy for staging and client reviews. Visitors enter the password once; any username works.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth sites password --app "$APP" "$SITE" --set "client preview 1" --previews-only
+berth sites password --app "$APP" "$SITE" --clear</code></pre>
+
+      <h2 id="caching">Caching and speed</h2>
+      <ul>
+        <li>HTML is revalidated on every visit, so a new deploy shows up at once.</li>
+        <li>Files with a content hash in the name (<code>app.3f9a8c1d.js</code>) and everything under <code>assets/</code>, <code>_next/static/</code>, and <code>_astro/</code> are cached for a year.</li>
+        <li>Every file has an ETag, so repeat visits get small 304 answers.</li>
+        <li>Responses are compressed with zstd or gzip, and byte ranges work for audio and video.</li>
+        <li>HTTP always redirects to HTTPS, and HSTS is on.</li>
+      </ul>
+
+      <h2 id="stats">Stats</h2>
+      <p>Berth counts visitors, requests, bandwidth, 404s, top pages, and top referrers. It sets no cookies and stores no IP addresses: a visitor is counted once per day through a salted hash, and the salt is thrown away every day.</p>
+      <pre class="code" data-lang="bash" data-check><code>berth sites stats --app "$APP" "$SITE" --days 7</code></pre>
+
+      <h2 id="ci">Deploy from GitHub Actions</h2>
+      <p>Create an account key with <code>berth account keys create ci</code>, save it as the repository secret <code>BERTH_ACCOUNT_KEY</code>, and add this workflow.</p>
+      <pre class="code" data-lang="yaml"><code>name: Deploy
+on: { push: { branches: [main] }, pull_request: {} }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci && npm run build
+      - run: curl -fsSL https://atberth.com/install.sh | sh
+      - run: |
+          PREVIEW=$([ "${{ github.event_name }}" = pull_request ] &amp;&amp; echo --preview)
+          ~/.local/bin/berth sites deploy ./dist --app my-app --site my-site $PREVIEW -m "${{ github.sha }}"
+        env:
+          BERTH_ACCOUNT_KEY: ${{ secrets.BERTH_ACCOUNT_KEY }}</code></pre>
+      <p>Pushes to <code>main</code> go live. Pull requests get a preview link in the job log.</p>
+
+      <h2 id="api">Deploy with the HTTP API</h2>
+      <p>Send a <code>.tar.gz</code>, <code>.tar</code>, or <code>.zip</code> of the build folder with the app's secret key. Add <code>?preview=true</code> for a preview.</p>
+      <pre class="code" data-lang="bash" data-check><code>tar -czf site.tar.gz -C site .
+curl -sS -X POST "https://api.atberth.com/v1/apps/$APP/sites/$SITE/deploys?message=from%20curl" \
+  -H "Authorization: Bearer $SECRET_KEY" \
+  -H "Content-Type: application/gzip" \
+  --data-binary @site.tar.gz | jq '{url, files: .deploy.files}'</code></pre>
+      <p>To upload only what changed, <code>POST</code> the file list as JSON, <code>{"files": {"index.html": "&lt;sha256&gt;"}}</code>. The answer lists the <code>missing</code> hashes: <code>PUT</code> each one to <code>/sites/{site}/files/{sha256}</code>, then <code>POST /sites/{site}/deploys/{id}/finish</code>. Every route is in the <a href="/docs/api/#sites">API reference</a>.</p>
+
+      <h2 id="limits">Limits</h2>
+      <div class="tbl"><table>
+        <thead><tr><th></th><th>Free</th><th>Pro</th></tr></thead>
+        <tbody>
+          <tr><td>Sites</td><td>3</td><td>20</td></tr>
+          <tr><td>Size of one deploy</td><td>100 MB</td><td>1 GB</td></tr>
+          <tr><td>Custom domains, HTTPS, previews, stats</td><td>included</td><td>included</td></tr>
+          <tr><td>Files per deploy</td><td>20,000</td><td>20,000</td></tr>
+          <tr><td>Largest file</td><td>50 MB</td><td>50 MB</td></tr>
+          <tr><td>Deploys kept for rollback</td><td>last 20</td><td>last 20</td></tr>
+        </tbody>
+      </table></div>
+      <p>Sites serve static files and proxy to your functions. Server-side rendering, like Next.js without static export, isn't supported: export statically, or put the dynamic parts in functions.</p>
+
+      <nav class="pager" aria-label="Pages">
+        <a href="/docs/functions/"><span>Previous</span>Functions</a>
+        <a class="nx" href="/docs/webhooks/"><span>Next</span>Webhooks</a>
+      </nav>
+    </article>
+
+    <aside class="doc-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#deploy">Deploy a site</a></li>
+        <li><a href="#frameworks">Frameworks</a></li>
+        <li><a href="#previews">Previews and rollbacks</a></li>
+        <li><a href="#rules">Redirects, rewrites, headers</a></li>
+        <li><a href="#functions">Your API on the same domain</a></li>
+        <li><a href="#domains">Custom domains</a></li>
+        <li><a href="#password">Password protection</a></li>
+        <li><a href="#caching">Caching and speed</a></li>
+        <li><a href="#stats">Stats</a></li>
+        <li><a href="#ci">Deploy from GitHub Actions</a></li>
+        <li><a href="#api">Deploy with the HTTP API</a></li>
+        <li><a href="#limits">Limits</a></li>
+      </ul>
+    </aside>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="/" aria-label="Berth home">
+          <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Berth</span>
+        </a>
+      </div>
+      <div>
+        <p class="foot-h">Start</p>
+        <ul>
+          <li><a href="/docs/">Quickstart</a></li>
+          <li><a href="/docs/keys/">Keys and security</a></li>
+          <li><a href="/docs/supabase/">From Supabase</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Build</p>
+        <ul>
+          <li><a href="/docs/auth/">End-user auth</a></li>
+          <li><a href="/docs/queries/">Queries</a></li>
+          <li><a href="/docs/storage/">Storage</a></li>
+          <li><a href="/docs/functions/">Functions</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Reference</p>
+        <ul>
+          <li><a href="/docs/cli/">CLI</a></li>
+          <li><a href="/docs/api/">HTTP API</a></li>
+          <li><a href="/docs/limits/">Limits and errors</a></li>
+          <li><a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Connect</p>
+        <ul>
+          <li><a href="mailto:hello@atberth.com?subject=Berth">Email</a></li>
+          <li><a href="/privacy/">Privacy</a></li>
+          <li><a href="/terms/">Terms</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-base">
+      <p>&copy; 2026 Berth. Private beta.</p>
+      <p>API base: https://api.atberth.com/v1</p>
+    </div>
+  </div>
+</footer>
+<script src="/main.js" defer></script>
+</body>
+</html>

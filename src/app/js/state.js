@@ -9,6 +9,7 @@ export const appNav = [
   { path: "users", label: "Auth users", icon: "users" },
   { path: "storage", label: "Storage", icon: "storage" },
   { path: "functions", label: "Functions", icon: "fn" },
+  { path: "sites", label: "Sites", icon: "globe" },
   { path: "webhooks", label: "Webhooks", icon: "webhook" },
   { path: "keys", label: "API keys", icon: "key" },
   { path: "logs", label: "Logs", icon: "logs" },

@@ -66,6 +66,7 @@
       <a href="/docs/realtime/">Realtime</a>
       <a href="/docs/storage/">Storage</a>
       <a href="/docs/functions/">Functions</a>
+      <a href="/docs/sites/">Sites</a>
       <a href="/docs/webhooks/">Webhooks</a>
       <a href="/docs/sql/">SQL, export, restore</a>
       <p class="group">Reference</p>
@@ -518,6 +519,43 @@ jq -n --rawfile source echo.ts '{source: $source, schedule: null}' | \
       <pre class="code" data-lang="bash" data-check><code>curl -sS -X DELETE https://api.atberth.com/v1/apps/$APP/env/MAIL_FROM \
   -H "Authorization: Bearer $SECRET_KEY"</code></pre>
 
+      <h2 id="sites">Sites</h2>
+      <p>Static site hosting. See <a href="/docs/sites/">Sites</a> for the deploy flow and <code>berth.json</code> rules. Every route needs the app's secret key.</p>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/sites</p>
+      <p>Secret key. <code>{"sites": [{name, url, domains, current_deploy, password_protected, protect}]}</code>.</p>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/sites</p>
+      <p>Body <code>{"name"}</code>. Creates <code>name.atberth.com</code>. Names are 1 to 42 letters, numbers, or single hyphens, unique across Berth.</p>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/sites/{site}</p>
+      <p>The site, its domains, and the live deploy.</p>
+      <p class="ep"><span class="m m-patch">PATCH</span>/v1/apps/{app}/sites/{site}</p>
+      <p>Body <code>{"password"?: string or null, "protect"?: "all" | "previews"}</code>.</p>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/sites/{site}</p>
+      <p>Deletes the site, its deploys, and its domains.</p>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/sites/{site}/deploys</p>
+      <p>Either a <code>.tar.gz</code>, <code>.tar</code>, or <code>.zip</code> body (query <code>preview</code>, <code>message</code>), which deploys at once. Or JSON <code>{"files": {path: sha256}, "preview"?, "message"?}</code>, which answers <code>{"deploy", "missing": [sha256...]}</code> for an incremental deploy.</p>
+      <p class="ep"><span class="m m-put">PUT</span>/v1/apps/{app}/sites/{site}/files/{sha256}</p>
+      <p>Raw body. Uploads one missing file of an incremental deploy. Checked against its hash.</p>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/sites/{site}/deploys/{id}/finish</p>
+      <p>Finishes an incremental deploy once nothing is missing (409 <code>files_missing</code> lists what is). Goes live unless it is a preview.</p>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/sites/{site}/deploys</p>
+      <p><code>{"deploys": [{id, status, preview, current, message, files, bytes, url, warnings, created_at}]}</code>, newest first.</p>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/sites/{site}/deploys/{id}/promote</p>
+      <p>Makes a deploy live: publish a preview or roll back.</p>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/sites/{site}/deploys/{id}</p>
+      <p>Deletes a deploy that is not live.</p>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/sites/{site}/domains</p>
+      <p>Custom domains with <code>verified</code>, <code>primary</code>, <code>redirect_to</code>, and the <code>dns</code> records each needs.</p>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/sites/{site}/domains</p>
+      <p>Body <code>{"domain", "primary"?, "redirect_to"?}</code>.</p>
+      <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/sites/{site}/domains/{domain}/verify</p>
+      <p>Checks DNS again. HTTPS starts on the first visit once it points to Berth.</p>
+      <p class="ep"><span class="m m-patch">PATCH</span>/v1/apps/{app}/sites/{site}/domains/{domain}</p>
+      <p>Body <code>{"primary"?, "redirect_to"?}</code>.</p>
+      <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/sites/{site}/domains/{domain}</p>
+      <p>Removes the domain.</p>
+      <p class="ep"><span class="m">GET</span>/v1/apps/{app}/sites/{site}/analytics?days=30</p>
+      <p><code>{"days": [{day, visitors, requests, bytes, not_found}], "totals", "top_pages", "top_referrers"}</code>. 1 to 90 days.</p>
+
       <h2 id="webhooks">Webhooks</h2>
       <p>See <a href="/docs/webhooks/">Webhooks</a> for the payload, signature, and retries.</p>
       <p class="ep"><span class="m m-post">POST</span>/v1/apps/{app}/webhooks</p>
@@ -581,6 +619,7 @@ jq -n --rawfile source echo.ts '{source: $source, schedule: null}' | \
         <li><a href="#storage">Storage</a></li>
         <li><a href="#functions">Functions</a></li>
         <li><a href="#env">Env vars</a></li>
+        <li><a href="#sites">Sites</a></li>
         <li><a href="#webhooks">Webhooks</a></li>
         <li><a href="#export">Export, restore, delete</a></li>
       </ul>
