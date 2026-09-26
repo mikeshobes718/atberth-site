@@ -70,6 +70,25 @@ for (const file of await walk(OUT)) {
   if (next !== text) await writeFile(file, next);
 }
 
+// The console is ES modules that import each other. Safari keeps a module for as long as the
+// cache allows, so stamp every console import, and the console's entry script and stylesheet,
+// with one version made from all of its files.
+const appFiles = (await walk(join(OUT, "app"))).filter((f) => [".js", ".css"].includes(extname(f))).sort();
+const appHash = createHash("sha1");
+for (const f of appFiles) appHash.update(f).update(await readFile(f));
+const appV = appHash.digest("hex").slice(0, 10);
+for (const f of appFiles.filter((f) => extname(f) === ".js")) {
+  const text = await readFile(f, "utf8");
+  const next = text.replace(/((?:from|import)\s*\(?\s*)(["'])(\.{1,2}\/[^"'?]+\.js)\2/g, (_, pre, q, spec) => `${pre}${q}${spec}?v=${appV}${q}`);
+  if (next !== text) await writeFile(f, next);
+}
+{
+  const idx = join(OUT, "app", "index.html");
+  const text = await readFile(idx, "utf8");
+  const next = text.replace(/(src|href)="(\/app\/js\/main\.js|\/app\/app\.css)"/g, (_, attr, path) => `${attr}="${path}?v=${appV}"`);
+  if (next !== text) await writeFile(idx, next);
+}
+
 if (problems.length) {
   console.error("Build failed:\n" + problems.join("\n"));
   process.exit(1);
