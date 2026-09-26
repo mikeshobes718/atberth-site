@@ -182,6 +182,16 @@ h2.h3{font-size:clamp(24px,2.6vw,30px);letter-spacing:-.03em;margin-top:10px}
 .sub li{display:flex;align-items:center;gap:10px;padding:10px 0;font-size:13.5px;color:var(--muted);border-bottom:1px solid var(--line)}
 .sub li:last-child{border-bottom:0}
 .b{width:5px;height:5px;border-radius:50%;background:var(--dim)}
+.showcase{margin-top:40px;display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.show{display:flex;flex-direction:column;gap:12px;padding:22px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);transition:border-color .2s,transform .2s var(--ease)}
+.show:hover{border-color:var(--line-2);transform:translateY(-2px)}
+.show-ico{width:56px;height:56px;border-radius:14px;object-fit:cover;box-shadow:0 0 0 1px var(--line)}
+.show-plus{display:grid;place-items:center;font-size:28px;color:var(--accent-ink);background:var(--panel-2)}
+.show-t h3{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.show-m{margin-top:2px;font-size:13px;color:var(--dim)}
+.show-d{font-size:14.5px;color:var(--muted);flex:1}
+.show-b{display:flex;flex-wrap:wrap;gap:8px}
+.show-you{border-style:dashed}
 .c-sites{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto 1fr;column-gap:28px}
 .c-sites>pre{grid-column:2;grid-row:1/-1;align-self:center;margin:0}
 @media (max-width:900px){.c-sites{display:block}.c-sites>pre{margin-top:18px}}
