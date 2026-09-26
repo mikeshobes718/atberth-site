@@ -1,5 +1,5 @@
 import { get, post, del, enc, session } from "../api.js";
-import { h, mount, icon, toast, modal, confirmDanger, field, input, empty, errorBox, loading, badge, timeEl, fmtDate, fmtDateTime, fmtNum, fmtBytes, meter, secretReveal, codeBlock, avatar, seg } from "../ui.js";
+import { h, mount, icon, toast, toastError, modal, confirmDanger, field, input, empty, errorBox, loading, badge, timeEl, fmtDate, fmtDateTime, fmtNum, fmtBytes, meter, secretReveal, codeBlock, avatar, seg } from "../ui.js";
 import { state, go } from "../state.js";
 
 const LIMIT_LABELS = {
@@ -12,6 +12,73 @@ const LIMIT_LABELS = {
   webhooks: ["Webhooks per app", fmtNum],
   users: ["End users per app", fmtNum],
 };
+
+function takeIntent(key) {
+  try {
+    const v = sessionStorage.getItem(key);
+    sessionStorage.removeItem(key);
+    return v ? JSON.parse(v) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function startCheckout(interval, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const out = await post("/account/billing/checkout", { interval });
+    location.href = out.url;
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    toastError(e);
+  }
+}
+
+async function openPortal(btn) {
+  btn.disabled = true;
+  try {
+    const out = await post("/account/billing/portal", {});
+    location.href = out.url;
+  } catch (e) {
+    btn.disabled = false;
+    toastError(e);
+  }
+}
+
+function planCard(b) {
+  const pro = b.plan === "pro";
+  const title = pro ? "Pro" : b.plan === "scale" ? "Scale" : "Free";
+  let line;
+  if (pro && b.cancel_at_period_end && b.renews_at) line = "Pro ends on " + fmtDate(b.renews_at) + ". You go back to Free then, and nothing is deleted.";
+  else if (pro && b.status === "past_due") line = "The last payment failed. Stripe will try again. Update your card in Manage billing to keep Pro.";
+  else if (pro && b.renews_at) line = "Renews " + (b.interval === "year" ? "yearly" : "monthly") + " on " + fmtDate(b.renews_at) + ".";
+  else if (b.plan === "scale") line = "A custom plan. Email hello@atberth.com to change it.";
+  else line = "Pro raises every limit below: 10 apps, 1,000,000 rows and 5 GB per app, 25 GB storage, 50,000 end users per app.";
+  const actions = h("div.row", { style: { gap: "10px", flexWrap: "wrap" } });
+  if (!pro && b.plan !== "scale") {
+    if (b.self_service) {
+      const m = h("button.btn.primary", { type: "button" }, "Upgrade to Pro, $" + b.prices.month + " a month");
+      const y = h("button.btn", { type: "button" }, "$" + b.prices.year + " a year");
+      m.onclick = () => startCheckout("month", m);
+      y.onclick = () => startCheckout("year", y);
+      actions.append(m, y);
+    } else {
+      actions.append(h("a.btn", { href: "mailto:hello@atberth.com?subject=Berth%20Pro" }, "Email to upgrade"));
+    }
+  }
+  if (b.has_billing) {
+    const manage = h("button.btn" + (pro ? ".primary" : ""), { type: "button" }, "Manage billing");
+    manage.onclick = () => openPortal(manage);
+    actions.append(manage);
+  }
+  return h(
+    "div.card-b",
+    { style: { borderBottom: "1px solid var(--line)" } },
+    h("div.row", { style: { gap: "12px", flexWrap: "wrap" } }, h("div", { style: { fontWeight: "600", fontSize: "18px" } }, title), pro ? badge(b.status === "past_due" ? "payment due" : "active", b.status === "past_due" ? "warn" : "ok") : null),
+    h("p.small.muted", { style: { margin: "6px 0 14px" } }, line),
+    actions
+  );
+}
 
 export default async function account(ctx) {
   const page = h("div.page");
@@ -59,11 +126,33 @@ export default async function account(ctx) {
   );
 
   if (!isAdmin) {
-    const lim = a.limits || {};
+    const returned = takeIntent("berth.billing");
+    const wanted = takeIntent("berth.upgrade");
+    let billing = null;
+    try {
+      const q = returned && returned.session_id ? "?session_id=" + enc(returned.session_id) : "";
+      billing = (await get("/account/billing" + q)).billing;
+    } catch (e) {
+      billing = null;
+    }
+    if (!ctx.alive()) return;
+    if (returned && returned.status === "success") toast(billing && billing.plan === "pro" ? "You're on Pro. Your new limits apply now." : "Payment received. Pro turns on in a moment.");
+    if (returned && returned.status === "cancel") toast("Checkout canceled. You're still on Free.");
+    if (wanted && billing && billing.self_service && billing.plan === "free") {
+      startCheckout(wanted.interval === "year" ? "year" : "month");
+    }
+    let lim = a.limits || {};
+    if (returned) {
+      try {
+        lim = (await get("/account")).account.limits || lim;
+      } catch {}
+      if (!ctx.alive()) return;
+    }
     body.append(
       h(
         "section.card",
-        h("div.card-h", h("div", h("h2", "Plan limits"), h("div.sub", "Private beta limits. Need more? Email hello@atberth.com."))),
+        h("div.card-h", h("div", h("h2", "Plan"), h("div.sub", "Limits are hard caps. Nothing is billed beyond your plan."))),
+        billing ? planCard(billing) : null,
         h(
           "div.card-b.grid.g2",
           Object.entries(LIMIT_LABELS).map(([k, [label, fmt]]) => {

@@ -523,6 +523,7 @@ async function boot() {
     }
   }
   const r = route();
+  if (state.me && pendingBilling() && r.name !== "account") return go("/account");
   if (state.me && (r.name === "login" || r.name === "signup")) return go("/");
   render();
 }
@@ -537,4 +538,28 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// Stripe sends people back with ?billing=...; the pricing page links to #/signup?plan=pro. Both land on the account page.
+function captureBillingIntent() {
+  try {
+    const sp = new URLSearchParams(location.search);
+    if (sp.has("billing")) {
+      sessionStorage.setItem("berth.billing", JSON.stringify({ status: sp.get("billing"), session_id: sp.get("session_id") || "" }));
+      history.replaceState(null, "", location.pathname + "#/account");
+    }
+    const r = route();
+    if (r.query && r.query.plan === "pro") {
+      sessionStorage.setItem("berth.upgrade", JSON.stringify({ interval: r.query.interval === "year" ? "year" : "month" }));
+    }
+  } catch {}
+}
+
+function pendingBilling() {
+  try {
+    return !!(sessionStorage.getItem("berth.billing") || sessionStorage.getItem("berth.upgrade"));
+  } catch {
+    return false;
+  }
+}
+
+captureBillingIntent();
 boot();
