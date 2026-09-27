@@ -563,3 +563,13 @@ a.stat{transition:background .15s}
 a.stat:hover{background:var(--hover)}
 a.list-row:hover{background:var(--hover)}
 @media (max-width:1000px){.ov-grid{grid-template-columns:1fr!important}}
+
+/* Apple and Google sign in. Google's own button sits invisibly over ours
+   (.provider-hit) because only it can hand out an ID token. */
+.providers{display:grid;gap:10px;margin-top:24px}
+.provider-wrap{position:relative}
+.provider-hit{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;overflow:hidden;border-radius:11px}
+.provider-hit > div{width:100%}
+.provider-wrap:hover .provider,.provider:hover{border-color:var(--line-3,var(--line-2));background:var(--surface-2,var(--surface))}
+.provider-glyph{display:inline-flex;width:18px;height:18px;margin-right:2px}
+.provider-glyph svg{display:block}

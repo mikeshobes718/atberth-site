@@ -134,6 +134,13 @@ export async function login(email, code) {
   return out;
 }
 
+// Apple or Google identity token -> account key. Creates the account on first use.
+export async function loginProvider(provider, idToken, nonce) {
+  const out = await post("/login/provider", { provider, id_token: idToken, nonce, key_name: browserLabel(), expires_in: SESSION_TTL }, { token: null, noAuthRedirect: true });
+  session.save({ token: out.key, key_id: out.key_info.id, email: out.account.email, expires_at: out.key_info.expires_at, kind: "session" }, true);
+  return out;
+}
+
 export async function useKey(token, remember) {
   const me = await get("/me", { token, noAuthRedirect: true });
   if (!["admin", "account"].includes(me.role)) {

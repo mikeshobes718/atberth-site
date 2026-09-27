@@ -1,4 +1,4 @@
-import { api, get, post, session, login, useKey, logout, setUnauthorizedHandler, ApiError, enc } from "./api.js";
+import { api, get, post, session, login, loginProvider, useKey, logout, setUnauthorizedHandler, ApiError, enc } from "./api.js";
 import { h, mount, clear, append, icon, logo, avatar, toast, toastError, menu, modal, field, input, busy, spinner, fmtNum, closeOverlays } from "./ui.js";
 import { state, go, route, onRoute, loadApps, appNav, sectionTitle } from "./state.js";
 import { openPalette } from "./palette.js";
@@ -65,6 +65,97 @@ function renderAuth(mode = "signin") {
   emailStep(side, mode);
 }
 
+/* ---------- Apple and Google sign in ---------- */
+
+const GOOGLE_CLIENT_ID = "76444625720-iqqsh3nnc7m3r5652rm923kg1ia3pmov.apps.googleusercontent.com";
+const APPLE_SERVICES_ID = "com.atberth.signin";
+const scripts = {};
+function loadScript(src) {
+  return (scripts[src] ||= new Promise((ok, fail) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.async = true;
+    s.onload = ok;
+    s.onerror = () => {
+      delete scripts[src];
+      fail(new Error("Could not load sign in. Check your connection or content blocker."));
+    };
+    document.head.appendChild(s);
+  }));
+}
+const nonce = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
+
+async function finishProvider(provider, idToken, raw, err) {
+  try {
+    const out = await loginProvider(provider, idToken, raw);
+    if (out.created) toast("Welcome to Berth. Your account is ready.");
+    await boot();
+  } catch (e) {
+    err.textContent = e.message;
+  }
+}
+
+const GLYPHS = {
+  google: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.7v3h3.9c2.2-2.1 3.5-5.1 3.5-8.8z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.3a12 12 0 0 0 0 10.8z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9z"/></svg>',
+  apple: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M16.4 12.7c0-2.6 2.1-3.8 2.2-3.9-1.2-1.8-3.1-2-3.7-2-1.6-.2-3.1.9-3.9.9-.8 0-2-.9-3.4-.9-1.7 0-3.3 1-4.2 2.6-1.8 3.1-.5 7.7 1.3 10.2.8 1.2 1.8 2.6 3.1 2.6 1.3-.1 1.7-.8 3.3-.8 1.5 0 1.9.8 3.3.8 1.4 0 2.2-1.2 3-2.4 1-1.4 1.3-2.7 1.4-2.8-.1 0-2.4-.9-2.4-4.3zM13.9 5.1c.7-.9 1.2-2 1.1-3.2-1 0-2.3.7-3 1.6-.7.8-1.2 2-1.1 3.1 1.1.1 2.3-.6 3-1.5z"/></svg>',
+};
+function glyph(name) {
+  const span = h("span.provider-glyph");
+  span.innerHTML = GLYPHS[name];
+  return span;
+}
+
+function providerButtons(mode, err) {
+  const word = mode === "signup" ? "Sign up" : "Continue";
+  // Apple: our own button opens Apple's popup. The script loads now so the
+  // click still counts as a user gesture and the popup is not blocked.
+  const appleBtn = h("button.btn.lg.block.provider", { type: "button" }, glyph("apple"), word + " with Apple");
+  loadScript("https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js").catch(() => {});
+  appleBtn.addEventListener("click", () => {
+    err.textContent = "";
+    if (!window.AppleID) {
+      err.textContent = "Apple sign in is still loading. Try again in a moment.";
+      return;
+    }
+    const raw = nonce();
+    window.AppleID.auth.init({ clientId: APPLE_SERVICES_ID, scope: "email", redirectURI: location.origin + "/app/", nonce: raw, usePopup: true });
+    busy(appleBtn, async () => {
+      try {
+        const res = await window.AppleID.auth.signIn();
+        await finishProvider("apple", res.authorization.id_token, raw, err);
+      } catch (e) {
+        if (e && e.error && /popup_closed|user_cancelled/.test(e.error)) return;
+        err.textContent = (e && e.message) || "Apple sign in did not finish. Try again.";
+      }
+    });
+  });
+
+  // Google only hands out ID tokens through its own button, so its button sits
+  // invisibly on top of ours and takes the click.
+  const googleFace = h("button.btn.lg.block.provider", { type: "button", tabindex: "-1", "aria-hidden": "true" }, glyph("google"), word + " with Google");
+  const googleHit = h("div.provider-hit");
+  const googleWrap = h("div.provider-wrap", googleFace, googleHit);
+  loadScript("https://accounts.google.com/gsi/client").then(() => {
+    const raw = nonce();
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      nonce: raw,
+      ux_mode: "popup",
+      callback: (r) => {
+        err.textContent = "";
+        busy(googleFace, () => finishProvider("google", r.credential, raw, err));
+      },
+    });
+    const width = Math.min(400, Math.max(200, Math.round(googleWrap.getBoundingClientRect().width || 360)));
+    window.google.accounts.id.renderButton(googleHit, { type: "standard", size: "large", width, text: mode === "signup" ? "signup_with" : "continue_with" });
+  }).catch((e) => {
+    googleFace.disabled = true;
+    googleFace.title = e.message;
+  });
+
+  return h("div.providers", googleWrap, appleBtn);
+}
+
 function emailStep(side, mode, preset = "") {
   const email = input({ type: "email", placeholder: "you@company.com", autocomplete: "email", value: preset, autofocus: true, inputmode: "email" });
   const err = h("div.hint.bad-text", { role: "alert" });
@@ -101,7 +192,9 @@ function emailStep(side, mode, preset = "") {
       "div.auth-card",
       h("a.brand", { href: "/", style: { marginBottom: "36px", display: "inline-flex" } }, logo(), "Berth"),
       h("h1", mode === "signup" ? "Create your account" : "Sign in to Berth"),
-      h("p", mode === "signup" ? "We email you a 6 digit code. No password to remember." : "We email you a 6 digit code to sign in."),
+      h("p", mode === "signup" ? "Use Google or Apple, or we email you a 6 digit code. No password to remember." : "Use Google or Apple, or we email you a 6 digit code."),
+      providerButtons(mode, err),
+      h("div.divider", { style: { margin: "20px 0" } }, "or use email"),
       form,
       h("div.divider", { style: { margin: "22px 0" } }, "or"),
       h("button.btn.block", { type: "button", onclick: () => keyStep(side, mode) }, icon("key"), "Use an account key"),
