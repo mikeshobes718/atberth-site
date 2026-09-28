@@ -544,3 +544,7 @@ h2.h3{font-size:clamp(24px,2.6vw,30px);letter-spacing:-.03em;margin-top:10px}
 .invite-bar{display:block;padding:11px 16px;text-align:center;font-size:14.5px;color:var(--text);background:color-mix(in srgb,var(--accent) 14%,var(--bg));border-bottom:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
 .invite-bar span{color:var(--accent-ink);font-weight:600;margin-left:6px}
 .invite-bar:hover{text-decoration:none}.invite-bar:hover span{text-decoration:underline}
+
+.doc a.btn,.doc a.btn:hover{text-decoration:none}
+.doc a.btn-light{color:var(--btn-fg)}
+.doc a.btn-ghost{color:var(--text)}
