@@ -38,7 +38,7 @@ export async function signOut() {
 function authArt() {
   return h(
     "div.auth-art",
-    h("a.brand", { href: "/" }, logo(), "Berth", h("span.beta", "Beta")),
+    h("a.brand", { href: "/" }, logo(), "Berth"),
     h(
       "div.auth-quote",
       h("h2", "Your backend,", h("br"), "one console."),
@@ -447,7 +447,7 @@ function renderSide() {
 
   mount(
     shell.side,
-    h("div.side-head", h("a.brand", { href: "#/" }, logo(), "Berth"), h("span.beta", "Beta")),
+    h("div.side-head", h("a.brand", { href: "#/" }, logo(), "Berth")),
     switcher,
     nav,
     h("div.side-foot", me)

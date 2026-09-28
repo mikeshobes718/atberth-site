@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Terms. Berth</title>
-<meta name="description" content="Terms for using Berth, a private beta hosting service.">
+<meta name="description" content="Terms for using Berth: accounts, plans, billing, cancellation, acceptable use and your data.">
 <link rel="canonical" href="https://atberth.com/terms/">
 <meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
@@ -13,14 +13,14 @@
 <meta property="og:site_name" content="Berth">
 <meta property="og:url" content="https://atberth.com/terms/">
 <meta property="og:title" content="Terms. Berth">
-<meta property="og:description" content="Terms for using Berth, a private beta hosting service.">
+<meta property="og:description" content="Terms for using Berth: accounts, plans, billing, cancellation, acceptable use and your data.">
 <meta property="og:image" content="https://atberth.com/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Berth. Host your app or your site.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Terms. Berth">
-<meta name="twitter:description" content="Terms for using Berth, a private beta hosting service.">
+<meta name="twitter:description" content="Terms for using Berth: accounts, plans, billing, cancellation, acceptable use and your data.">
 <meta name="twitter:image" content="https://atberth.com/assets/og.png">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
@@ -57,7 +57,7 @@
         <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
       </button>
-      <a class="btn btn-sm btn-light" href="mailto:hello@atberth.com?subject=Request%20a%20berth">Request a berth</a>
+      <a class="btn btn-sm btn-light" href="/app/#/signup">Start free</a>
     </div>
   </div>
 </header>
@@ -67,28 +67,52 @@
     <article class="doc">
       <p class="kicker">Terms</p>
       <h1>Terms</h1>
-      <p class="lede">These terms cover the use of Berth, a hosting service in private beta. Last updated September 22, 2026.</p>
+      <p class="lede">These terms cover your use of Berth: atberth.com, the web console, the berth CLI, the HTTP API, Berth Sites and the Berth Console app for iPhone. By creating an account you agree to them. Last updated September 28, 2026.</p>
 
-      <h2>Private beta</h2>
-      <p>Access is by request. Berth is still changing, and features may change or stop. We do our best to keep your app running, but the service is provided as it is, without a guarantee of uptime.</p>
+      <h2>Who runs Berth</h2>
+      <p>Berth is run by Michael Shobitan ("we"). You can reach us at <a href="mailto:hello@atberth.com">hello@atberth.com</a>.</p>
 
-      <h2>Pricing</h2>
-      <p>There is no public price list. Before any paid hosting starts, we agree on the price with you in writing.</p>
+      <h2>Your account</h2>
+      <p>You sign in with an emailed code, Google or Apple. Keep your account keys and app keys secret: anyone who has one can act as you or read and change your app's data. Tell us right away if a key leaks, and revoke it in the console or with <code>berth account keys</code>. You are responsible for what happens under your account.</p>
+
+      <h2>Plans and prices</h2>
+      <p>The Free plan costs nothing. Pro is $12 a month or $120 a year, in US dollars, plus any sales tax that applies. The current limits for each plan are on the <a href="/#pricing">pricing section</a> and the <a href="/docs/limits/">limits page</a>. If you subscribe to Pro at the launch price, you keep that price for as long as your subscription stays active. Scale is priced by agreement in writing.</p>
+
+      <h2>Billing, renewal and cancellation</h2>
+      <ul>
+        <li>Stripe processes payments. We never see or store your card number.</li>
+        <li>Pro renews automatically each month or year until you cancel. You can cancel any time from the console, under Account, then Manage billing.</li>
+        <li>When you cancel, Pro stays on until the end of the period you paid for. Your account then moves to the Free plan. Nothing is deleted, but new usage beyond the Free limits is refused until you are back under them or subscribe again.</li>
+        <li>Payments are not refunded for partial periods, except where the law requires it. If you think you were charged by mistake, email us within 30 days and we will make it right.</li>
+        <li>If a payment fails, Stripe retries it. If it still fails, the account moves to the Free plan as above.</li>
+      </ul>
+
+      <h2>Limits instead of overage charges</h2>
+      <p>Every plan limit is a hard cap. When your app reaches one, Berth refuses the request that would go past it and returns an error. We never charge you for usage beyond your plan.</p>
 
       <h2>Your content</h2>
-      <p>What you host stays yours. You are responsible for it, and you must have the right to host it. Do not use Berth for anything illegal, for spam, malware, or attacks, or in a way that puts other apps at risk.</p>
+      <p>What you store and host on Berth stays yours. You give us permission to store, process, copy and serve it only as needed to run the service for you. You are responsible for your content and must have the right to host it.</p>
 
-      <h2>Tokens</h2>
-      <p>Your tokens give full access to your app's data. Keep them secret. Tell us right away if one leaks, and we will replace it.</p>
+      <h2>Acceptable use</h2>
+      <p>Do not use Berth for anything illegal; for spam, phishing or malware; to attack, probe or overload any system, including Berth; to host content that infringes others' rights; or in a way that puts other apps on Berth at risk. Do not try to get around plan limits or access other people's apps.</p>
 
-      <h2>Backups</h2>
-      <p>Databases are backed up every night. Backups help, but they are not a promise that no data is ever lost. Keep your own copy of anything you cannot lose.</p>
+      <h2>Your app's users</h2>
+      <p>If your app stores data about its own users, you are responsible for telling them how you use it and for following the privacy laws that apply to your app. See our <a href="/privacy/">privacy policy</a> for what Berth itself collects.</p>
 
-      <h2>Suspension and ending</h2>
-      <p>We may suspend an app that breaks these terms or puts the service at risk. You can stop using Berth at any time. Ask before you leave and we will help you get a copy of your data.</p>
+      <h2>Backups and export</h2>
+      <p>Each app's database is backed up every night. Backups help us recover from problems, but they are not a promise that no data is ever lost, so keep your own copy of anything you cannot lose. You can export your data at any time with <code>berth apps export</code> or the API.</p>
+
+      <h2>Availability</h2>
+      <p>We work to keep Berth running and fast, and we announce planned maintenance ahead of time when we can. Berth does not offer an uptime guarantee (SLA) on the Free or Pro plans. Current status is on the <a href="/status/">status page</a>.</p>
+
+      <h2>Suspension and deleting your account</h2>
+      <p>We may suspend an app or account that breaks these terms or puts the service or other users at risk. Where we can, we tell you first and give you time to fix it. You can delete your account at any time in the iPhone app, with <code>berth account delete</code>, or by emailing us; deleting it removes every app in it and cancels any plan.</p>
+
+      <h2>Disclaimer and liability</h2>
+      <p>Berth is provided as it is and as available, without warranties of any kind, to the extent the law allows. To the extent the law allows, we are not liable for indirect or consequential losses, lost profits or lost data, and our total liability for any claim is limited to what you paid us in the 12 months before it. Nothing in these terms limits rights you have under consumer protection law that cannot be waived.</p>
 
       <h2>Changes</h2>
-      <p>If these terms change, the new version is posted on this page with a new date.</p>
+      <p>If these terms change in a way that matters, we post the new version here with a new date and email account holders at least 14 days before it takes effect. Price changes never apply to a subscription period you already paid for.</p>
 
       <h2>Contact</h2>
       <p><a href="mailto:hello@atberth.com">hello@atberth.com</a></p>
@@ -130,7 +154,7 @@
       <div>
         <p class="foot-h">Access</p>
         <ul>
-          <li><a href="mailto:hello@atberth.com?subject=Request%20a%20berth">Request a berth</a></li>
+          <li><a href="/app/#/signup">Start free</a></li>
           <li><a href="/docs">Docs</a></li>
           <li><a href="/#how">How it works</a></li>
           <li><a href="/legal/">Pages for hosted apps</a></li>
@@ -143,11 +167,12 @@
           <li><a href="/privacy/">Privacy</a></li>
           <li><a href="/terms/">Terms</a></li>
           <li><a href="/compare/">Compare</a></li>
+          <li><a href="/status/">Status</a></li>
         </ul>
       </div>
     </div>
     <div class="foot-base">
-      <p>&copy; 2026 Berth. Private beta.</p>
+      <p>&copy; 2026 Berth.</p>
       <p><a href="/#pricing">Free plan. Pro is $12 a month.</a></p>
     </div>
   </div>

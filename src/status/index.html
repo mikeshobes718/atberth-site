@@ -3,24 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Privacy. Berth</title>
-<meta name="description" content="How Berth handles your data across the website, console, CLI and iPhone app.">
-<link rel="canonical" href="https://atberth.com/privacy/">
+<title>Status. Berth</title>
+<meta name="description" content="Live status of the Berth API, database, functions runtime and site hosting.">
+<link rel="canonical" href="https://atberth.com/status/">
 <meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
 <meta name="color-scheme" content="light dark">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Berth">
-<meta property="og:url" content="https://atberth.com/privacy/">
-<meta property="og:title" content="Privacy. Berth">
-<meta property="og:description" content="How Berth handles your data across the website, console, CLI and iPhone app.">
+<meta property="og:url" content="https://atberth.com/status/">
+<meta property="og:title" content="Status. Berth">
+<meta property="og:description" content="Live status of the Berth API, database, functions runtime and site hosting.">
 <meta property="og:image" content="https://atberth.com/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Berth. Host your app or your site.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Privacy. Berth">
-<meta name="twitter:description" content="How Berth handles your data across the website, console, CLI and iPhone app.">
+<meta name="twitter:title" content="Status. Berth">
+<meta name="twitter:description" content="Live status of the Berth API, database, functions runtime and site hosting.">
 <meta name="twitter:image" content="https://atberth.com/assets/og.png">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
@@ -65,39 +65,64 @@
 <main id="main" class="doc-main">
   <div class="wrap">
     <article class="doc">
-      <p class="kicker">Privacy</p>
-      <h1>Privacy</h1>
-      <p class="lede">What Berth collects when you use atberth.com, the web console, the berth CLI and the Berth Console app for iPhone, and why. Last updated September 27, 2026.</p>
+      <p class="kicker">Status</p>
+      <h1>Berth status</h1>
+      <p class="lede">Live checks, run from your browser right now against the production API, database, functions runtime and site hosting. They refresh every minute.</p>
 
-      <h2>What we collect</h2>
-      <ul>
-        <li><strong>Your account.</strong> Your email address, when the account was created and verified, and when you last signed in. We use it to sign you in with emailed codes and to contact you about the service.</li>
-        <li><strong>Sign-in codes and keys.</strong> One-time sign-in codes and account keys. Keys are stored only as hashes, so we cannot read them back.</li>
-        <li><strong>Your apps' data.</strong> Everything your apps store on Berth: database rows, files, functions, env vars, webhooks, sites and your apps' end users. We store it so your apps can use it and do not use it for anything else.</li>
-        <li><strong>Billing.</strong> If you pay for Pro, Stripe handles the payment. We keep your plan and Stripe's customer and subscription IDs, never your card details.</li>
-        <li><strong>Service logs.</strong> Request logs, including IP addresses, to run the service, show you your apps' usage, fix problems and stop abuse.</li>
-      </ul>
+      <div class="st-sum" id="st-sum" aria-live="polite"><span class="st-dot" data-s="wait"></span><strong>Checking…</strong></div>
 
-      <h2>The iPhone app</h2>
-      <p>Berth Console for iPhone talks only to the Berth API. Your sign-in key is kept in the phone's keychain. The app has no analytics, ads or tracking, and collects nothing beyond what the Berth service itself stores for your account.</p>
+      <div class="tbl"><table class="st-tbl">
+        <thead><tr><th scope="col">Service</th><th scope="col">Status</th><th scope="col">Response</th></tr></thead>
+        <tbody>
+          <tr data-k="api"><th scope="row">API</th><td class="st-s"><span class="st-dot" data-s="wait"></span>Checking</td><td class="st-t">…</td></tr>
+          <tr data-k="db"><th scope="row">Database</th><td class="st-s"><span class="st-dot" data-s="wait"></span>Checking</td><td class="st-t">…</td></tr>
+          <tr data-k="fn"><th scope="row">Functions runtime</th><td class="st-s"><span class="st-dot" data-s="wait"></span>Checking</td><td class="st-t">…</td></tr>
+          <tr data-k="sites"><th scope="row">Site hosting</th><td class="st-s"><span class="st-dot" data-s="wait"></span>Checking</td><td class="st-t">…</td></tr>
+        </tbody>
+      </table></div>
+      <p class="cmp-note" id="st-when"></p>
 
-      <h2>This website</h2>
-      <p>This website sets no cookies and has no analytics or ads. Fonts are served from this site. If you pick a light or dark theme, that choice is saved in your own browser only.</p>
-
-      <h2>Where data is stored</h2>
-      <p>Data is stored on servers in the United States. Each app's database is backed up every night, and those backups are kept so data can be restored after a problem.</p>
-
-      <h2>Sharing</h2>
-      <p>We do not sell your data. We share it only with the providers that run the service (server hosting, email delivery for sign-in codes, and Stripe for payments), or when the law requires it.</p>
-
-      <h2>Deleting your account</h2>
-      <p>You can delete your account and every app in it at any time: in the iPhone app under Account, then Delete account; with <code>berth account delete</code>; or by emailing us. Deletion removes your apps, their databases and files, and cancels any plan. Copies in nightly backups expire as the backups roll over.</p>
-
-      <h2>Apps hosted on Berth</h2>
-      <p>Apps that run on Berth have their own privacy policies. See <a href="/legal/">hosted apps</a>.</p>
-
-      <h2>Contact</h2>
-      <p><a href="mailto:hello@atberth.com">hello@atberth.com</a></p>
+      <h2>Something wrong?</h2>
+      <p>If a check here is red or your app misbehaves, email <a href="mailto:hello@atberth.com?subject=Status">hello@atberth.com</a> with the app name and the request ID from the error. Planned maintenance is announced by email ahead of time when possible.</p>
+      <script>
+      (function () {
+        var API = "https://api.atberth.com/v1";
+        function set(k, ok, text, ms) {
+          var row = document.querySelector('tr[data-k="' + k + '"]');
+          row.querySelector(".st-s").innerHTML = '<span class="st-dot" data-s="' + (ok ? "ok" : "bad") + '"></span>' + text;
+          row.querySelector(".st-t").textContent = ms == null ? "" : ms + " ms";
+          return ok;
+        }
+        function timed(url, opts) {
+          var t = performance.now();
+          var ctrl = new AbortController();
+          var timer = setTimeout(function () { ctrl.abort(); }, 10000);
+          return fetch(url, Object.assign({ cache: "no-store", signal: ctrl.signal }, opts || {}))
+            .then(function (r) { clearTimeout(timer); return { r: r, ms: Math.round(performance.now() - t) }; });
+        }
+        function run() {
+          var checks = [
+            timed(API + "/status").then(function (x) {
+              return x.r.json().then(function (j) {
+                var a = set("api", x.r.ok && j.ok, x.r.ok ? "Operational" : "Error " + x.r.status, x.ms);
+                var d = set("db", j.database === "ok", j.database === "ok" ? "Operational" : "Degraded", null);
+                var f = set("fn", !!j.functions_runtime, j.functions_runtime ? "Operational" : "Unavailable", null);
+                return a && d && f;
+              });
+            }).catch(function () { set("api", false, "Unreachable", null); set("db", false, "Unknown", null); set("fn", false, "Unknown", null); return false; }),
+            timed("https://split.atberth.com/", { mode: "no-cors" }).then(function (x) { return set("sites", true, "Operational", x.ms); })
+              .catch(function () { return set("sites", false, "Unreachable", null); }),
+          ];
+          Promise.all(checks).then(function (r) {
+            var ok = r.every(Boolean);
+            document.getElementById("st-sum").innerHTML = '<span class="st-dot" data-s="' + (ok ? "ok" : "bad") + '"></span><strong>' + (ok ? "All systems operational" : "Some systems have problems") + "</strong>";
+            document.getElementById("st-when").textContent = "Last checked " + new Date().toLocaleTimeString() + ".";
+          });
+        }
+        run();
+        setInterval(run, 60000);
+      })();
+      </script>
     </article>
   </div>
 </main>

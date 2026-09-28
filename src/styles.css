@@ -483,3 +483,23 @@ h2.h3{font-size:clamp(24px,2.6vw,30px);letter-spacing:-.03em;margin-top:10px}
 .doc .cmp-note{margin-top:12px;font-size:13px;color:var(--dim)}
 .cmp tbody th,.cmp thead th:first-child{position:sticky;left:0;z-index:1;background:var(--bg)}
 .cmp thead th:first-child{background:var(--panel-2)}
+
+/* We build it */
+.build-grid{margin-top:40px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.build-grid .card h3{margin-top:14px;font-size:18px}
+.build-grid .card p{margin-top:8px;color:var(--muted);font-size:15px}
+.build-cta{margin-top:24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.build-cta p{color:var(--dim);font-size:14.5px;max-width:52ch}
+@media (max-width:900px){.build-grid{grid-template-columns:1fr}}
+
+/* Status page */
+.st-sum{margin-top:26px;display:flex;align-items:center;gap:12px;padding:18px 20px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);font-size:17px;color:var(--text)}
+.st-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:8px;background:var(--dim);vertical-align:1px}
+.st-sum .st-dot{margin-right:0;width:11px;height:11px}
+.st-dot[data-s="ok"]{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 18%,transparent)}
+.st-dot[data-s="bad"]{background:#f25c54;box-shadow:0 0 0 4px rgba(242,92,84,.18)}
+.st-tbl tbody th{text-align:left;font-weight:560;color:var(--text);padding:12px 14px;border-bottom:1px solid var(--line);background:transparent}
+.st-tbl tr:last-child th{border-bottom:0}
+.doc .st-tbl td.st-s{color:var(--text)}
+
+.cta .hero-cta{justify-content:center;margin-top:26px}
