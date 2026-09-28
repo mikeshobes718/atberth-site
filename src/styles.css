@@ -472,3 +472,14 @@ h2.h3{font-size:clamp(24px,2.6vw,30px);letter-spacing:-.03em;margin-top:10px}
 .jump.down .jump-arrow{transform:rotate(180deg)}
 .jump:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 @media (prefers-reduced-motion:reduce){.jump,.jump-arrow,.jump-ring .bar,.nav-panel,.nav-menu path{transition:none}}
+
+/* Comparison page */
+.cmp table{min-width:820px}
+.cmp tbody th{text-align:left;font-weight:560;font-size:13.5px;color:var(--text);padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top;white-space:nowrap;background:transparent}
+.cmp tr:last-child th{border-bottom:0}
+.cmp td{padding:12px 14px;line-height:1.45}
+.doc .cmp .cmp-us{color:var(--text);background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.doc .cmp th.cmp-us{color:var(--accent-ink)}
+.doc .cmp-note{margin-top:12px;font-size:13px;color:var(--dim)}
+.cmp tbody th,.cmp thead th:first-child{position:sticky;left:0;z-index:1;background:var(--bg)}
+.cmp thead th:first-child{background:var(--panel-2)}
