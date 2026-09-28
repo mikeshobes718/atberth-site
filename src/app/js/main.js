@@ -92,6 +92,24 @@ function referralCode() {
     return undefined;
   }
 }
+// Shows "Invite applied" on the sign in screens when a valid referral code is saved.
+function inviteNote(mode) {
+  const note = h("div.invite-note", { hidden: true });
+  const code = referralCode();
+  if (code) {
+    fetch("https://api.atberth.com/v1/referral/" + encodeURIComponent(code))
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.valid) return;
+        note.textContent = mode === "signup"
+          ? "Invite applied: $12 off your first month of Pro when you upgrade."
+          : "You have an invite: $12 off your first month of Pro. It applies when you create a new account.";
+        note.hidden = false;
+      })
+      .catch(() => {});
+  }
+  return note;
+}
 const nonce = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
 
 async function finishProvider(provider, idToken, raw, err) {
@@ -202,6 +220,7 @@ function emailStep(side, mode, preset = "") {
       h("a.brand", { href: "/", style: { marginBottom: "36px", display: "inline-flex" } }, logo(), "Berth"),
       h("h1", mode === "signup" ? "Create your account" : "Sign in to Berth"),
       h("p", mode === "signup" ? "Use Google or Apple, or we email you a 6 digit code. No password to remember." : "Use Google or Apple, or we email you a 6 digit code."),
+      inviteNote(mode),
       providerButtons(mode, err),
       h("div.divider", { style: { margin: "20px 0" } }, "or use email"),
       form,

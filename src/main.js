@@ -243,12 +243,21 @@
   }).catch(function () {});
 })();
 
-// Referral links (?ref=CODE) are remembered for 30 days so sign up can credit the referrer.
+// Referral links: /invite/?ref=CODE is the landing page. An older link to the home page with
+// ?ref=CODE gets a bar pointing to the invite, once the code checks out.
 (function () {
-  try {
-    var ref = new URLSearchParams(location.search).get("ref");
-    if (ref && /^[a-z0-9]{4,16}$/i.test(ref)) localStorage.setItem("berth-ref", JSON.stringify({ code: ref.toLowerCase(), at: Date.now() }));
-  } catch (e) {}
+  var ref;
+  try { ref = (new URLSearchParams(location.search).get("ref") || "").toLowerCase(); } catch (e) { return; }
+  if (!ref || !/^[a-z0-9]{4,16}$/.test(ref) || location.pathname.indexOf("/invite/") === 0) return;
+  fetch("https://api.atberth.com/v1/referral/" + encodeURIComponent(ref)).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d.valid) return;
+    try { localStorage.setItem("berth-ref", JSON.stringify({ code: ref, at: Date.now() })); } catch (e) {}
+    var bar = document.createElement("a");
+    bar.className = "invite-bar";
+    bar.href = "/invite/?ref=" + encodeURIComponent(ref);
+    bar.innerHTML = "<strong>You're invited.</strong> Get $12 off your first month of Pro. <span>Claim your invite &rarr;</span>";
+    document.body.insertBefore(bar, document.body.firstChild);
+  }).catch(function () {});
 })();
 
 // "We build it" request form: posts to the Berth API, which emails the request to hello@atberth.com.

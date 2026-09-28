@@ -529,3 +529,18 @@ h2.h3{font-size:clamp(24px,2.6vw,30px);letter-spacing:-.03em;margin-top:10px}
 .word blockquote{margin:0;font-size:16.5px;line-height:1.55;color:var(--text)}
 .word figcaption{margin-top:14px;font-size:14px;color:var(--dim)}
 .word figcaption a{color:var(--accent-ink)}
+
+/* Invite page */
+.inv-card{margin-top:28px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:22px 24px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:var(--r);background:color-mix(in srgb,var(--accent) 7%,var(--panel));box-shadow:0 24px 60px -34px var(--glow-a)}
+.inv-gift{flex:none;display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent-ink)}
+.inv-gift svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.inv-body{flex:1;min-width:220px}
+.doc .inv-offer{margin:0;font-size:17px;font-weight:600;color:var(--text)}
+.doc .inv-sub{margin:4px 0 0;font-size:14.5px;color:var(--muted)}
+.inv[data-state="invalid"] .inv-card{border-color:var(--line);background:var(--panel);box-shadow:none}
+.inv[data-state="invalid"] .inv-gift{color:var(--dim);background:var(--panel-2)}
+.inv-steps{padding-left:22px}.inv-steps li{margin-top:10px;color:var(--muted)}
+.doc .inv-more{margin-top:28px;font-size:15px}
+.invite-bar{display:block;padding:11px 16px;text-align:center;font-size:14.5px;color:var(--text);background:color-mix(in srgb,var(--accent) 14%,var(--bg));border-bottom:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+.invite-bar span{color:var(--accent-ink);font-weight:600;margin-left:6px}
+.invite-bar:hover{text-decoration:none}.invite-bar:hover span{text-decoration:underline}

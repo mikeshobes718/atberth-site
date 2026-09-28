@@ -573,3 +573,4 @@ a.list-row:hover{background:var(--hover)}
 .provider-wrap:hover .provider,.provider:hover{border-color:var(--line-3,var(--line-2));background:var(--surface-2,var(--surface))}
 .provider-glyph{display:inline-flex;width:18px;height:18px;margin-right:2px}
 .provider-glyph svg{display:block}
+.invite-note{margin-top:14px;padding:10px 12px;border-radius:10px;font-size:13.5px;color:var(--accent-ink);background:var(--accent-soft);border:1px solid var(--accent-line)}

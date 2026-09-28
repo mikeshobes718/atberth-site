@@ -187,7 +187,16 @@ export default async function account(ctx) {
           toast(r.url);
         }
       };
+      const msg = "I use Berth for my app's database, sign in, storage and site. Here's $12 off your first month of Pro: " + r.url;
+      const share = [
+        navigator.share ? (() => { const b = h("button.btn", { type: "button" }, "Share"); b.onclick = () => navigator.share({ title: "Berth", text: msg }).catch(() => {}); return b; })() : null,
+        h("a.btn", { href: "mailto:?subject=" + encodeURIComponent("$12 off Berth Pro") + "&body=" + encodeURIComponent(msg), target: "_blank", rel: "noopener" }, "Email"),
+        h("a.btn", { href: "https://wa.me/?text=" + encodeURIComponent(msg), target: "_blank", rel: "noopener" }, "WhatsApp"),
+        h("a.btn", { href: "https://x.com/intent/post?text=" + encodeURIComponent(msg), target: "_blank", rel: "noopener" }, "X"),
+      ];
       mount(refBox, h("div.row", { style: { gap: "10px", flexWrap: "wrap" } }, h("code.mono", { style: { padding: "8px 10px", border: "1px solid var(--line)", borderRadius: "8px", overflowWrap: "anywhere" } }, r.url), copy),
+        h("div.row", { style: { gap: "8px", flexWrap: "wrap", marginTop: "10px" } }, share),
+        h("p.small.muted", { style: { marginTop: "10px" } }, "Your link opens an invite page that shows their discount. You get an email when someone joins with it, and another when you earn the credit."),
         h("p.small.muted", { style: { marginTop: "10px" } }, r.signed_up + (r.signed_up === 1 ? " person has" : " people have") + " signed up through your link. " + r.rewarded + " paid, earning you credit."));
     }).catch((e) => mount(refBox, errorBox(e)));
   }
