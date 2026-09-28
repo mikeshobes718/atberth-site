@@ -106,7 +106,7 @@ export default async function account(ctx) {
     body.append(
       h(
         "div.card.card-b",
-        h("div.row", h("span.avatar", icon("shield", "i-sm")), h("div", h("b", "Platform admin token"), h("div.small.dim", "This console session uses the admin token, which has no account. Sign in by email to manage sessions and keys here.")))
+        h("div.row", h("span.avatar", icon("shield", "i-sm")), h("div", h("b", "Platform admin token"), h("div.small.dim", "This console session uses the admin token, which has no account. Sign out and sign in with your email, Google or Apple to see your plan, your referral link, sessions and keys.")))
       )
     );
     return;
