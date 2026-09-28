@@ -281,3 +281,29 @@
       .then(function () { btn.disabled = false; });
   });
 })();
+
+// Testimonials: the section stays hidden until testimonials.json has real, approved quotes.
+// Each entry: {"quote": "...", "name": "...", "role": "...", "url": "https://..." (optional)}.
+(function () {
+  var sec = document.getElementById("words");
+  if (!sec || !window.fetch) return;
+  fetch("/testimonials.json", { cache: "no-cache" }).then(function (r) { return r.ok ? r.json() : []; }).then(function (list) {
+    if (!Array.isArray(list) || !list.length) return;
+    var box = document.getElementById("words-list");
+    list.forEach(function (t) {
+      var fig = document.createElement("figure");
+      fig.className = "word card";
+      var q = document.createElement("blockquote");
+      q.textContent = t.quote;
+      var cap = document.createElement("figcaption");
+      var who = document.createElement(t.url ? "a" : "span");
+      if (t.url) { who.href = t.url; who.rel = "noopener"; who.target = "_blank"; }
+      who.textContent = t.name;
+      cap.appendChild(who);
+      if (t.role) cap.appendChild(document.createTextNode(", " + t.role));
+      fig.append(q, cap);
+      box.appendChild(fig);
+    });
+    sec.hidden = false;
+  }).catch(function () {});
+})();

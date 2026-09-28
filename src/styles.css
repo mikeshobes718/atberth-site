@@ -525,3 +525,7 @@ h2.h3{font-size:clamp(24px,2.6vw,30px);letter-spacing:-.03em;margin-top:10px}
 .up-bar{display:block;border-radius:2px;background:var(--line-2)}
 .up-bar.ok{background:var(--accent)}.up-bar.warn{background:#f5a524}.up-bar.bad{background:#f25c54}
 .up-axis{margin-top:6px;display:flex;justify-content:space-between;font-size:12px;color:var(--dim)}
+.words{margin-top:36px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.word blockquote{margin:0;font-size:16.5px;line-height:1.55;color:var(--text)}
+.word figcaption{margin-top:14px;font-size:14px;color:var(--dim)}
+.word figcaption a{color:var(--accent-ink)}
