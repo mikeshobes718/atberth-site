@@ -173,7 +173,7 @@ export default async function account(ctx) {
     );
   }
 
-  if (!isAdmin) {
+  {
     const refBox = h("div.card-b", loading());
     body.append(h("section.card", h("div.card-h", h("div", h("h2", "Refer a friend"), h("div.sub", "They get $12 off their first month. When they pay for it, you get a month of Pro as credit."))), refBox));
     get("/account/referral").then((r) => {
