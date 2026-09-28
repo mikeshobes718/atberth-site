@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Todo</title>
+<link rel="stylesheet" href="style.css">
+<style>.row{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}.row input{width:auto;margin:0}.row span{flex:1}.row.done span{text-decoration:line-through;color:var(--muted)}.x{width:auto;margin:0;padding:4px 10px;background:transparent;color:var(--muted);border:1px solid var(--line)}.add{display:flex;gap:8px}.add button{width:auto;margin:0;padding:0 18px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:14px;color:var(--muted)}.top button{width:auto;margin:0;padding:6px 12px;background:transparent;color:var(--muted);border:1px solid var(--line)}.switch{background:none;color:var(--muted);font-weight:400;padding:4px;margin-top:10px;text-decoration:underline}</style>
+</head>
+<body>
+<main>
+  <h1>Todo.</h1>
+  <p>Your list, private to your account.</p>
+  <form class="card" id="auth" novalidate hidden>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="email" required>
+    <label for="password">Password</label>
+    <input id="password" type="password" autocomplete="current-password" minlength="8" required>
+    <button type="submit" id="authBtn">Sign in</button>
+    <button type="button" class="switch" id="switch">New here? Create an account</button>
+    <div class="msg" id="authMsg" role="status"></div>
+  </form>
+  <section class="card" id="list" hidden>
+    <div class="top"><span id="who"></span><button type="button" id="out">Sign out</button></div>
+    <form class="add" id="add"><input id="title" placeholder="Add a task" required><button type="submit">Add</button></form>
+    <div id="items"></div>
+    <div class="msg" id="listMsg" role="status"></div>
+  </section>
+  <p class="foot">Runs on <a href="https://atberth.com">Berth</a></p>
+</main>
+<script src="config.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const A = `${BERTH.api}/apps/${BERTH.app}`;
+let mode = "login", session = JSON.parse(localStorage.getItem("todo-session") || "null");
+const save = (s) => { session = s; s ? localStorage.setItem("todo-session", JSON.stringify(s)) : localStorage.removeItem("todo-session"); };
+
+async function call(path, opts = {}, retried = false) {
+  const headers = { apikey: BERTH.key, "Content-Type": "application/json", ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}) };
+  const res = await fetch(A + path, { ...opts, headers });
+  if (res.status === 401 && session && !retried) {
+    const r = await fetch(`${A}/auth/refresh`, { method: "POST", headers: { apikey: BERTH.key, "Content-Type": "application/json" }, body: JSON.stringify({ refresh_token: session.refresh_token }) });
+    if (r.ok) { save({ ...(await r.json()), email: session.email }); return call(path, opts, true); }
+    save(null); show(); throw new Error("Your session ended. Sign in again.");
+  }
+  const out = res.status === 204 ? {} : await res.json();
+  if (!res.ok) throw new Error(out.message || out.error || "Something went wrong.");
+  return out;
+}
+
+function show() {
+  $("auth").hidden = !!session; $("list").hidden = !session;
+  if (session) { $("who").textContent = session.email || ""; load(); }
+}
+$("switch").onclick = () => {
+  mode = mode === "login" ? "signup" : "login";
+  $("authBtn").textContent = mode === "login" ? "Sign in" : "Create account";
+  $("switch").textContent = mode === "login" ? "New here? Create an account" : "Have an account? Sign in";
+};
+$("auth").addEventListener("submit", async (e) => {
+  e.preventDefault(); $("authMsg").className = "msg"; $("authMsg").textContent = "";
+  try {
+    const email = $("email").value.trim().toLowerCase();
+    const s = await call(`/auth/${mode}`, { method: "POST", body: JSON.stringify({ email, password: $("password").value }) });
+    save({ ...s, email }); show();
+  } catch (err) { $("authMsg").className = "msg bad"; $("authMsg").textContent = err.message; }
+});
+$("out").onclick = () => { save(null); show(); };
+
+async function load() {
+  try {
+    const out = await call("/tables/todos/rows?order=created_at.asc");
+    $("items").innerHTML = "";
+    for (const t of out.rows || []) {
+      const row = document.createElement("div"); row.className = "row" + (t.done ? " done" : "");
+      const box = document.createElement("input"); box.type = "checkbox"; box.checked = !!t.done;
+      box.onchange = () => call(`/tables/todos/rows/${t.id}`, { method: "PATCH", body: JSON.stringify({ done: box.checked }) }).then(load);
+      const span = document.createElement("span"); span.textContent = t.title;
+      const del = document.createElement("button"); del.className = "x"; del.textContent = "Delete";
+      del.onclick = () => call(`/tables/todos/rows/${t.id}`, { method: "DELETE" }).then(load);
+      row.append(box, span, del); $("items").appendChild(row);
+    }
+  } catch (err) { $("listMsg").className = "msg bad"; $("listMsg").textContent = err.message; }
+}
+$("add").addEventListener("submit", async (e) => {
+  e.preventDefault(); const title = $("title").value.trim(); if (!title) return;
+  await call("/tables/todos/rows", { method: "POST", body: JSON.stringify({ title, done: false }) }).catch((err) => { $("listMsg").className = "msg bad"; $("listMsg").textContent = err.message; });
+  $("title").value = ""; load();
+});
+show();
+</script>
+</body>
+</html>

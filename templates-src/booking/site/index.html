@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book a time</title>
+<link rel="stylesheet" href="style.css">
+<style>.times{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;margin-top:8px}.times button{margin:0;padding:9px 0;background:transparent;color:var(--text);border:1px solid var(--line);font-weight:500}.times button[aria-pressed=true]{background:var(--text);color:var(--bg)}.times button:disabled{opacity:.35;text-decoration:line-through}</style>
+</head>
+<body>
+<main>
+  <h1>Book a time.</h1>
+  <p>Pick a service, a day and a time. You get a confirmation right away.</p>
+  <form class="card" id="form" novalidate>
+    <label for="service">Service</label>
+    <select id="service" required><option value="">Loading…</option></select>
+    <label for="day">Day</label>
+    <input id="day" type="date" required>
+    <label>Time</label>
+    <div class="times" id="times"></div>
+    <label for="name">Your name</label>
+    <input id="name" autocomplete="name" required>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="email" required>
+    <label for="notes">Notes (optional)</label>
+    <textarea id="notes" rows="2"></textarea>
+    <button type="submit" id="go">Book</button>
+    <div class="msg" id="msg" role="status"></div>
+  </form>
+  <p class="foot">Runs on <a href="https://atberth.com">Berth</a></p>
+</main>
+<script src="config.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const fn = `${BERTH.api}/apps/${BERTH.app}/functions/book`;
+const OPEN = 9, CLOSE = 18; // opening hours, local time, every 30 minutes
+let picked = null;
+const pad = (n) => String(n).padStart(2, "0");
+const today = new Date(); $("day").min = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`; $("day").value = $("day").min;
+
+fetch(`${BERTH.api}/apps/${BERTH.app}/tables/services/rows?order=price.asc`, { headers: { apikey: BERTH.key } })
+  .then((r) => r.json()).then((out) => {
+    $("service").innerHTML = (out.rows || []).map((s) => `<option value="${s.id}">${s.name}${Number(s.price) ? " · $" + Number(s.price) : ""}</option>`).join("");
+  });
+
+async function renderTimes() {
+  picked = null;
+  const day = $("day").value; if (!day) return;
+  const utcDay = new Date(day + "T00:00").toISOString().slice(0, 10);
+  const next = new Date(new Date(day + "T00:00").getTime() + 86400000).toISOString().slice(0, 10);
+  const [a, b] = await Promise.all([utcDay, next].map((d) => fetch(`${fn}?date=${d}`).then((r) => r.json())));
+  const taken = new Set([...(a.taken || []), ...(b.taken || [])]);
+  $("times").innerHTML = "";
+  for (let h = OPEN; h < CLOSE; h++) for (const m of [0, 30]) {
+    const t = new Date(`${day}T${pad(h)}:${pad(m)}`);
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.textContent = `${pad(h)}:${pad(m)}`; btn.setAttribute("aria-pressed", "false");
+    btn.disabled = t < new Date() || taken.has(t.toISOString());
+    btn.onclick = () => { $("times").querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", "false")); btn.setAttribute("aria-pressed", "true"); picked = t.toISOString(); };
+    $("times").appendChild(btn);
+  }
+}
+$("day").addEventListener("change", renderTimes); renderTimes();
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = $("msg"); msg.className = "msg"; msg.textContent = "";
+  if (!picked) { msg.className = "msg bad"; msg.textContent = "Pick a time."; return; }
+  $("go").disabled = true;
+  try {
+    const res = await fetch(fn, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ service: $("service").value, starts_at: picked, name: $("name").value, email: $("email").value, notes: $("notes").value }) });
+    const out = await res.json();
+    if (!res.ok) throw new Error(out.error || "Something went wrong.");
+    msg.className = "msg ok"; msg.textContent = `Booked: ${out.service}, ${new Date(out.starts_at).toLocaleString()}.`;
+    renderTimes();
+  } catch (err) { msg.className = "msg bad"; msg.textContent = err.message; }
+  $("go").disabled = false;
+});
+</script>
+</body>
+</html>

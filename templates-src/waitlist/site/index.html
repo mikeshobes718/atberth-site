@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Something new is coming</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <h1>Something new is coming.</h1>
+  <p>Leave your email and we will tell you the day it launches. No spam, one email.</p>
+  <form class="card" id="form" novalidate>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+    <button type="submit">Join the waitlist</button>
+    <div class="msg" id="msg" role="status"></div>
+  </form>
+  <p class="foot">Runs on <a href="https://atberth.com">Berth</a></p>
+</main>
+<script src="config.js"></script>
+<script>
+const form = document.getElementById("form"), msg = document.getElementById("msg"), btn = form.querySelector("button");
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  btn.disabled = true; msg.className = "msg"; msg.textContent = "";
+  try {
+    const res = await fetch(`${BERTH.api}/apps/${BERTH.app}/functions/join`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: document.getElementById("email").value, source: new URLSearchParams(location.search).get("ref") }),
+    });
+    const out = await res.json();
+    if (!res.ok) throw new Error(out.error || "Something went wrong.");
+    msg.className = "msg ok"; msg.textContent = "You are on the list. Thank you!"; form.reset();
+  } catch (err) { msg.className = "msg bad"; msg.textContent = err.message; }
+  btn.disabled = false;
+});
+</script>
+</body>
+</html>

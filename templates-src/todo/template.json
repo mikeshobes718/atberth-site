@@ -1,0 +1,12 @@
+{
+  "name": "todo",
+  "title": "Todo with accounts",
+  "description": "Sign up, sign in, and a list each person sees only for themselves, enforced by row level security.",
+  "tables": [
+    {"name": "todos", "columns": [{"name": "title", "type": "text", "not_null": true}, {"name": "done", "type": "boolean"}],
+     "policy": {"read": "owner", "write": "owner"}}
+  ],
+  "functions": [],
+  "site": "site",
+  "next": ["See users: berth auth users list", "See every todo (secret key): berth rows list todos"]
+}

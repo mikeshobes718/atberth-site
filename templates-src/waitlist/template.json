@@ -1,0 +1,12 @@
+{
+  "name": "waitlist",
+  "title": "Waitlist",
+  "description": "A launch page that collects emails into a table.",
+  "tables": [
+    {"name": "signups", "columns": [{"name": "email", "type": "text", "not_null": true, "unique": true}, {"name": "source", "type": "text"}],
+     "policy": {"read": "secret", "write": "secret"}}
+  ],
+  "functions": [{"name": "join", "file": "functions/join.ts", "verify": "none"}],
+  "site": "site",
+  "next": ["See signups: berth rows list signups", "Edit site/index.html, then: berth sites deploy site --site {{SITE}}"]
+}

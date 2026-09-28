@@ -1,0 +1,20 @@
+{
+  "name": "booking",
+  "title": "Booking",
+  "description": "Services, open times and a booking form, with double bookings blocked in the database.",
+  "tables": [
+    {"name": "services", "columns": [{"name": "name", "type": "text", "not_null": true}, {"name": "minutes", "type": "integer", "not_null": true}, {"name": "price", "type": "numeric"}],
+     "policy": {"read": "public", "write": "secret"}},
+    {"name": "bookings", "columns": [{"name": "service", "type": "text", "not_null": true}, {"name": "starts_at", "type": "timestamptz", "not_null": true, "unique": true},
+      {"name": "name", "type": "text", "not_null": true}, {"name": "email", "type": "text", "not_null": true}, {"name": "notes", "type": "text"}],
+     "policy": {"read": "secret", "write": "secret"}}
+  ],
+  "rows": {"services": [
+    {"name": "Consultation", "minutes": 30, "price": 0},
+    {"name": "Standard session", "minutes": 30, "price": 40},
+    {"name": "Long session", "minutes": 30, "price": 70}
+  ]},
+  "functions": [{"name": "book", "file": "functions/book.ts", "verify": "none"}],
+  "site": "site",
+  "next": ["See bookings: berth rows list bookings --order starts_at", "Edit services: berth rows add services name=\"New service\" minutes=30 price=50"]
+}

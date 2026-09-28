@@ -1,0 +1,22 @@
+{
+  "templates": [
+    {
+      "name": "booking",
+      "title": "Booking",
+      "description": "Services, open times and a booking form, with double bookings blocked in the database.",
+      "url": "https://atberth.com/templates/booking.tar.gz"
+    },
+    {
+      "name": "todo",
+      "title": "Todo with accounts",
+      "description": "Sign up, sign in, and a list each person sees only for themselves, enforced by row level security.",
+      "url": "https://atberth.com/templates/todo.tar.gz"
+    },
+    {
+      "name": "waitlist",
+      "title": "Waitlist",
+      "description": "A launch page that collects emails into a table.",
+      "url": "https://atberth.com/templates/waitlist.tar.gz"
+    }
+  ]
+}

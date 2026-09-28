@@ -222,3 +222,59 @@
     btn.blur();
   });
 })();
+
+// Launch price counter: Pro is $12 for the first 100 accounts, then the standard price.
+(function () {
+  var left = document.getElementById("launch-left");
+  if (!left || !window.fetch) return;
+  fetch("https://api.atberth.com/v1/launch").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    if (!d) return;
+    if (d.remaining > 0) {
+      left.textContent = d.remaining + " of " + d.limit + " launch spots left";
+      left.hidden = false;
+    } else {
+      document.getElementById("launch-tag").textContent = "Standard price";
+      document.getElementById("pro-price").textContent = "$" + d.standard_price.month;
+      document.getElementById("pro-unit").textContent = "a month, or $" + d.standard_price.year + " a year";
+    }
+  }).catch(function () {});
+})();
+
+// Referral links (?ref=CODE) are remembered for 30 days so sign up can credit the referrer.
+(function () {
+  try {
+    var ref = new URLSearchParams(location.search).get("ref");
+    if (ref && /^[a-z0-9]{4,16}$/i.test(ref)) localStorage.setItem("berth-ref", JSON.stringify({ code: ref.toLowerCase(), at: Date.now() }));
+  } catch (e) {}
+})();
+
+// "We build it" request form: posts to the Berth API, which emails the request to hello@atberth.com.
+(function () {
+  var form = document.getElementById("build-form");
+  if (!form) return;
+  var msg = form.querySelector(".bf-msg"), btn = form.querySelector("button[type=submit]");
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = form.elements;
+    var body = { name: f.name.value.trim(), email: f.email.value.trim(), kind: f.kind.value, budget: f.budget.value || null,
+                 details: f.details.value.trim(), website_url: f.website_url.value };
+    msg.className = "bf-msg";
+    if (!body.name || !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(body.email) || body.details.length < 10) {
+      msg.className = "bf-msg bad";
+      msg.textContent = "Add your name, a valid email and a sentence or two about what you need.";
+      return;
+    }
+    btn.disabled = true;
+    msg.textContent = "Sending…";
+    fetch("https://api.atberth.com/v1/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (x) {
+        if (!x.ok) throw new Error(x.d.message || "Could not send. Email hello@atberth.com instead.");
+        msg.className = "bf-msg ok";
+        msg.textContent = "Thanks. We got it and will reply to " + body.email + " soon.";
+        form.reset();
+      })
+      .catch(function (err) { msg.className = "bf-msg bad"; msg.textContent = err.message; })
+      .then(function () { btn.disabled = false; });
+  });
+})();

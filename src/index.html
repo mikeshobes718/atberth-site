@@ -466,23 +466,46 @@
         <article class="card reveal">
           <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M3.5 8.5h17M7 6.5h.01M9.5 6.5h.01"/></svg></div>
           <h3>Websites</h3>
-          <p>Business sites, landing pages and booking sites that load fast on phones, on your own domain with HTTPS.</p>
+          <p class="build-price">From $499</p>
+          <p>Business sites, landing pages and booking sites that load fast on phones, on your own domain with HTTPS. Usually live in one to two weeks.</p>
         </article>
         <article class="card reveal">
           <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></div>
           <h3>iPhone and Android apps</h3>
+          <p class="build-price">From $2,999</p>
           <p>Native apps with accounts, data, file uploads and payments, taken all the way through App Store and Google Play review.</p>
         </article>
         <article class="card reveal">
           <div class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5"/></svg></div>
           <h3>Moving to Berth</h3>
+          <p class="build-price">From $299</p>
           <p>Already on Supabase, Firebase or something else? We move your database, users and files over for you.</p>
         </article>
       </div>
-      <div class="build-cta reveal">
-        <a class="btn btn-light" href="mailto:hello@atberth.com?subject=Build%20my%20app">Tell us what you need</a>
-        <p>Quotes are free. Describe the site or app in a few lines and we reply with a plan and a price.</p>
-      </div>
+      <form class="build-form reveal" id="build-form" novalidate>
+        <h3>Tell us what you need</h3>
+        <p class="build-sub">Quotes are free. Describe it in a few lines and we reply by email with a plan and a price, usually within a day.</p>
+        <div class="bf-grid">
+          <label>Your name<input name="name" autocomplete="name" required maxlength="120"></label>
+          <label>Email<input name="email" type="email" autocomplete="email" required maxlength="254"></label>
+          <label>What do you need?<select name="kind" required>
+            <option value="website">A website</option>
+            <option value="app">An iPhone or Android app</option>
+            <option value="migration">Move my app to Berth</option>
+            <option value="other">Something else</option>
+          </select></label>
+          <label>Budget<select name="budget">
+            <option value="">Not sure yet</option>
+            <option>Under $1,000</option>
+            <option>$1,000 to $5,000</option>
+            <option>$5,000 to $15,000</option>
+            <option>More than $15,000</option>
+          </select></label>
+        </div>
+        <label>What should it do?<textarea name="details" rows="4" required minlength="10" maxlength="5000" placeholder="For example: a booking site for my barbershop, with online payments and my own domain."></textarea></label>
+        <label class="bf-hp" aria-hidden="true">Website<input name="website_url" tabindex="-1" autocomplete="off"></label>
+        <div class="bf-row"><button class="btn btn-light" type="submit">Send request</button><p class="bf-msg" role="status"></p></div>
+      </form>
     </div>
   </section>
 
@@ -511,8 +534,9 @@
           <a class="btn btn-ghost" href="/app/#/signup">Start free</a>
         </li>
         <li class="plan plan-hi">
-          <p class="plan-n">Pro <span class="plan-tag">Launch price, locked for life</span></p>
-          <p class="plan-p"><span class="plan-a">$12</span><span class="plan-u">a month, or $120 a year</span></p>
+          <p class="plan-n">Pro <span class="plan-tag" id="launch-tag">Launch price for the first 100 accounts</span></p>
+          <p class="plan-p"><span class="plan-a" id="pro-price">$12</span><span class="plan-u" id="pro-unit">a month, or $120 a year, locked for life</span></p>
+          <p class="plan-launch" id="launch-left" hidden></p>
           <p class="plan-d">For apps with real users.</p>
           <ul class="plan-f">
             <li>10 apps</li>
@@ -527,6 +551,20 @@
           <a class="btn btn-light" href="/app/#/signup?plan=pro">Get Pro</a>
         </li>
         <li class="plan">
+          <p class="plan-n">Agency</p>
+          <p class="plan-p"><span class="plan-a">$49</span><span class="plan-u">a month, or $490 a year</span></p>
+          <p class="plan-d">For freelancers and studios running client apps.</p>
+          <ul class="plan-f">
+            <li>30 apps, each with Pro limits</li>
+            <li>30 sites, up to 1 GB each</li>
+            <li>100 GB file storage</li>
+            <li>6,000 requests a minute</li>
+            <li>One account and one bill for every client</li>
+            <li>Email support from a real person</li>
+          </ul>
+          <a class="btn btn-ghost" href="/app/#/signup?plan=agency">Get Agency</a>
+        </li>
+        <li class="plan">
           <p class="plan-n">Scale</p>
           <p class="plan-p"><span class="plan-a">Custom</span></p>
           <p class="plan-d">For bigger apps or unusual needs.</p>
@@ -534,6 +572,7 @@
             <li>Limits set to fit your app</li>
             <li>More apps, rows, storage, and users</li>
             <li>Higher request rates</li>
+            <li>Uptime SLA with service credits, in your contract</li>
             <li>Help moving from Supabase or Firebase</li>
             <li>Priced in the reply</li>
           </ul>
@@ -541,6 +580,7 @@
         </li>
       </ul>
       <p class="plans-note">Pro is self-service: create an account, pay by card through Stripe, and your limits go up at once. Change or cancel any time from the console. Your data and keys stay the same when you change plans. <a href="/compare/">See how Berth compares with Vercel, Supabase and Firebase.</a></p>
+      <p class="plans-note"><strong>Refer a friend:</strong> share your link from the console and you both get a month of Pro when they pay for their first month.</p>
     </div>
   </section>
 
@@ -603,6 +643,7 @@
           <li><a href="/privacy/">Privacy</a></li>
           <li><a href="/terms/">Terms</a></li>
           <li><a href="/compare/">Compare</a></li>
+          <li><a href="/alternatives/">Alternatives</a></li>
           <li><a href="/status/">Status</a></li>
         </ul>
       </div>

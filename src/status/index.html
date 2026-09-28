@@ -82,6 +82,12 @@
       </table></div>
       <p class="cmp-note" id="st-when"></p>
 
+      <h2>Uptime, last 90 days</h2>
+      <p>Berth checks its public API every minute. A minute with no answer, or no check at all because the server was down, counts as downtime.</p>
+      <div class="up-head"><strong id="up-pct">…</strong><span id="up-since"></span></div>
+      <div class="up-bars" id="up-bars" role="img" aria-label="Daily uptime bars"></div>
+      <div class="up-axis"><span>90 days ago</span><span>Today</span></div>
+
       <h2>Something wrong?</h2>
       <p>If a check here is red or your app misbehaves, email <a href="mailto:hello@atberth.com?subject=Status">hello@atberth.com</a> with the app name and the request ID from the error. Planned maintenance is announced by email ahead of time when possible.</p>
       <script>
@@ -119,8 +125,28 @@
             document.getElementById("st-when").textContent = "Last checked " + new Date().toLocaleTimeString() + ".";
           });
         }
+        function history() {
+          fetch(API + "/status/history?days=90", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (h) {
+            var bars = document.getElementById("up-bars");
+            bars.innerHTML = "";
+            var byDate = {};
+            (h.days || []).forEach(function (d) { byDate[d.date] = d; });
+            for (var i = 89; i >= 0; i--) {
+              var day = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+              var d = byDate[day];
+              var bar = document.createElement("span");
+              bar.className = "up-bar " + (!d ? "none" : d.uptime >= 99.9 ? "ok" : d.uptime >= 99 ? "warn" : "bad");
+              bar.title = day + (d ? ": " + d.uptime.toFixed(2) + "% up" + (d.ms ? ", " + d.ms + " ms average" : "") : ": not tracked yet");
+              bars.appendChild(bar);
+            }
+            document.getElementById("up-pct").textContent = h.uptime == null ? "No data yet" : h.uptime.toFixed(3) + "% uptime";
+            if (h.since) document.getElementById("up-since").textContent = "Tracked since " + new Date(h.since).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+          }).catch(function () {});
+        }
         run();
+        history();
         setInterval(run, 60000);
+        setInterval(history, 300000);
       })();
       </script>
     </article>
@@ -174,6 +200,7 @@
           <li><a href="/privacy/">Privacy</a></li>
           <li><a href="/terms/">Terms</a></li>
           <li><a href="/compare/">Compare</a></li>
+          <li><a href="/alternatives/">Alternatives</a></li>
           <li><a href="/status/">Status</a></li>
         </ul>
       </div>
