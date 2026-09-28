@@ -230,8 +230,11 @@
   fetch("https://api.atberth.com/v1/launch").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
     if (!d) return;
     if (d.remaining > 0) {
-      left.textContent = d.remaining + " of " + d.limit + " launch spots left";
-      left.hidden = false;
+      // The count only appears once it means something (20 or more taken).
+      if (d.taken >= 20) {
+        left.textContent = d.remaining + " of " + d.limit + " launch spots left";
+        left.hidden = false;
+      }
     } else {
       document.getElementById("launch-tag").textContent = "Standard price";
       document.getElementById("pro-price").textContent = "$" + d.standard_price.month;

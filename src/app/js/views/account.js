@@ -25,10 +25,10 @@ function takeIntent(key) {
   }
 }
 
-async function startCheckout(interval, btn) {
+async function startCheckout(interval, btn, plan = "pro") {
   if (btn) btn.disabled = true;
   try {
-    const out = await post("/account/billing/checkout", { interval });
+    const out = await post("/account/billing/checkout", { plan, interval });
     location.href = out.url;
   } catch (e) {
     if (btn) btn.disabled = false;
@@ -48,22 +48,25 @@ async function openPortal(btn) {
 }
 
 function planCard(b) {
-  const pro = b.plan === "pro";
-  const title = pro ? "Pro" : b.plan === "scale" ? "Scale" : "Free";
+  const pro = b.plan === "pro" || b.plan === "agency";
+  const title = b.plan === "agency" ? "Agency" : b.plan === "pro" ? "Pro" : b.plan === "scale" ? "Scale" : "Free";
   let line;
-  if (pro && b.cancel_at_period_end && b.renews_at) line = "Pro ends on " + fmtDate(b.renews_at) + ". You go back to Free then, and nothing is deleted.";
-  else if (pro && b.status === "past_due") line = "The last payment failed. Stripe will try again. Update your card in Manage billing to keep Pro.";
+  if (pro && b.cancel_at_period_end && b.renews_at) line = title + " ends on " + fmtDate(b.renews_at) + ". You go back to Free then, and nothing is deleted.";
+  else if (pro && b.status === "past_due") line = "The last payment failed. Stripe will try again. Update your card in Manage billing to keep " + title + ".";
   else if (pro && b.renews_at) line = "Renews " + (b.interval === "year" ? "yearly" : "monthly") + " on " + fmtDate(b.renews_at) + ".";
   else if (b.plan === "scale") line = "A custom plan. Email hello@atberth.com to change it.";
-  else line = "Pro raises every limit below: 10 apps, 1,000,000 rows and 5 GB per app, 25 GB storage, 50,000 end users per app.";
+  else line = "Pro raises every limit below: 10 apps, 1,000,000 rows and 5 GB per app, 25 GB storage, 50,000 end users per app. Agency is for client work: 30 apps with Pro limits and 30 sites."
+      + (b.referral_discount ? " You joined through a referral, so your first month is $12 off." : "");
   const actions = h("div.row", { style: { gap: "10px", flexWrap: "wrap" } });
   if (!pro && b.plan !== "scale") {
     if (b.self_service) {
       const m = h("button.btn.primary", { type: "button" }, "Upgrade to Pro, $" + b.prices.month + " a month");
       const y = h("button.btn", { type: "button" }, "$" + b.prices.year + " a year");
+      const ag = h("button.btn", { type: "button" }, "Agency, $" + b.agency_prices.month + " a month");
       m.onclick = () => startCheckout("month", m);
       y.onclick = () => startCheckout("year", y);
-      actions.append(m, y);
+      ag.onclick = () => startCheckout("month", ag, "agency");
+      actions.append(m, y, ag);
     } else {
       actions.append(h("a.btn", { href: "mailto:hello@atberth.com?subject=Berth%20Pro" }, "Email to upgrade"));
     }
@@ -138,10 +141,10 @@ export default async function account(ctx) {
       billing = null;
     }
     if (!ctx.alive()) return;
-    if (returned && returned.status === "success") toast(billing && billing.plan === "pro" ? "You're on Pro. Your new limits apply now." : "Payment received. Pro turns on in a moment.");
+    if (returned && returned.status === "success") toast(billing && (billing.plan === "pro" || billing.plan === "agency") ? "You're on " + (billing.plan === "agency" ? "Agency" : "Pro") + ". Your new limits apply now." : "Payment received. Your plan turns on in a moment.");
     if (returned && returned.status === "cancel") toast("Checkout canceled. You're still on Free.");
     if (wanted && billing && billing.self_service && billing.plan === "free") {
-      startCheckout(wanted.interval === "year" ? "year" : "month");
+      startCheckout(wanted.interval === "year" ? "year" : "month", null, wanted.plan === "agency" ? "agency" : "pro");
     }
     let lim = a.limits || {};
     if (returned) {
@@ -168,6 +171,25 @@ export default async function account(ctx) {
         )
       )
     );
+  }
+
+  if (!isAdmin) {
+    const refBox = h("div.card-b", loading());
+    body.append(h("section.card", h("div.card-h", h("div", h("h2", "Refer a friend"), h("div.sub", "They get $12 off their first month. When they pay for it, you get a month of Pro as credit."))), refBox));
+    get("/account/referral").then((r) => {
+      if (!ctx.alive()) return;
+      const copy = h("button.btn", { type: "button" }, icon("copy"), "Copy link");
+      copy.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(r.url);
+          toast("Referral link copied.");
+        } catch {
+          toast(r.url);
+        }
+      };
+      mount(refBox, h("div.row", { style: { gap: "10px", flexWrap: "wrap" } }, h("code.mono", { style: { padding: "8px 10px", border: "1px solid var(--line)", borderRadius: "8px", overflowWrap: "anywhere" } }, r.url), copy),
+        h("p.small.muted", { style: { marginTop: "10px" } }, r.signed_up + (r.signed_up === 1 ? " person has" : " people have") + " signed up through your link. " + r.rewarded + " paid, earning you credit."));
+    }).catch((e) => mount(refBox, errorBox(e)));
   }
 
   const keysBox = h("div");

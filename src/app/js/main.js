@@ -83,11 +83,20 @@ function loadScript(src) {
     document.head.appendChild(s);
   }));
 }
+// A ?ref= code saved by atberth.com in the last 30 days, sent with sign up so the referrer gets credit.
+function referralCode() {
+  try {
+    const r = JSON.parse(localStorage.getItem("berth-ref") || "null");
+    return r && Date.now() - r.at < 30 * 86400000 ? r.code : undefined;
+  } catch {
+    return undefined;
+  }
+}
 const nonce = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
 
 async function finishProvider(provider, idToken, raw, err) {
   try {
-    const out = await loginProvider(provider, idToken, raw);
+    const out = await loginProvider(provider, idToken, raw, referralCode());
     if (out.created) toast("Welcome to Berth. Your account is ready.");
     await boot();
   } catch (e) {
@@ -174,7 +183,7 @@ function emailStep(side, mode, preset = "") {
         }
         busy(btn, async () => {
           try {
-            await post(mode === "signup" ? "/signup" : "/login", { email: v }, { token: null, noAuthRedirect: true });
+            await post(mode === "signup" ? "/signup" : "/login", mode === "signup" ? { email: v, ref: referralCode() } : { email: v }, { token: null, noAuthRedirect: true });
             codeStep(side, mode, v);
           } catch (e2) {
             err.textContent = e2.message;
@@ -641,8 +650,10 @@ function captureBillingIntent() {
       history.replaceState(null, "", location.pathname + "#/account");
     }
     const r = route();
-    if (r.query && r.query.plan === "pro") {
-      sessionStorage.setItem("berth.upgrade", JSON.stringify({ interval: r.query.interval === "year" ? "year" : "month" }));
+    const ref = sp.get("ref") || (r.query && r.query.ref);
+    if (ref && /^[a-z0-9]{4,16}$/i.test(ref)) localStorage.setItem("berth-ref", JSON.stringify({ code: ref.toLowerCase(), at: Date.now() }));
+    if (r.query && (r.query.plan === "pro" || r.query.plan === "agency")) {
+      sessionStorage.setItem("berth.upgrade", JSON.stringify({ plan: r.query.plan, interval: r.query.interval === "year" ? "year" : "month" }));
     }
   } catch {}
 }
