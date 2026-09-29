@@ -4,6 +4,7 @@ export const state = { me: null, apps: [] };
 
 export const appNav = [
   { path: "", label: "Overview", icon: "overview" },
+  { path: "insights", label: "Insights", icon: "live" },
   { path: "tables", label: "Table editor", icon: "table" },
   { path: "sql", label: "SQL editor", icon: "sql" },
   { path: "users", label: "Auth users", icon: "users" },
@@ -16,7 +17,7 @@ export const appNav = [
   { path: "settings", label: "Settings", icon: "settings" },
 ];
 
-const TITLES = { home: "Apps", account: "Account", admin: "Admin", growth: "Growth", overview: "Overview" };
+const TITLES = { home: "Apps", account: "Account", admin: "Admin", growth: "Growth", platform: "Insights", overview: "Overview" };
 export function sectionTitle(s) {
   const n = appNav.find((x) => x.path === s);
   return n ? n.label : TITLES[s] || s;
