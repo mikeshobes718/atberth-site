@@ -237,6 +237,10 @@ berth auth users show --app "$APP" "$USER_ID"</code></pre>
 berth auth users ban --app "$APP" "$USER_ID" --unban</code></pre>
       <pre class="code" data-lang="bash" data-check><code>berth auth users delete --app "$APP" "$USER_ID" --yes</code></pre>
 
+      <h2 id="insights">Insights: who uses your app</h2>
+      <p>Every app has an <strong>Insights</strong> tab in the console, with no code to add. It shows sign-ups, daily, weekly and monthly active users, stickiness, an activation funnel, retention by sign-up week, when people are here, how they sign in, what platform and app they use, and your server error rate and median latency. Every number is compared with the period before. Any small set of values in your users' <code>data</code> (a plan, a goal, a country) gets its own breakdown.</p>
+      <p>A user counts as active on a day when they sign in or their session refreshes. The same report is available as JSON: <code>GET /v1/apps/$APP/insights?days=30</code> with a secret key or account key. <code>days</code> is 7 to 90, and days are UTC.</p>
+
       <h2 id="protection">Password policy, rate limits, and lockout</h2>
       <p>Any key can read the app's password rules, so a signup form can show them:</p>
       <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/apps/$APP/auth/settings \
@@ -364,6 +368,7 @@ fun notes(accessToken: String): String {
         <li><a href="#devices">Devices and sessions</a></li>
         <li><a href="#logout">Sign out</a></li>
         <li><a href="#manage-users">Managing users from your server</a></li>
+        <li><a href="#insights">Insights</a></li>
         <li><a href="#protection">Policy, limits, and lockout</a></li>
         <li><a href="#from-a-phone">Calling from a phone or browser</a></li>
       </ul>
