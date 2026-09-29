@@ -392,8 +392,9 @@ let statusCache = null;
 async function refreshStatus() {
   try {
     statusCache = await get("/status", { token: null, noAuthRedirect: true });
-  } catch {
-    statusCache = { ok: false };
+  } catch (e) {
+    // Being rate limited says nothing about the platform: keep what we knew. Only a real failure is "Degraded".
+    if (!(e instanceof ApiError && e.status === 429)) statusCache = { ok: false };
   }
   if (shell) renderTop();
 }

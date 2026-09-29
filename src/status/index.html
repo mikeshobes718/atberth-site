@@ -107,19 +107,28 @@
             .then(function (r) { clearTimeout(timer); return { r: r, ms: Math.round(performance.now() - t) }; });
         }
         function run() {
+          var limited = false;
           var checks = [
             timed(API + "/status").then(function (x) {
+              if (x.r.status === 429) { throw new Error("rate limited"); }
               return x.r.json().then(function (j) {
                 var a = set("api", x.r.ok && j.ok, x.r.ok ? "Operational" : "Error " + x.r.status, x.ms);
                 var d = set("db", j.database === "ok", j.database === "ok" ? "Operational" : "Degraded", null);
                 var f = set("fn", !!j.functions_runtime, j.functions_runtime ? "Operational" : "Unavailable", null);
                 return a && d && f;
               });
-            }).catch(function () { set("api", false, "Unreachable", null); set("db", false, "Unknown", null); set("fn", false, "Unknown", null); return false; }),
+            }).catch(function (err) {
+              if (err && err.message === "rate limited") { limited = true; return null; }
+              set("api", false, "Unreachable", null); set("db", false, "Unknown", null); set("fn", false, "Unknown", null); return false;
+            }),
             timed("https://split.atberth.com/", { mode: "no-cors" }).then(function (x) { return set("sites", true, "Operational", x.ms); })
               .catch(function () { return set("sites", false, "Unreachable", null); }),
           ];
           Promise.all(checks).then(function (r) {
+            if (limited) {
+              document.getElementById("st-sum").innerHTML = '<span class="st-dot" data-s="wait"></span><strong>Too many checks from your network right now. Trying again in a minute.</strong>';
+              return;
+            }
             var ok = r.every(Boolean);
             document.getElementById("st-sum").innerHTML = '<span class="st-dot" data-s="' + (ok ? "ok" : "bad") + '"></span><strong>' + (ok ? "All systems operational" : "Some systems have problems") + "</strong>";
             document.getElementById("st-when").textContent = "Last checked " + new Date().toLocaleTimeString() + ".";
