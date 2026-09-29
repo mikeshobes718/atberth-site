@@ -126,10 +126,10 @@ export function cohortTable(data, noun = "users") {
   const pct = (v) => (v === null || v === undefined ? "-" : Math.round(v) + "%");
   const cell = (v) =>
     h("span.ins-cell" + (v === null || v === undefined ? ".none" : ""), v === null || v === undefined ? null : { style: { background: `color-mix(in srgb, var(--accent) ${Math.round(8 + (v / 100) * 60)}%, transparent)` } }, v === null || v === undefined ? "" : Math.round(v) + "%");
-  const head = h("div.ins-crow.ins-chead", h("span", "Week of"), h("span.r", noun[0].toUpperCase() + noun.slice(1)), Array.from({ length: 9 }, (_, i) => h("span.c", "W" + i)), h("span.r.split", "D1+"), h("span.r", "D7+"), h("span.r", "D30+"));
+  const head = h("div.ins-crow.ins-chead", h("span", "Week of"), h("span.r", noun[0].toUpperCase() + noun.slice(1)), Array.from({ length: 9 }, (_, i) => h("span.c", "W" + i)), h("span.r.sep", "D1+"), h("span.r", "D7+"), h("span.r", "D30+"));
   return h(
     "div.ins-cohort",
-    h("div.ins-cscroll", head, rows.map((r) => h("div.ins-crow", h("span.mono.small", r.week), h("span.r", fmtNum(r.users)), r.weeks.map(cell), h("span.r.split", pct(r.d1)), h("span.r", pct(r.d7)), h("span.r", pct(r.d30)))))
+    h("div.ins-cscroll", head, rows.map((r) => h("div.ins-crow", h("span.mono.small", r.week), h("span.r", fmtNum(r.users)), r.weeks.map(cell), h("span.r.sep", pct(r.d1)), h("span.r", pct(r.d7)), h("span.r", pct(r.d30)))))
   );
 }
 
