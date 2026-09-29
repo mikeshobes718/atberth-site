@@ -50,7 +50,7 @@ export function tiles(list) {
     list.map((t) => {
       const d = delta(t);
       return h(
-        "div.ins-tile",
+        "div.ins-tile" + (t.spark && Math.max(...t.spark) > 0 ? ".has-spark" : ""),
         h("div.ins-tile-top", h("span.ins-label", t.label), d ? h("span.ins-delta." + d.tone, d.text) : null),
         h("div.ins-value", formatValue(t)),
         spark(t.spark),

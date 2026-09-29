@@ -582,6 +582,7 @@ a.list-row:hover{background:var(--hover)}
 .ins-label{font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--dim);font-weight:600}
 .ins-value{font-size:30px;font-weight:650;letter-spacing:-.03em;line-height:1.1;color:var(--text);font-variant-numeric:tabular-nums}
 .ins-sub{font-size:12.5px;color:var(--dim);line-height:1.35;margin-top:2px;max-width:24ch}
+.ins-tile.has-spark .ins-sub{max-width:calc(100% - 110px)}
 .ins-spark{position:absolute;right:12px;bottom:12px;width:96px;height:26px;opacity:.9}
 .ins-spark path{fill:none;stroke:var(--accent);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
 .ins-delta{font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--panel-2,rgba(255,255,255,.06));color:var(--muted);white-space:nowrap}
