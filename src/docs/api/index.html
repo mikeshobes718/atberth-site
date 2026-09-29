@@ -557,7 +557,7 @@ jq -n --rawfile source echo.ts '{source: $source, schedule: null}' | \
       <p class="ep"><span class="m m-delete">DELETE</span>/v1/apps/{app}/sites/{site}/domains/{domain}</p>
       <p>Removes the domain.</p>
       <p class="ep"><span class="m">GET</span>/v1/apps/{app}/sites/{site}/analytics?days=30</p>
-      <p><code>{"days": [{day, visitors, requests, bytes, not_found}], "totals", "top_pages", "top_referrers"}</code>. 1 to 90 days.</p>
+      <p><code>{"days": [{day, visitors, requests, bytes, not_found}], "totals", "top_pages", "top_referrers", "top_sources": [{source, medium, campaign, views, visitors}]}</code>. 1 to 90 days. <code>top_sources</code> counts page views that arrived through a link tagged with <code>utm_source</code>, <code>utm_medium</code>, <code>utm_campaign</code>, or <code>ref</code>; <code>totals.tagged_views</code> is their sum. See <a href="/docs/sites/#campaigns">Campaign links</a>.</p>
 
       <h2 id="webhooks">Webhooks</h2>
       <p>See <a href="/docs/webhooks/">Webhooks</a> for the payload, signature, and retries.</p>

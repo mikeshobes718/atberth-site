@@ -262,6 +262,7 @@ berth sites domains add --app "$APP" "$SITE" "$SITE.example.com"
 berth sites domains list --app "$APP" "$SITE"
 berth sites domains remove --app "$APP" "$SITE" "$SITE.example.com"
 berth sites stats --app "$APP" "$SITE" --days 7
+berth sites link --app "$APP" "$SITE" /pricing --source newsletter --medium email --campaign launch
 berth sites delete --app "$APP" "$SITE" --yes</code></pre>
       <p><code>deploy</code> uploads only files the site doesn't have yet and creates the site on first use. <code>promote SITE DEPLOY_ID</code> makes any deploy live, <code>rollback SITE</code> returns to the previous one, <code>domains verify</code> checks DNS again, and <code>password --set - | --clear | --previews-only</code> protects a site. See <a href="/docs/sites/">Sites</a>.</p>
 

@@ -399,11 +399,52 @@ export default async function sites(ctx) {
       const tile = (label, value) => h("div.card.card-b", h("div.small.dim", label), h("div", { style: { fontSize: "22px", fontWeight: "600", marginTop: "4px" } }, value));
       const top = (title, rows, key) =>
         h("div.card", h("div.card-h", h("h2", title)), rows.length ? h("div.tbl-wrap", h("table.tbl", h("tbody", rows.slice(0, 10).map((r) => h("tr", h("td.mono.small.trunc", { style: { maxWidth: "320px" } }, r.key), h("td.num", fmtNum(r.count))))))) : h("div.card-b.small.dim", "Nothing yet."));
+      const dash = (v) => v.trim().toLowerCase().replace(/[^a-z0-9._~ -]/g, "").trim().replace(/\s+/g, "-").slice(0, 40);
+      const campaigns = h(
+        "div.card",
+        { style: { marginTop: "16px" } },
+        h("div.card-h", h("div", h("h2", "Campaign links"), h("div.sub", "Share a tagged link and see which one brings visitors. Counted without cookies: only the tag in the link is stored, never who clicked."))),
+        data.top_sources && data.top_sources.length
+          ? h(
+              "div.tbl-wrap",
+              h(
+                "table.tbl",
+                h("thead", h("tr", h("th", "Source"), h("th", "Medium"), h("th", "Campaign"), h("th.num", "Views"), h("th.num", "Visitors"))),
+                h("tbody", data.top_sources.slice(0, 20).map((r) => h("tr", h("td.strong", r.source || "-"), h("td", r.medium || "-"), h("td", r.campaign || "-"), h("td.num", fmtNum(r.views)), h("td.num", fmtNum(r.visitors)))))
+              )
+            )
+          : h("div.card-b.small.dim", "No tagged visits yet. Make a link below, share it, and it shows up here.")
+      );
+      const inSource = input({ placeholder: "newsletter, twitter, brother", maxlength: "40" });
+      const inMedium = input({ placeholder: "email, text, social", maxlength: "40" });
+      const inCampaign = input({ placeholder: "launch, black-friday", maxlength: "40" });
+      const inPath = input({ placeholder: "/ or /pricing", value: "/" });
+      const made = h("code.mono.small", { style: { display: "block", padding: "10px 12px", border: "1px solid var(--line)", borderRadius: "8px", overflowWrap: "anywhere", flex: "1", minWidth: "240px" } });
+      const build = () => {
+        const q = [["utm_source", dash(inSource.value)], ["utm_medium", dash(inMedium.value)], ["utm_campaign", dash(inCampaign.value)]].filter(([, v]) => v);
+        if (!q.length) { made.textContent = "Fill in at least one box to make a link."; return; }
+        let path = "/" + inPath.value.trim().replace(/^\/+/, "");
+        made.textContent = liveUrl.replace(/\/$/, "") + path + "?" + q.map(([k, v]) => k + "=" + encodeURIComponent(v)).join("&");
+      };
+      [inSource, inMedium, inCampaign, inPath].forEach((el) => el.addEventListener("input", build));
+      build();
+      const linkCard = h(
+        "div.card",
+        { style: { marginTop: "16px" } },
+        h("div.card-h", h("div", h("h2", "Make a tagged link"), h("div.sub", "Pick names you will recognise. Letters, numbers, dots and dashes are kept; spaces become dashes."))),
+        h(
+          "div.card-b",
+          h("div.grid.g2", field("Source", inSource, "Where you share it"), field("Medium", inMedium, "How it is shared"), field("Campaign", inCampaign, "Which push it belongs to"), field("Page", inPath, "Where the link lands")),
+          h("div.row", { style: { gap: "10px", marginTop: "14px", flexWrap: "wrap" } }, made, copyBtn(() => made.textContent, { label: "Link copied" }))
+        )
+      );
       mount(
         body,
         h("div.grid.g4", { style: { marginBottom: "16px" } }, tile("Visitors (sum of daily)", fmtNum(data.totals.visitors)), tile("Requests", fmtNum(data.totals.requests)), tile("Bandwidth", fmtBytes(data.totals.bytes)), tile("Not found", fmtNum(data.totals.not_found))),
         h("div.card", h("div.card-h", h("div", h("h2", "Last " + days + " days"), h("div.sub", "No cookies, no personal data. Visitors are counted per day with a salted hash that is thrown away daily.")), seg([["visitors", "Visitors"], ["requests", "Requests"], ["not_found", "404s"]], metric, (v) => { metric = v; drawChart(); })), h("div.card-b", chartBox)),
-        h("div.grid.g2", { style: { marginTop: "16px" } }, top("Top pages", data.top_pages), top("Top referrers", data.top_referrers))
+        h("div.grid.g2", { style: { marginTop: "16px" } }, top("Top pages", data.top_pages), top("Top referrers", data.top_referrers)),
+        campaigns,
+        linkCard
       );
       drawChart();
     }

@@ -20,7 +20,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-VERSION = "2.1.0"
+VERSION = "2.2.0"
 DEFAULT_API = "https://api.atberth.com/v1"
 FILTER_OPS = ("eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "in", "is", "cs")
 INT_TYPES = {"integer", "bigint", "int", "int2", "int4", "int8", "smallint"}
@@ -1854,7 +1854,42 @@ def cmd_sites_stats(args) -> None:
         if payload["top_referrers"]:
             print("\nTop referrers")
             print_table([{"from": x["key"], "visits": x["count"]} for x in payload["top_referrers"][:10]])
+        if payload.get("top_sources"):
+            print("\nCampaign links")
+            print_table([{"source": x["source"] or "-", "medium": x["medium"] or "-", "campaign": x["campaign"] or "-",
+                          "views": x["views"], "visitors": x["visitors"]} for x in payload["top_sources"][:10]])
+        else:
+            print("\nNo campaign links yet. Make one with: berth sites link " + args.name + " --source newsletter")
     emit(payload, human)
+
+
+def tag_part(value: str | None, flag: str) -> str:
+    """Lowercase letters, digits, dots, dashes, underscores and spaces: what the stats keep."""
+    cleaned = re.sub(r"[^a-z0-9._~ -]", "", (value or "").strip().lower())[:40].strip()
+    cleaned = re.sub(r"\s+", "-", cleaned)  # dashes read better than %20 in a link
+    if value and not cleaned:
+        usage(f"{flag} needs letters or digits, for example {flag} newsletter.")
+    return cleaned
+
+
+def cmd_sites_link(args) -> None:
+    """Build a tagged link. Berth counts visits to it in berth sites stats, with no cookies."""
+    source, medium, campaign = tag_part(args.source, "--source"), tag_part(args.medium, "--medium"), tag_part(args.campaign, "--campaign")
+    if not (source or medium or campaign):
+        usage("Add at least one of --source, --medium or --campaign, for example: berth sites link my-site --source newsletter")
+    if args.url:
+        base = args.url.rstrip("/")
+    else:
+        app = resolve_app(args)
+        info = app_api(app, "GET", app_path(app, "sites", args.name))
+        base = ((info.get("site") or info).get("url") or "").rstrip("/")
+        if not base:
+            die("Could not find that site's address. Pass it with --url https://example.com.")
+    path = "/" + (args.path or "").lstrip("/")
+    query = urllib.parse.urlencode([(k, v) for k, v in (("utm_source", source), ("utm_medium", medium), ("utm_campaign", campaign)) if v],
+                                   quote_via=urllib.parse.quote)
+    url = f"{base}{path}?{query}"
+    emit({"url": url, "source": source, "medium": medium, "campaign": campaign}, url)
 
 
 def cmd_functions_deploy(args) -> None:
@@ -2684,10 +2719,20 @@ def build_parser() -> argparse.ArgumentParser:
     g2 = p.add_mutually_exclusive_group()
     g2.add_argument("--previews-only", dest="previews_only", action="store_const", const=True, default=None)
     g2.add_argument("--whole-site", dest="previews_only", action="store_const", const=False)
-    p = cmd(si, "stats", cmd_sites_stats, "Visitors, top pages, referrers. No cookies.", "berth sites stats --app demo my-site --days 7")
+    p = cmd(si, "stats", cmd_sites_stats, "Visitors, top pages, referrers and campaign links. No cookies.", "berth sites stats --app demo my-site --days 7")
     app_opt(p)
     p.add_argument("name", metavar="NAME")
     p.add_argument("--days", type=int, default=30)
+    p = cmd(si, "link", cmd_sites_link, "Make a tagged link and count its visits under Campaign links in berth sites stats.",
+            ["berth sites link my-site --source newsletter --medium email --campaign launch",
+             "berth sites link my-site /pricing --source brother --medium text"])
+    app_opt(p)
+    p.add_argument("name", metavar="NAME", help="Site name.")
+    p.add_argument("path", nargs="?", default="/", help="Page to link to. Default: the home page.")
+    p.add_argument("--source", help="Where the link is shared: newsletter, twitter, brother.")
+    p.add_argument("--medium", help="How: email, text, social, ad.")
+    p.add_argument("--campaign", help="Which push it belongs to: launch, black-friday.")
+    p.add_argument("--url", help="Use this address instead of looking the site up, for a custom domain.")
 
     # functions
     fn = group(sub, "functions", "Deploy and run TypeScript or JavaScript functions.",

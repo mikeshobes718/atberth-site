@@ -183,8 +183,16 @@ berth sites password --app "$APP" "$SITE" --clear</code></pre>
       </ul>
 
       <h2 id="stats">Stats</h2>
-      <p>Berth counts visitors, requests, bandwidth, 404s, top pages, and top referrers. It sets no cookies and stores no IP addresses: a visitor is counted once per day through a salted hash, and the salt is thrown away every day.</p>
+      <p>Berth counts visitors, requests, bandwidth, 404s, top pages, top referrers, and campaign links. It sets no cookies and stores no IP addresses: a visitor is counted once per day through a salted hash, and the salt is thrown away every day.</p>
       <pre class="code" data-lang="bash" data-check><code>berth sites stats --app "$APP" "$SITE" --days 7</code></pre>
+
+      <h2 id="campaigns">Campaign links</h2>
+      <p>To learn which post, email, or message brings visitors, share a tagged link. Add <code>utm_source</code> (where you share it), <code>utm_medium</code> (how), and <code>utm_campaign</code> (which push) to any page address, or use <code>?ref=name</code> for a quick source. <code>berth sites link</code> builds the link for you, and the console has the same builder on a site's Stats tab.</p>
+      <pre class="code" data-lang="bash" data-check><code>LINK=$(berth sites link --app "$APP" "$SITE" --source newsletter --medium email --campaign launch)
+echo "$LINK"
+curl -sS -o /dev/null "$LINK"
+berth sites stats --app "$APP" "$SITE" --days 1</code></pre>
+      <p>Stats show a <strong>Campaign links</strong> table with views and visitors for each source, medium, and campaign. Views count pages opened through the tagged link; visitors are counted once a day with the same salted hash as above. Only the tag is stored, never the visitor, and nothing is added to your pages or set in the browser. Tags are lowercased and limited to letters, digits, dots, dashes, underscores, and spaces, 40 characters each. Only the first page a visitor opens carries the tag, so links inside your site do not need it. Previews are not counted.</p>
 
       <h2 id="ci">Deploy from GitHub Actions</h2>
       <p>Create an account key with <code>berth account keys create ci</code>, save it as the repository secret <code>BERTH_ACCOUNT_KEY</code>, and add this workflow.</p>
@@ -247,6 +255,7 @@ curl -sS -X POST "https://api.atberth.com/v1/apps/$APP/sites/$SITE/deploys?messa
         <li><a href="#password">Password protection</a></li>
         <li><a href="#caching">Caching and speed</a></li>
         <li><a href="#stats">Stats</a></li>
+        <li><a href="#campaigns">Campaign links</a></li>
         <li><a href="#ci">Deploy from GitHub Actions</a></li>
         <li><a href="#api">Deploy with the HTTP API</a></li>
         <li><a href="#limits">Limits</a></li>
