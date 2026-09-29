@@ -123,19 +123,13 @@ export function heatmap(hours, index = 1) {
 export function cohortTable(data, noun = "users") {
   const rows = (data && data.rows) || [];
   if (!rows.length) return h("div.small.dim", { style: { padding: "6px 0" } }, "Retention appears once people have signed up.");
-  const cell = (v) => h("td.ins-cell", v === null || v === undefined ? { class: "empty" } : { style: { background: `color-mix(in srgb, var(--accent) ${Math.round(6 + (v / 100) * 62)}%, transparent)` } }, v === null || v === undefined ? "" : Math.round(v) + "%");
+  const pct = (v) => (v === null || v === undefined ? "-" : Math.round(v) + "%");
+  const cell = (v) =>
+    h("span.ins-cell" + (v === null || v === undefined ? ".empty" : ""), v === null || v === undefined ? null : { style: { background: `color-mix(in srgb, var(--accent) ${Math.round(8 + (v / 100) * 60)}%, transparent)` } }, v === null || v === undefined ? "" : Math.round(v) + "%");
+  const head = h("div.ins-crow.ins-chead", h("span", "Week of"), h("span.r", noun[0].toUpperCase() + noun.slice(1)), Array.from({ length: 9 }, (_, i) => h("span.c", "W" + i)), h("span.r.split", "D1+"), h("span.r", "D7+"), h("span.r", "D30+"));
   return h(
-    "div.tbl-wrap",
-    h(
-      "table.tbl.ins-cohort",
-      h("thead", h("tr", h("th", "Week of"), h("th.num", noun[0].toUpperCase() + noun.slice(1)), Array.from({ length: 9 }, (_, i) => h("th.num", "W" + i)), h("th.num.split", "D1+"), h("th.num", "D7+"), h("th.num", "D30+"))),
-      h(
-        "tbody",
-        rows.map((r) =>
-          h("tr", h("td.mono.small", r.week), h("td.num", fmtNum(r.users)), r.weeks.map(cell), h("td.num.split", r.d1 === null ? "-" : Math.round(r.d1) + "%"), h("td.num", r.d7 === null ? "-" : Math.round(r.d7) + "%"), h("td.num", r.d30 === null ? "-" : Math.round(r.d30) + "%"))
-        )
-      )
-    )
+    "div.ins-cohort",
+    h("div.ins-cscroll", head, rows.map((r) => h("div.ins-crow", h("span.mono.small", r.week), h("span.r", fmtNum(r.users)), r.weeks.map(cell), h("span.r.split", pct(r.d1)), h("span.r", pct(r.d7)), h("span.r", pct(r.d30)))))
   );
 }
 

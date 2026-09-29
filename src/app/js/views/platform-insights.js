@@ -5,7 +5,7 @@ import { insightsPage, tiles, trend, funnel, heatmap, cohortTable, barList, stac
 export default async function platformInsights(ctx) {
   return insightsPage(ctx, {
     eyebrow: "platform",
-    title: "Insights",
+    title: "Platform insights",
     lede: "Who is signing up, whether they get started, whether they come back, and what they use. Compared with the period before. You and your demo account are left out.",
     endpoint: "/admin/insights",
     build: (d) => {

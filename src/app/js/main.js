@@ -430,7 +430,7 @@ function renderSide() {
       "div",
       item("/", "grid", "All apps", r.name === "home", state.apps.length ? h("span.count", String(state.apps.length)) : null),
       item("/account", "account", "Account", r.name === "account"),
-      isAdmin ? item("/platform", "live", "Insights", r.name === "platform") : null,
+      isAdmin ? item("/platform", "live", "Platform insights", r.name === "platform") : null,
       isAdmin ? item("/admin", "shield", "Admin", r.name === "admin") : null,
       !isAdmin && state.me && state.me.account && state.me.account.marketer ? item("/growth", "overview", "Growth", r.name === "growth") : null
     ),
