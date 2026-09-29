@@ -30,13 +30,13 @@ function webCard() {
     const t = d.totals;
     const tile = (label, value) => h("div", h("div.small.dim", label), h("div", { style: { fontSize: "22px", fontWeight: "600", marginTop: "2px" } }, value));
     const src = (d.top_sources || []).map((r) => h("tr", h("td.strong", r.source || "-"), h("td", r.medium || "-"), h("td", r.campaign || "-"), h("td.num", fmtNum(r.views)), h("td.num", fmtNum(r.visitors)), h("td.num", fmtNum(r.signups)), h("td.num", fmtNum(r.paid))));
-    const list = (rows) => rows.length ? table(["Page", "Views"], rows.slice(0, 8).map((r) => h("tr", h("td.mono.small.trunc", { style: { maxWidth: "320px" } }, r.key), h("td.num", fmtNum(r.count))))) : h("div.small.dim", { style: { padding: "12px 0" } }, "Nothing yet.");
+    const list = (rows, what = "Page") => rows.length ? table([what, "Views"], rows.slice(0, 8).map((r) => h("tr", h("td.mono.small.trunc", { style: { maxWidth: "320px" } }, r.key), h("td.num", fmtNum(r.count))))) : h("div.small.dim", { style: { padding: "12px 0" } }, "Nothing yet.");
     mount(
       box,
       h("div.grid.g4", tile("Page views", fmtNum(t.views)), tile("Visitors (sum of daily)", fmtNum(t.visitors)), tile("New accounts", fmtNum(t.signups)), tile("Paying accounts", fmtNum(t.paid))),
       h("p.small.dim", { style: { marginTop: "12px" } }, t.signups_without_source ? fmtNum(t.signups_without_source) + " of the new accounts have no source: they came before tracking, straight to the site, or from a browser that blocks it." : "Every new account has a source."),
       src.length ? table(["Source", "Medium", "Campaign", "Views", "Visitors", "Signups", "Paid"], src) : h("div.small.dim", { style: { padding: "12px 0" } }, "No campaign links or referring sites yet. Make a link below and share it."),
-      h("div.grid.g2", { style: { marginTop: "14px" } }, h("div", h("h3", { style: { fontSize: "15px", marginBottom: "6px" } }, "Top pages"), list(d.top_pages)), h("div", h("h3", { style: { fontSize: "15px", marginBottom: "6px" } }, "Referring sites"), list(d.top_referrers)))
+      h("div.grid.g2", { style: { marginTop: "14px" } }, h("div", h("h3", { style: { fontSize: "15px", marginBottom: "6px" } }, "Top pages"), list(d.top_pages)), h("div", h("h3", { style: { fontSize: "15px", marginBottom: "6px" } }, "Referring sites"), list(d.top_referrers, "Site")))
     );
     card.append(builder());
   }).catch((e) => mount(box, errorBox(e)));
