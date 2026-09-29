@@ -430,7 +430,8 @@ function renderSide() {
       "div",
       item("/", "grid", "All apps", r.name === "home", state.apps.length ? h("span.count", String(state.apps.length)) : null),
       item("/account", "account", "Account", r.name === "account"),
-      isAdmin ? item("/admin", "shield", "Admin", r.name === "admin") : null
+      isAdmin ? item("/admin", "shield", "Admin", r.name === "admin") : null,
+      !isAdmin && state.me && state.me.account && state.me.account.marketer ? item("/growth", "overview", "Growth", r.name === "growth") : null
     ),
   ]);
   if (slug) {
@@ -510,6 +511,7 @@ function renderTop() {
   if (r.slug && r.rest && r.rest.length) parts.push([null, decodeURIComponent(r.rest.join("/"))]);
   if (r.name === "account") parts.push([null, "Account"]);
   if (r.name === "admin") parts.push([null, "Admin"]);
+  if (r.name === "growth") parts.push([null, "Growth"]);
   parts.forEach(([href, label], i) => {
     if (i) crumbs.append(h("span.sep", "/"));
     if (href && i < parts.length - 1) crumbs.append(h("a", { href }, label));
@@ -559,6 +561,7 @@ const VIEWS = {
   home: () => import("./views/home.js"),
   account: () => import("./views/account.js"),
   admin: () => import("./views/admin.js"),
+  growth: () => import("./views/growth.js"),
   overview: () => import("./views/overview.js"),
   tables: () => import("./views/tables.js"),
   sql: () => import("./views/sql.js"),
@@ -588,6 +591,7 @@ async function render() {
   let key = r.name;
   if (r.name === "app") key = r.section || "overview";
   if (r.name === "admin" && state.me.role !== "admin") return go("/");
+  if (r.name === "growth" && state.me.role !== "admin" && !(state.me.account && state.me.account.marketer)) return go("/");
   const loader = VIEWS[key];
   const content = shell.content;
   if (!loader) {

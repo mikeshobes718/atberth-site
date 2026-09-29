@@ -5,7 +5,7 @@ import { state, appPath } from "../state.js";
 const LIMITS = ["apps", "rows", "database_bytes", "storage_bytes", "rpm", "functions", "webhooks", "users"];
 
 // Traffic to atberth.com: which links and sites bring visitors, and which of them bring signups and paying accounts.
-function webCard() {
+export function webCard(endpoint = "/admin/web-stats") {
   const box = h("div.card-b", loading());
   const days = 30;
   const card = h("div.card", { style: { marginBottom: "18px" } }, h("div.card-h", h("div", h("h2", "Website traffic"), h("div.sub", "atberth.com, last " + days + " days. Cookie-free: pages, referring sites and campaign tags, with a hashed daily visitor count. Signups are credited to the first campaign or site that brought them."))), box);
@@ -26,7 +26,7 @@ function webCard() {
     build();
     return h("div", { style: { borderTop: "1px solid var(--line)" } }, h("div.card-b", h("h3", { style: { fontSize: "15px", marginBottom: "10px" } }, "Make a tagged link to atberth.com"), h("div.grid.g2", field("Source", inSource, "Where you share it"), field("Medium", inMedium, "How it is shared"), field("Campaign", inCampaign, "Which push"), field("Page", inPath, "Where it lands")), h("div.row", { style: { gap: "10px", marginTop: "14px", flexWrap: "wrap" } }, made, copyBtn(() => made.textContent, { label: "Link copied" }))));
   };
-  get("/admin/web-stats?days=" + days).then((d) => {
+  get(endpoint + "?days=" + days).then((d) => {
     const t = d.totals;
     const tile = (label, value) => h("div", h("div.small.dim", label), h("div", { style: { fontSize: "22px", fontWeight: "600", marginTop: "2px" } }, value));
     const src = (d.top_sources || []).map((r) => h("tr", h("td.strong", r.source || "-"), h("td", r.medium || "-"), h("td", r.campaign || "-"), h("td.num", fmtNum(r.views)), h("td.num", fmtNum(r.visitors)), h("td.num", fmtNum(r.signups)), h("td.num", fmtNum(r.paid))));

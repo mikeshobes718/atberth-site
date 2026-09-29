@@ -16,7 +16,7 @@ export const appNav = [
   { path: "settings", label: "Settings", icon: "settings" },
 ];
 
-const TITLES = { home: "Apps", account: "Account", admin: "Admin", overview: "Overview" };
+const TITLES = { home: "Apps", account: "Account", admin: "Admin", growth: "Growth", overview: "Overview" };
 export function sectionTitle(s) {
   const n = appNav.find((x) => x.path === s);
   return n ? n.label : TITLES[s] || s;
