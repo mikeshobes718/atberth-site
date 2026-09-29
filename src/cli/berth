@@ -20,7 +20,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-VERSION = "2.2.0"
+VERSION = "2.3.0"
 DEFAULT_API = "https://api.atberth.com/v1"
 FILTER_OPS = ("eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "in", "is", "cs")
 INT_TYPES = {"integer", "bigint", "int", "int2", "int4", "int8", "smallint"}
@@ -780,6 +780,29 @@ def cmd_admin_accounts_delete(args) -> None:
         usage("Deleting an account removes all its apps. Add --yes to confirm.")
     payload = api("DELETE", seg("admin", "accounts", args.account_id), account_token())
     emit(payload, f"Deleted account {args.account_id}.")
+
+
+def cmd_admin_web_stats(args) -> None:
+    payload = api("GET", "/admin/web-stats", account_token(), query=[("days", args.days)])
+
+    def human():
+        t = payload["totals"]
+        print(f"Last {args.days} days on atberth.com: {t['views']} page views, {t['visitors']} visitors (sum of daily), "
+              f"{t['signups']} new accounts, {t['paid']} paying.")
+        rows = payload.get("top_sources") or []
+        if rows:
+            print("\nSources")
+            print_table([{"source": r["source"] or "-", "medium": r["medium"] or "-", "campaign": r["campaign"] or "-",
+                          "views": r["views"], "visitors": r["visitors"], "signups": r["signups"], "paid": r["paid"]} for r in rows[:15]])
+        if payload.get("top_pages"):
+            print("\nTop pages")
+            print_table([{"page": x["key"], "views": x["count"]} for x in payload["top_pages"][:8]])
+        if payload.get("top_referrers"):
+            print("\nReferring sites")
+            print_table([{"site": x["key"], "views": x["count"]} for x in payload["top_referrers"][:8]])
+        if t.get("signups_without_source"):
+            print(f"\n{t['signups_without_source']} new accounts have no source.")
+    emit(payload, human)
 
 
 def cmd_admin_codes(args) -> None:
@@ -2330,6 +2353,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = cmd(aa, "delete", cmd_admin_accounts_delete, "Delete an account and its apps.", "berth admin accounts delete acc_123 --yes")
     p.add_argument("account_id", metavar="ACCOUNT_ID")
     yes_opt(p, "delete the account")
+    p = cmd(adm, "web-stats", cmd_admin_web_stats, "Traffic to atberth.com by source, with signups and paying accounts.",
+            "berth admin web-stats --days 30")
+    p.add_argument("--days", type=int, default=30)
     p = cmd(adm, "codes", cmd_admin_codes, "Show the latest unexpired login code for an email.",
             "berth admin codes --email you@example.com")
     p.add_argument("--email", required=True)

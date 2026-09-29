@@ -4,6 +4,45 @@ import { state, appPath } from "../state.js";
 
 const LIMITS = ["apps", "rows", "database_bytes", "storage_bytes", "rpm", "functions", "webhooks", "users"];
 
+// Traffic to atberth.com: which links and sites bring visitors, and which of them bring signups and paying accounts.
+function webCard() {
+  const box = h("div.card-b", loading());
+  const days = 30;
+  const card = h("div.card", { style: { marginBottom: "18px" } }, h("div.card-h", h("div", h("h2", "Website traffic"), h("div.sub", "atberth.com, last " + days + " days. Cookie-free: pages, referring sites and campaign tags, with a hashed daily visitor count. Signups are credited to the first campaign or site that brought them."))), box);
+  const dash = (v) => v.trim().toLowerCase().replace(/[^a-z0-9._~ -]/g, "").trim().replace(/\s+/g, "-").slice(0, 40);
+  const table = (heads, rows) => h("div.tbl-wrap", h("table.tbl", h("thead", h("tr", heads.map((t, i) => h(i > 0 && t !== "Medium" && t !== "Campaign" ? "th.num" : "th", t)))), h("tbody", rows)));
+  const builder = () => {
+    const inSource = input({ placeholder: "hacker-news, newsletter, brother", maxlength: "40" });
+    const inMedium = input({ placeholder: "post, email, text", maxlength: "40" });
+    const inCampaign = input({ placeholder: "show-hn, launch", maxlength: "40" });
+    const inPath = input({ placeholder: "/ or /compare/", value: "/" });
+    const made = h("code.mono.small", { style: { display: "block", padding: "10px 12px", border: "1px solid var(--line)", borderRadius: "8px", overflowWrap: "anywhere", flex: "1", minWidth: "240px" } });
+    const build = () => {
+      const q = [["utm_source", dash(inSource.value)], ["utm_medium", dash(inMedium.value)], ["utm_campaign", dash(inCampaign.value)]].filter(([, v]) => v);
+      if (!q.length) { made.textContent = "Fill in at least one box to make a link."; return; }
+      made.textContent = "https://atberth.com/" + inPath.value.trim().replace(/^\/+/, "") + "?" + q.map(([k, v]) => k + "=" + encodeURIComponent(v)).join("&");
+    };
+    [inSource, inMedium, inCampaign, inPath].forEach((el) => el.addEventListener("input", build));
+    build();
+    return h("div", { style: { borderTop: "1px solid var(--line)" } }, h("div.card-b", h("h3", { style: { fontSize: "15px", marginBottom: "10px" } }, "Make a tagged link to atberth.com"), h("div.grid.g2", field("Source", inSource, "Where you share it"), field("Medium", inMedium, "How it is shared"), field("Campaign", inCampaign, "Which push"), field("Page", inPath, "Where it lands")), h("div.row", { style: { gap: "10px", marginTop: "14px", flexWrap: "wrap" } }, made, copyBtn(() => made.textContent, { label: "Link copied" }))));
+  };
+  get("/admin/web-stats?days=" + days).then((d) => {
+    const t = d.totals;
+    const tile = (label, value) => h("div", h("div.small.dim", label), h("div", { style: { fontSize: "22px", fontWeight: "600", marginTop: "2px" } }, value));
+    const src = (d.top_sources || []).map((r) => h("tr", h("td.strong", r.source || "-"), h("td", r.medium || "-"), h("td", r.campaign || "-"), h("td.num", fmtNum(r.views)), h("td.num", fmtNum(r.visitors)), h("td.num", fmtNum(r.signups)), h("td.num", fmtNum(r.paid))));
+    const list = (rows) => rows.length ? table(["Page", "Views"], rows.slice(0, 8).map((r) => h("tr", h("td.mono.small.trunc", { style: { maxWidth: "320px" } }, r.key), h("td.num", fmtNum(r.count))))) : h("div.small.dim", { style: { padding: "12px 0" } }, "Nothing yet.");
+    mount(
+      box,
+      h("div.grid.g4", tile("Page views", fmtNum(t.views)), tile("Visitors (sum of daily)", fmtNum(t.visitors)), tile("New accounts", fmtNum(t.signups)), tile("Paying accounts", fmtNum(t.paid))),
+      h("p.small.dim", { style: { marginTop: "12px" } }, t.signups_without_source ? fmtNum(t.signups_without_source) + " of the new accounts have no source: they came before tracking, straight to the site, or from a browser that blocks it." : "Every new account has a source."),
+      src.length ? table(["Source", "Medium", "Campaign", "Views", "Visitors", "Signups", "Paid"], src) : h("div.small.dim", { style: { padding: "12px 0" } }, "No campaign links or referring sites yet. Make a link below and share it."),
+      h("div.grid.g2", { style: { marginTop: "14px" } }, h("div", h("h3", { style: { fontSize: "15px", marginBottom: "6px" } }, "Top pages"), list(d.top_pages)), h("div", h("h3", { style: { fontSize: "15px", marginBottom: "6px" } }, "Referring sites"), list(d.top_referrers)))
+    );
+    card.append(builder());
+  }).catch((e) => mount(box, errorBox(e)));
+  return card;
+}
+
 export default async function admin(ctx) {
   const page = h("div.page");
   ctx.root.append(page);
@@ -13,6 +52,7 @@ export default async function admin(ctx) {
     page,
     h("div.ph", h("div", h("div.eyebrow", "platform"), h("h1", "Admin"), h("p", "Customer accounts, their limits, and support tools. Only you see this."))),
     h("div.stats", { style: { marginBottom: "18px" } }, h("div.stat", h("div.stat-label", "Apps on the platform"), h("div.stat-value", fmtNum(state.apps.length))), h("div.stat#acct-count", h("div.stat-label", "Accounts"), h("div.stat-value", "…")), h("div.stat", h("div.stat-label", "Your own apps"), h("div.stat-value", fmtNum(state.apps.filter((a) => !a.account_id).length)))),
+    webCard(),
     h("div.grid", { style: { gridTemplateColumns: "minmax(0,2fr) minmax(0,1fr)", alignItems: "start" }, class: "ov-grid" }, h("div.stack", h("div.search", icon("search"), q), list), codeLookup())
   );
   let rows = [];

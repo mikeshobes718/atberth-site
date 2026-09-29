@@ -110,11 +110,20 @@ function inviteNote(mode) {
   }
   return note;
 }
+// The first campaign or site that brought this visitor to atberth.com, saved by the marketing site.
+function firstTouch() {
+  try {
+    const s = JSON.parse(localStorage.getItem("berth-src") || "null");
+    return s && Date.now() - s.at < 30 * 86400000 ? s.key : undefined;
+  } catch {
+    return undefined;
+  }
+}
 const nonce = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2) + Date.now());
 
 async function finishProvider(provider, idToken, raw, err) {
   try {
-    const out = await loginProvider(provider, idToken, raw, referralCode());
+    const out = await loginProvider(provider, idToken, raw, referralCode(), firstTouch());
     if (out.created) toast("Welcome to Berth. Your account is ready.");
     await boot();
   } catch (e) {
@@ -201,7 +210,7 @@ function emailStep(side, mode, preset = "") {
         }
         busy(btn, async () => {
           try {
-            await post(mode === "signup" ? "/signup" : "/login", mode === "signup" ? { email: v, ref: referralCode() } : { email: v }, { token: null, noAuthRedirect: true });
+            await post(mode === "signup" ? "/signup" : "/login", mode === "signup" ? { email: v, ref: referralCode(), src: firstTouch() } : { email: v }, { token: null, noAuthRedirect: true });
             codeStep(side, mode, v);
           } catch (e2) {
             err.textContent = e2.message;

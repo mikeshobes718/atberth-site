@@ -316,3 +316,36 @@
     sec.hidden = false;
   }).catch(function () {});
 })();
+
+// First-party page counter and first-touch attribution. Cookie-free: the API keeps the page, the referring
+// site, the campaign tag, and a daily hashed visitor count. Nothing is sent when the browser says Do Not Track
+// or Global Privacy Control. The first campaign or site that brought you is kept in this browser for 30 days
+// and sent with sign up, so Berth knows which link earned the account.
+(function () {
+  var dnt = navigator.doNotTrack === "1" || window.doNotTrack === "1" || navigator.globalPrivacyControl === true;
+  var host = location.hostname;
+  var q = new URLSearchParams(location.search);
+  var tags = { s: q.get("utm_source") || q.get("ref") || "", m: q.get("utm_medium") || "", c: q.get("utm_campaign") || "" };
+  var ext = "";
+  try {
+    if (document.referrer) {
+      var rh = new URL(document.referrer).hostname.replace(/^www\./, "");
+      if (rh && rh !== "atberth.com" && rh !== host) ext = rh;
+    }
+  } catch (e) {}
+  if (!dnt) {
+    try {
+      var now = Date.now(), saved = JSON.parse(localStorage.getItem("berth-src") || "null");
+      if (!saved || now - saved.at > 30 * 86400000) {
+        var key = tags.s || tags.m || tags.c ? [tags.s, tags.m, tags.c].join("|") : ext ? [ext, "referral", ""].join("|") : "";
+        if (key) localStorage.setItem("berth-src", JSON.stringify({ key: key, at: now }));
+      }
+    } catch (e) {}
+  }
+  if (dnt || (host !== "atberth.com" && host !== "www.atberth.com") || !window.fetch) return;
+  if (document.visibilityState === "prerender") return;
+  fetch("https://api.atberth.com/v1/collect", {
+    method: "POST", keepalive: true, headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path: location.pathname, referrer: document.referrer || "", utm_source: tags.s, utm_medium: tags.m, utm_campaign: tags.c }),
+  }).catch(function () {});
+})();
