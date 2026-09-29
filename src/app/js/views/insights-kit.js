@@ -125,7 +125,7 @@ export function cohortTable(data, noun = "users") {
   if (!rows.length) return h("div.small.dim", { style: { padding: "6px 0" } }, "Retention appears once people have signed up.");
   const pct = (v) => (v === null || v === undefined ? "-" : Math.round(v) + "%");
   const cell = (v) =>
-    h("span.ins-cell" + (v === null || v === undefined ? ".empty" : ""), v === null || v === undefined ? null : { style: { background: `color-mix(in srgb, var(--accent) ${Math.round(8 + (v / 100) * 60)}%, transparent)` } }, v === null || v === undefined ? "" : Math.round(v) + "%");
+    h("span.ins-cell" + (v === null || v === undefined ? ".none" : ""), v === null || v === undefined ? null : { style: { background: `color-mix(in srgb, var(--accent) ${Math.round(8 + (v / 100) * 60)}%, transparent)` } }, v === null || v === undefined ? "" : Math.round(v) + "%");
   const head = h("div.ins-crow.ins-chead", h("span", "Week of"), h("span.r", noun[0].toUpperCase() + noun.slice(1)), Array.from({ length: 9 }, (_, i) => h("span.c", "W" + i)), h("span.r.split", "D1+"), h("span.r", "D7+"), h("span.r", "D30+"));
   return h(
     "div.ins-cohort",

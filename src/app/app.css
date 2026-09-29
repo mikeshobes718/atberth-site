@@ -620,7 +620,7 @@ a.list-row:hover{background:var(--hover)}
 .ins-heat-foot .spacer{flex:1}
 .ins-heat-scale{width:70px;height:8px;border-radius:99px;background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 10%,transparent),var(--accent))}
 .ins-cohort td.ins-cell{text-align:center;font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--text);min-width:46px}
-.ins-cohort td.ins-cell.empty{background:transparent}
+.ins-cohort td.ins-cell.none{background:transparent}
 .ins-cohort th.split,.ins-cohort td.split{border-left:1px solid var(--line)}
 .ins-stack{margin-bottom:12px}
 .ins-stackbar{display:flex;height:10px;border-radius:99px;overflow:hidden;gap:2px}
@@ -641,4 +641,4 @@ a.list-row:hover{background:var(--hover)}
 .ins-chead{color:var(--dim);font-size:11.5px;font-weight:600;padding-bottom:4px;border-bottom:1px solid var(--line)}
 .ins-chead .c{text-align:center}
 .ins-cell{display:grid;place-items:center;height:32px;border-radius:6px;color:var(--text)}
-.ins-cell.empty{background:color-mix(in srgb,var(--text) 4%,transparent)}
+.ins-cell.none{background:color-mix(in srgb,var(--text) 4%,transparent)}
