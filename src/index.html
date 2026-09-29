@@ -74,6 +74,7 @@
         <p>Berth runs the backend for your app. Each app gets its own Postgres database, API keys, end-user sign in, row policies, realtime, file storage, functions, and webhooks, all over HTTPS. <a href="#pricing">Free to start, Pro is $12 a month.</a></p>
         <div class="hero-cta">
           <a class="btn btn-light" href="/app/#/signup">Start free</a>
+          <a class="btn btn-ghost" href="#tour">Watch the 60-second tour</a>
           <a class="btn btn-ghost" href="/docs/">Read the docs <span aria-hidden="true">&rarr;</span></a>
         </div>
       </div>
@@ -136,6 +137,23 @@
       <div><p class="f-v">Auth</p><p class="f-k">Users and row policies</p></div>
       <div><p class="f-v">Realtime</p><p class="f-k">Row events over SSE</p></div>
       <div><p class="f-v">$0</p><p class="f-k">Free plan. Pro is $12 a month.</p></div>
+    </div>
+  </section>
+
+  <section id="tour" class="section">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <p class="kicker">The tour</p>
+        <h2>Berth in 60 seconds.</h2>
+        <p class="lede">From install to a live app, what every app includes, and what runs on Berth today.</p>
+      </div>
+      <div class="tour reveal">
+        <video id="tour-video" controls playsinline preload="none" poster="/assets/tour/poster.jpg" width="1920" height="1080" aria-label="A 60 second tour of Berth: install, create an app, add tables and policies, and everything each app includes.">
+          <source src="/assets/tour/berth-tour-1080.mp4" type="video/mp4">
+          <p>Your browser cannot play this video. <a href="/assets/tour/berth-tour-1080.mp4">Download the tour</a>.</p>
+        </video>
+        <button class="tour-play" id="tour-play" type="button" aria-label="Play the 60 second tour"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg><span>Play the tour</span></button>
+      </div>
     </div>
   </section>
 

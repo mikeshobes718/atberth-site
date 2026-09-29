@@ -349,3 +349,14 @@
     body: JSON.stringify({ path: location.pathname, referrer: document.referrer || "", utm_source: tags.s, utm_medium: tags.m, utm_campaign: tags.c }),
   }).catch(function () {});
 })();
+
+// The tour video: nothing downloads until Play. Small screens and Data Saver get the 720p file.
+(function () {
+  var v = document.getElementById("tour-video"), btn = document.getElementById("tour-play");
+  if (!v || !btn) return;
+  var c = navigator.connection || {};
+  if ((window.matchMedia && matchMedia("(max-width: 800px)").matches) || c.saveData) v.src = "/assets/tour/berth-tour-720.mp4";
+  btn.addEventListener("click", function () { v.play().catch(function () { v.controls = true; }); });
+  v.addEventListener("play", function () { btn.hidden = true; });
+  v.addEventListener("ended", function () { btn.querySelector("span").textContent = "Watch again"; btn.hidden = false; });
+})();

@@ -548,3 +548,13 @@ h2.h3{font-size:clamp(24px,2.6vw,30px);letter-spacing:-.03em;margin-top:10px}
 .doc a.btn,.doc a.btn:hover{text-decoration:none}
 .doc a.btn-light{color:var(--btn-fg)}
 .doc a.btn-ghost{color:var(--text)}
+
+/* The tour video */
+.tour{position:relative;margin-top:36px;border-radius:20px;overflow:hidden;background:#000;box-shadow:var(--shadow);aspect-ratio:16/9}
+.tour video{display:block;width:100%;height:100%;object-fit:cover;background:#000}
+.tour-play{position:absolute;left:50%;bottom:9%;transform:translateX(-50%);display:inline-flex;align-items:center;gap:12px;padding:16px 26px 16px 20px;border:0;border-radius:999px;font:inherit;font-size:16px;font-weight:600;color:var(--btn-fg);background:var(--btn-bg);box-shadow:0 18px 50px -12px rgba(0,0,0,.6);cursor:pointer;transition:transform .2s var(--ease),opacity .2s}
+.tour-play svg{width:22px;height:22px;fill:currentColor}
+.tour-play:hover{transform:translateX(-50%) scale(1.04)}
+.tour-play[hidden]{display:none}
+.tour-play:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media (max-width:600px){.tour{border-radius:14px}.tour-play{padding:12px 20px 12px 14px;font-size:15px}}
