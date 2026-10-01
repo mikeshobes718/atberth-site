@@ -20,7 +20,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-VERSION = "2.5.0"
+VERSION = "2.6.0"
 DEFAULT_API = "https://api.atberth.com/v1"
 FILTER_OPS = ("eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "in", "is", "cs")
 INT_TYPES = {"integer", "bigint", "int", "int2", "int4", "int8", "smallint"}
@@ -769,12 +769,8 @@ def cmd_admin_accounts_update(args) -> None:
             body["limits"][key] = int(raw) if re.fullmatch(r"-?\d+", raw) else raw
     if args.disabled is not None:
         body["disabled"] = args.disabled
-    if args.marketer is not None:
-        body["marketer"] = args.marketer
-    if args.admin is not None:
-        body["admin"] = args.admin
     if not body:
-        usage("Pass --limit NAME=VALUE, --disable, --enable, --marketer, --no-marketer, --admin or --no-admin.")
+        usage("Pass --limit NAME=VALUE, --disable or --enable. Team roles are set with: berth admin team add.")
     payload = api("PATCH", seg("admin", "accounts", args.account_id), account_token(), body=body)
     emit(payload, lambda: print_kv(payload.get("account") or payload))
 
@@ -810,11 +806,38 @@ def cmd_admin_web_stats(args) -> None:
 
 
 def cmd_admin_audit(args) -> None:
-    payload = api("GET", "/admin/audit", account_token(), query=[("limit", args.limit)])
+    payload = api("GET", "/admin/audit", account_token(), query=[("limit", args.limit), ("filter", args.filter)])
     rows = [{"when": (e["at"] or "")[:19].replace("T", " "), "who": e["actor_email"], "did": e["action"],
              "to": e.get("target_email") or "-", "detail": json.dumps(e.get("detail") or {}) if e.get("detail") else ""}
             for e in payload.get("entries") or []]
     emit(payload, lambda: print_table(rows, empty="Nothing recorded yet."))
+
+
+def cmd_admin_team_list(_args) -> None:
+    payload = api("GET", "/admin/team", account_token())
+    rows = [{"email": m["email"], "role": m["role"], "status": m["status"], "note": m.get("note") or ""}
+            for m in payload.get("members") or []]
+    emit(payload, lambda: print_table(rows, empty="Just the owner."))
+
+
+def cmd_admin_team_add(args) -> None:
+    body = {"email": args.email, "role": args.role}
+    if args.note:
+        body["note"] = args.note
+    payload = api("POST", "/admin/team", account_token(), body=body)
+
+    def human() -> None:
+        if payload.get("status") == "active":
+            print(f"{args.email} now has the {args.role} role. They can sign in and the admin pages appear.")
+        else:
+            print(f"Invite saved for {args.email}. Access starts at their first sign in with that email. Send them this:\n")
+            print(payload.get("invite_text") or "")
+    emit(payload, human)
+
+
+def cmd_admin_team_remove(args) -> None:
+    api("DELETE", seg("admin", "team", args.email), account_token())
+    print(f"{args.email} removed. Their access ended at once.")
 
 
 def cmd_admin_codes(args) -> None:
@@ -2362,19 +2385,21 @@ def build_parser() -> argparse.ArgumentParser:
     g = p.add_mutually_exclusive_group()
     g.add_argument("--disable", dest="disabled", action="store_const", const=True, default=None)
     g.add_argument("--enable", dest="disabled", action="store_const", const=False)
-    ad = p.add_mutually_exclusive_group()
-    ad.add_argument("--admin", dest="admin", action="store_const", const=True, default=None,
-                    help="Make this account a platform admin (owner only). They must have signed in once.")
-    ad.add_argument("--no-admin", dest="admin", action="store_const", const=False, help="Remove their admin access.")
-    m = p.add_mutually_exclusive_group()
-    m.add_argument("--marketer", dest="marketer", action="store_const", const=True, default=None,
-                   help="Give this account the read-only Growth report (traffic, sources, signups).")
-    m.add_argument("--no-marketer", dest="marketer", action="store_const", const=False, help="Remove that access.")
     p = cmd(aa, "delete", cmd_admin_accounts_delete, "Delete an account and its apps.", "berth admin accounts delete acc_123 --yes")
     p.add_argument("account_id", metavar="ACCOUNT_ID")
     yes_opt(p, "delete the account")
     p = cmd(adm, "audit", cmd_admin_audit, "Who did what in the admin portal.", "berth admin audit --limit 50")
     p.add_argument("--limit", type=int, default=50)
+    p.add_argument("--filter", choices=["all", "team", "accounts"], default="all", help="Only team changes, or only account changes.")
+    tt = group(adm, "team", "Who can use the admin pages, and invites (owner only).", "berth admin team list")
+    cmd(tt, "list", cmd_admin_team_list, "List the team and pending invites.", "berth admin team list")
+    p = cmd(tt, "add", cmd_admin_team_add, "Add someone, or invite them if they have not signed in yet.",
+            "berth admin team add liana@example.com --role marketing --note 'Growth'")
+    p.add_argument("email", metavar="EMAIL")
+    p.add_argument("--role", required=True, choices=["admin", "support", "marketing"])
+    p.add_argument("--note", help="Why they have access (up to 200 characters).")
+    p = cmd(tt, "remove", cmd_admin_team_remove, "Remove a member or cancel an invite. Takes effect at once.", "berth admin team remove liana@example.com")
+    p.add_argument("email", metavar="EMAIL")
     p = cmd(adm, "web-stats", cmd_admin_web_stats, "Traffic to atberth.com by source, with signups and paying accounts.",
             "berth admin web-stats --days 30")
     p.add_argument("--days", type=int, default=30)

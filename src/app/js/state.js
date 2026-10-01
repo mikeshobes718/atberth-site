@@ -59,3 +59,10 @@ export async function loadApps() {
 export function appPath(slug, section = "", ...rest) {
   return "/a/" + encodeURIComponent(slug) + (section ? "/" + section : "") + rest.map((r) => "/" + encodeURIComponent(r)).join("");
 }
+
+// The owner is above every team role. Support sees accounts, Admin adds insights, Marketing sees only Growth.
+export function staffLevel() {
+  if (!state.me) return 0;
+  if (state.me.role === "admin") return 3;
+  return { support: 1, admin: 2 }[state.me.team_role] || 0;
+}

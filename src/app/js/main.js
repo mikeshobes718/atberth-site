@@ -1,6 +1,6 @@
 import { api, get, post, session, login, loginProvider, useKey, logout, setUnauthorizedHandler, ApiError, enc } from "./api.js";
 import { h, mount, clear, append, icon, logo, avatar, toast, toastError, menu, modal, field, input, busy, spinner, fmtNum, closeOverlays } from "./ui.js";
-import { state, go, route, onRoute, loadApps, appNav, sectionTitle } from "./state.js";
+import { state, go, route, onRoute, loadApps, appNav, sectionTitle, staffLevel } from "./state.js";
 import { openPalette } from "./palette.js";
 
 const root = document.getElementById("root");
@@ -419,8 +419,9 @@ function renderSide() {
   const r = route();
   const slug = r.slug;
   const app = slug ? state.apps.find((a) => a.slug === slug) : null;
-  const isAdmin = state.me && state.me.role === "admin";
-  const isStaff = !!(state.me && state.me.account && state.me.account.admin);
+  const level = staffLevel();
+  const isAdmin = level === 3;
+  const teamRole = state.me && state.me.team_role;
   const email = session.data && session.data.email;
   const nav = h("nav.side-nav");
   const item = (href, ic, label, on, extra) =>
@@ -431,9 +432,10 @@ function renderSide() {
       "div",
       item("/", "grid", "All apps", r.name === "home", state.apps.length ? h("span.count", String(state.apps.length)) : null),
       item("/account", "account", "Account", r.name === "account"),
-      isAdmin || isStaff ? item("/platform", "live", "Platform insights", r.name === "platform") : null,
-      isAdmin || isStaff ? item("/admin", "shield", "Admin", r.name === "admin") : null,
-      !isAdmin && !isStaff && state.me && state.me.account && state.me.account.marketer ? item("/growth", "overview", "Growth", r.name === "growth") : null
+      level >= 2 ? item("/platform", "live", "Platform insights", r.name === "platform") : null,
+      level >= 1 ? item("/admin", "shield", "Admin", r.name === "admin") : null,
+      isAdmin ? item("/team", "account", "Team", r.name === "team") : null,
+      level < 3 && teamRole === "marketing" ? item("/growth", "overview", "Growth", r.name === "growth") : null
     ),
   ]);
   if (slug) {
@@ -459,7 +461,7 @@ function renderSide() {
     "button.switcher",
     { type: "button", "aria-haspopup": "menu", onclick: (e) => appMenu(e.currentTarget) },
     app ? avatar(app.slug, "sq") : h("span.avatar.sq", { style: { background: "var(--surface-3)", color: "var(--muted)" } }, icon("grid", "i-sm")),
-    h("span.switcher-text", h("span.switcher-label", app ? "App" : "Workspace"), h("span.switcher-name", app ? app.slug : isAdmin ? "Platform admin" : isStaff ? "Admin" : "Your apps")),
+    h("span.switcher-text", h("span.switcher-label", app ? "App" : "Workspace"), h("span.switcher-name", app ? app.slug : isAdmin ? "Platform admin" : level ? "Admin" : "Your apps")),
     icon("updown", "i-sm")
   );
 
@@ -482,7 +484,7 @@ function renderSide() {
         ),
     },
     avatar(email || "b"),
-    h("span.me-text", h("div.me-email", email || "Signed in"), h("div.me-role", isAdmin ? "Platform admin" : isStaff ? "Admin" : "Account")),
+    h("span.me-text", h("div.me-email", email || "Signed in"), h("div.me-role", isAdmin ? "Platform admin" : teamRole === "admin" ? "Admin" : teamRole === "support" ? "Support" : teamRole === "marketing" ? "Marketing" : "Account")),
     icon("more")
   );
 
@@ -514,6 +516,7 @@ function renderTop() {
   if (r.name === "account") parts.push([null, "Account"]);
   if (r.name === "admin") parts.push([null, "Admin"]);
   if (r.name === "growth") parts.push([null, "Growth"]);
+  if (r.name === "team") parts.push([null, "Team"]);
   if (r.name === "platform") parts.push([null, "Insights"]);
   parts.forEach(([href, label], i) => {
     if (i) crumbs.append(h("span.sep", "/"));
@@ -565,6 +568,7 @@ const VIEWS = {
   account: () => import("./views/account.js"),
   admin: () => import("./views/admin.js"),
   growth: () => import("./views/growth.js"),
+  team: () => import("./views/team.js"),
   platform: () => import("./views/platform-insights.js"),
   insights: () => import("./views/app-insights.js"),
   overview: () => import("./views/overview.js"),
@@ -595,10 +599,11 @@ async function render() {
   const seq = ++navSeq;
   let key = r.name;
   if (r.name === "app") key = r.section || "overview";
-  const staffOk = state.me.role === "admin" || !!(state.me.account && state.me.account.admin);
-  if (r.name === "admin" && !staffOk) return go("/");
-  if (r.name === "platform" && !staffOk) return go("/");
-  if (r.name === "growth" && state.me.role !== "admin" && !(state.me.account && state.me.account.marketer)) return go("/");
+  const level = staffLevel();
+  if (r.name === "admin" && level < 1) return go("/");
+  if (r.name === "platform" && level < 2) return go("/");
+  if (r.name === "team" && level < 3) return go("/");
+  if (r.name === "growth" && level < 3 && state.me.team_role !== "marketing" && state.me.team_role !== "admin") return go("/");
   const loader = VIEWS[key];
   const content = shell.content;
   if (!loader) {
