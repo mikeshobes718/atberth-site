@@ -44,16 +44,17 @@ export function webCard(endpoint = "/admin/web-stats") {
 }
 
 export default async function admin(ctx) {
+  const owner = state.me.role === "admin"; // the platform owner; an admin set up in the database is "staff"
   const page = h("div.page");
   ctx.root.append(page);
   const list = h("div.card");
   const q = input({ type: "search", placeholder: "Search accounts" });
   mount(
     page,
-    h("div.ph", h("div", h("div.eyebrow", "platform"), h("h1", "Admin"), h("p", "Customer accounts, their limits, and support tools. Only you see this."))),
-    h("div.stats", { style: { marginBottom: "18px" } }, h("div.stat", h("div.stat-label", "Apps on the platform"), h("div.stat-value", fmtNum(state.apps.length))), h("div.stat#acct-count", h("div.stat-label", "Accounts"), h("div.stat-value", "…")), h("div.stat", h("div.stat-label", "Your own apps"), h("div.stat-value", fmtNum(state.apps.filter((a) => !a.account_id).length)))),
+    h("div.ph", h("div", h("div.eyebrow", "platform"), h("h1", "Admin"), h("p", owner ? "Customer accounts, admins, limits and support tools. Only you and the admins you add see this." : "Customer accounts, limits and platform numbers. What you change here is recorded."))),
+    h("div.stats", { style: { marginBottom: "18px" } }, h("div.stat", h("div.stat-label", "Customer apps"), h("div.stat-value#app-count", "…")), h("div.stat#acct-count", h("div.stat-label", "Accounts"), h("div.stat-value", "…")), h("div.stat", h("div.stat-label", "Admins"), h("div.stat-value#admin-count", "…"))),
     webCard(),
-    h("div.grid", { style: { gridTemplateColumns: "minmax(0,2fr) minmax(0,1fr)", alignItems: "start" }, class: "ov-grid" }, h("div.stack", h("div.search", icon("search"), q), list), codeLookup())
+    h("div.grid", { style: { gridTemplateColumns: "minmax(0,2fr) minmax(0,1fr)", alignItems: "start" }, class: "ov-grid" }, h("div.stack", h("div.search", icon("search"), q), list), h("div.stack", owner ? codeLookup() : null, auditCard()))
   );
   let rows = [];
   q.addEventListener("input", () => draw());
@@ -68,6 +69,10 @@ export default async function admin(ctx) {
     }
     const c = page.querySelector("#acct-count .stat-value");
     if (c) c.textContent = fmtNum(rows.length);
+    const ac = page.querySelector("#app-count");
+    if (ac) ac.textContent = fmtNum(rows.reduce((n, a) => n + Number(a.apps || 0), 0));
+    const ad = page.querySelector("#admin-count");
+    if (ad) ad.textContent = fmtNum(rows.filter((a) => a.admin || a.owner).length);
     draw();
   }
 
@@ -95,7 +100,7 @@ export default async function admin(ctx) {
                 h("td.r.num", fmtNum(a.apps)),
                 h("td.dim", fmtDate(a.created_at)),
                 h("td.dim", timeEl(a.last_login_at)),
-                h("td", a.disabled ? badge("disabled", "bad") : Object.keys(a.limits || {}).length ? badge("custom limits", "info") : badge("active", "ok")),
+                h("td", h("div.row", { style: { gap: "6px", flexWrap: "wrap" } }, a.disabled ? badge("disabled", "bad") : Object.keys(a.limits || {}).length ? badge("custom limits", "info") : badge("active", "ok"), a.owner ? badge("owner", "info") : a.admin ? badge("admin", "info") : null, a.marketer ? badge("growth", "info") : null)),
                 h("td.actions", icon("chev", "i-sm"))
               )
             )
@@ -116,6 +121,11 @@ export default async function admin(ctx) {
     const custom = a.limits || {};
     let disabled = !!full.disabled;
     const dis = toggle(disabled, (v) => (disabled = v), "Disabled");
+    let isAdmin = !!full.admin;
+    let isMarketer = !!full.marketer;
+    const locked = !owner && (full.admin || full.owner); // only the owner can change an admin or the owner
+    const adminToggle = toggle(isAdmin, (v) => (isAdmin = v), "Admin");
+    const marketToggle = toggle(isMarketer, (v) => (isMarketer = v), "Growth access");
     const apps = state.apps.filter((x) => x.account_id === a.id);
     drawer({
       title: a.email,
@@ -125,6 +135,13 @@ export default async function admin(ctx) {
         "div.form",
         h("dl.kv", h("dt", "Joined"), h("dd", fmtDateTime(full.created_at)), h("dt", "Last sign in"), h("dd", full.last_login_at ? fmtDateTime(full.last_login_at) : "never"), h("dt", "Storage"), h("dd", fmtBytes(full.usage.storage_bytes))),
         h("label.check-row", dis, h("div", h("div", "Disabled"), h("div.tiny.dim", "Blocks every key and app in this account."))),
+        h("div.hr"),
+        h("h3", { style: { fontSize: "14px", fontWeight: "600" } }, "Access"),
+        locked ? h("div.hint", "Only the platform owner can change an admin or the owner's account.") : null,
+        full.owner
+          ? h("div.hint", "This is the platform owner. The owner is set on the server and always has full access.")
+          : h("label.check-row", adminToggle, h("div", h("div", "Platform admin"), h("div.tiny.dim", owner ? "Reaches this Admin page and Platform insights: accounts, limits, traffic and growth. Cannot open other people's apps or data, read login codes, delete accounts, or add admins. Everything they do is recorded." : "Only the platform owner can add or remove admins."))),
+        h("label.check-row", marketToggle, h("div", h("div", "Growth access"), h("div.tiny.dim", "A read-only Growth page with website traffic, sources, signups and paying accounts. No customer details."))),
         h("div.hr"),
         h("h3", { style: { fontSize: "14px", fontWeight: "600" } }, "Limits"),
         h("div.hint", "Empty means the default. Bytes for sizes."),
@@ -141,7 +158,7 @@ export default async function admin(ctx) {
         apps.length ? h("div.card", apps.map((x) => h("a.list-row", { href: "#" + appPath(x.slug) }, icon("db"), h("span.mono", x.slug), h("span.spacer"), icon("chev", "i-sm")))) : h("div.dim.small", "No apps.")
       ),
       foot: (close) => [
-        h(
+        owner ? h(
           "button.btn.danger",
           {
             type: "button",
@@ -162,13 +179,14 @@ export default async function admin(ctx) {
           },
           icon("trash"),
           "Delete"
-        ),
+        ) : null,
         h("span.spacer"),
         h("button.btn", { type: "button", onclick: close }, "Cancel"),
         h(
           "button.btn.primary",
           {
             type: "button",
+            disabled: locked ? "" : null,
             onclick: (e) =>
               busy(e.currentTarget, async () => {
                 try {
@@ -177,7 +195,10 @@ export default async function admin(ctx) {
                     const v = inputs[k].value.trim();
                     limits[k] = v === "" ? null : Number(v);
                   }
-                  await patch("/admin/accounts/" + enc(a.id), { limits, disabled });
+                  const body = { limits, disabled };
+                  if (isMarketer !== !!full.marketer) body.marketer = isMarketer;
+                  if (owner && !full.owner && isAdmin !== !!full.admin) body.admin = isAdmin;
+                  await patch("/admin/accounts/" + enc(a.id), body);
                   toast("Account saved");
                   close();
                   load();
@@ -190,6 +211,25 @@ export default async function admin(ctx) {
         ),
       ],
     });
+  }
+
+  function auditCard() {
+    const body = h("div.card-b", loading());
+    get("/admin/audit?limit=40").then((d) => {
+      const e = d.entries || [];
+      const words = { "account.update": "changed", "account.delete": "deleted", "codes.lookup": "looked up a code for" };
+      const detail = (x) => {
+        const o = x.detail || {};
+        const bits = [];
+        if (o.admin !== undefined) bits.push(o.admin ? "made admin" : "removed admin");
+        if (o.marketer !== undefined) bits.push(o.marketer ? "gave growth access" : "removed growth access");
+        if (o.disabled !== undefined) bits.push(o.disabled ? "disabled" : "enabled");
+        if (o.limits) bits.push("limits");
+        return bits.join(", ");
+      };
+      mount(body, e.length ? h("div.stack", { style: { gap: "10px" } }, e.map((x) => h("div", h("div.small", h("b", x.actor_email), " ", detail(x) || words[x.action] || x.action, x.target_email ? h("span", " ", h("span.mono", x.target_email)) : null), h("div.tiny.dim", timeEl(x.at))))) : h("div.small.dim", "Nothing yet. Admin actions show up here."));
+    }).catch((err) => mount(body, errorBox(err)));
+    return h("section.card", h("div.card-h", h("div", h("h2", "Activity log"), h("div.sub", "Who changed what in this portal."))), body);
   }
 
   function codeLookup() {

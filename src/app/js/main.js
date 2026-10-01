@@ -420,6 +420,7 @@ function renderSide() {
   const slug = r.slug;
   const app = slug ? state.apps.find((a) => a.slug === slug) : null;
   const isAdmin = state.me && state.me.role === "admin";
+  const isStaff = !!(state.me && state.me.account && state.me.account.admin);
   const email = session.data && session.data.email;
   const nav = h("nav.side-nav");
   const item = (href, ic, label, on, extra) =>
@@ -430,9 +431,9 @@ function renderSide() {
       "div",
       item("/", "grid", "All apps", r.name === "home", state.apps.length ? h("span.count", String(state.apps.length)) : null),
       item("/account", "account", "Account", r.name === "account"),
-      isAdmin ? item("/platform", "live", "Platform insights", r.name === "platform") : null,
-      isAdmin ? item("/admin", "shield", "Admin", r.name === "admin") : null,
-      !isAdmin && state.me && state.me.account && state.me.account.marketer ? item("/growth", "overview", "Growth", r.name === "growth") : null
+      isAdmin || isStaff ? item("/platform", "live", "Platform insights", r.name === "platform") : null,
+      isAdmin || isStaff ? item("/admin", "shield", "Admin", r.name === "admin") : null,
+      !isAdmin && !isStaff && state.me && state.me.account && state.me.account.marketer ? item("/growth", "overview", "Growth", r.name === "growth") : null
     ),
   ]);
   if (slug) {
@@ -458,7 +459,7 @@ function renderSide() {
     "button.switcher",
     { type: "button", "aria-haspopup": "menu", onclick: (e) => appMenu(e.currentTarget) },
     app ? avatar(app.slug, "sq") : h("span.avatar.sq", { style: { background: "var(--surface-3)", color: "var(--muted)" } }, icon("grid", "i-sm")),
-    h("span.switcher-text", h("span.switcher-label", app ? "App" : "Workspace"), h("span.switcher-name", app ? app.slug : isAdmin ? "Platform admin" : "Your apps")),
+    h("span.switcher-text", h("span.switcher-label", app ? "App" : "Workspace"), h("span.switcher-name", app ? app.slug : isAdmin ? "Platform admin" : isStaff ? "Admin" : "Your apps")),
     icon("updown", "i-sm")
   );
 
@@ -481,7 +482,7 @@ function renderSide() {
         ),
     },
     avatar(email || "b"),
-    h("span.me-text", h("div.me-email", email || "Signed in"), h("div.me-role", isAdmin ? "Platform admin" : "Account")),
+    h("span.me-text", h("div.me-email", email || "Signed in"), h("div.me-role", isAdmin ? "Platform admin" : isStaff ? "Admin" : "Account")),
     icon("more")
   );
 
@@ -594,8 +595,9 @@ async function render() {
   const seq = ++navSeq;
   let key = r.name;
   if (r.name === "app") key = r.section || "overview";
-  if (r.name === "admin" && state.me.role !== "admin") return go("/");
-  if (r.name === "platform" && state.me.role !== "admin") return go("/");
+  const staffOk = state.me.role === "admin" || !!(state.me.account && state.me.account.admin);
+  if (r.name === "admin" && !staffOk) return go("/");
+  if (r.name === "platform" && !staffOk) return go("/");
   if (r.name === "growth" && state.me.role !== "admin" && !(state.me.account && state.me.account.marketer)) return go("/");
   const loader = VIEWS[key];
   const content = shell.content;
