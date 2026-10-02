@@ -90,8 +90,13 @@
       <p class="ep"><span class="m">GET</span>/v1/health</p>
       <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/health</code></pre>
       <p class="ep"><span class="m">GET</span>/v1/status</p>
-      <p>Returns <code>ok</code>, <code>version</code>, <code>database</code>, <code>functions_runtime</code>, and <code>uptime_seconds</code>.</p>
-      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/status</code></pre>
+      <p>Returns <code>overall</code> (<code>operational</code>, <code>degraded</code>, <code>outage</code> or <code>maintenance</code>), a <code>headline</code>, <code>components</code> (API, database, sign-in and email, file storage, functions, realtime, site hosting, each with a <code>state</code>), <code>active</code> incidents, <code>upcoming</code> maintenance, and <code>ok</code>, <code>version</code>, <code>database</code>, <code>functions_runtime</code>, <code>uptime_seconds</code>. The same data drives <a href="/status/">atberth.com/status</a>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/status | jq '{overall, headline}'</code></pre>
+      <p class="ep"><span class="m">GET</span>/v1/status/incidents</p>
+      <p>Incidents and maintenance from the last <code>?days=</code> (default 90), newest first, each with its <code>updates</code>. One incident: <code>GET /v1/status/incidents/{id}</code>. As a feed: <code>GET /v1/status/feed.atom</code>.</p>
+      <pre class="code" data-lang="bash" data-check><code>curl -sS "https://api.atberth.com/v1/status/incidents?days=30" | jq '[.incidents[] | {title, status}]'</code></pre>
+      <p class="ep"><span class="m m-post">POST</span>/v1/status/subscribe</p>
+      <p>Body <code>{"email"}</code>. Emails a confirmation link; after that, the address gets an email for every incident and maintenance, with one-click unsubscribe. Account owners already get emails about outages that touch their apps; turn them off with <code>PATCH /v1/account/notifications {"status_emails": false}</code>.</p>
       <p class="ep"><span class="m">GET</span>/v1/openapi.json</p>
       <pre class="code" data-lang="bash" data-check><code>curl -sS https://api.atberth.com/v1/openapi.json | jq -r '.paths | keys[]'</code></pre>
       <p class="ep"><span class="m m-post">POST</span>/v1/signup</p>

@@ -1,5 +1,5 @@
-import { get, patch, del, enc } from "../api.js";
-import { h, mount, icon, toast, toastError, confirmDanger, drawer, field, input, empty, errorBox, loading, badge, timeEl, fmtDate, fmtDateTime, fmtNum, fmtBytes, busy, toggle, avatar, copyBtn } from "../ui.js";
+import { get, post, patch, del, enc } from "../api.js";
+import { h, mount, icon, toast, toastError, confirmDanger, drawer, field, input, empty, errorBox, loading, badge, timeEl, fmtDate, fmtDateTime, fmtNum, fmtBytes, busy, toggle, avatar, copyBtn, select } from "../ui.js";
 import { state, appPath, staffLevel } from "../state.js";
 
 const LIMITS = ["apps", "rows", "database_bytes", "storage_bytes", "rpm", "functions", "webhooks", "users"];
@@ -55,7 +55,7 @@ export default async function admin(ctx) {
     h("div.ph", h("div", h("div.eyebrow", "platform"), h("h1", "Admin"), h("p", owner ? "Customer accounts, limits and support tools. Add people under Team." : level < 2 ? "Customer accounts and project requests, read only." : "Customer accounts, limits and platform numbers. What you change here is recorded."))),
     h("div.stats", { style: { marginBottom: "18px" } }, h("div.stat", h("div.stat-label", "Customer apps"), h("div.stat-value#app-count", "…")), h("div.stat#acct-count", h("div.stat-label", "Accounts"), h("div.stat-value", "…")), h("div.stat", h("div.stat-label", "Team"), h("div.stat-value#admin-count", "…"))),
     level >= 2 ? webCard() : null,
-    h("div.grid", { style: { gridTemplateColumns: "minmax(0,2fr) minmax(0,1fr)", alignItems: "start" }, class: "ov-grid" }, h("div.stack", h("div.search", icon("search"), q), list), h("div.stack", owner ? codeLookup() : null, level >= 2 ? auditCard() : null))
+    h("div.grid", { style: { gridTemplateColumns: "minmax(0,2fr) minmax(0,1fr)", alignItems: "start" }, class: "ov-grid" }, h("div.stack", h("div.search", icon("search"), q), list), h("div.stack", level >= 2 ? incidentsCard() : null, owner ? codeLookup() : null, level >= 2 ? auditCard() : null))
   );
   let rows = [];
   q.addEventListener("input", () => draw());
@@ -232,6 +232,94 @@ export default async function admin(ctx) {
     drawTabs();
     loadLog();
     return h("section.card", h("div.card-h", h("div", h("h2", "Activity log"), h("div.sub", "Who changed what in this portal."), tabs)), body);
+  }
+
+  // Incidents and planned maintenance: what customers see on atberth.com/status and in the console banner.
+  function incidentsCard() {
+    const body = h("div.card-b", loading());
+    const PH = { scheduled: "Scheduled", investigating: "Investigating", identified: "Identified", monitoring: "Monitoring", resolved: "Resolved", in_progress: "In progress", completed: "Completed" };
+    let comps = [];
+    const load = () => get("/admin/incidents?limit=12").then((d) => {
+      comps = d.components || [];
+      const list = d.incidents || [];
+      mount(
+        body,
+        h("div.row", { style: { justifyContent: "space-between", marginBottom: "10px" } }, h("div.small", h("b", d.now.headline)), h("button.btn.sm.primary", { type: "button", onclick: () => postDrawer() }, icon("plus"), "Post")),
+        list.length
+          ? h("div.stack", { style: { gap: "8px" } }, list.map((i) => h("a.list-row", { href: "javascript:void 0", onclick: () => updateDrawer(i) },
+              badge(PH[i.status] || i.status, i.resolved_at ? "ok" : i.impact === "minor" || i.impact === "maintenance" ? "info" : "bad"),
+              h("div", { style: { minWidth: 0, flex: "1" } }, h("div.small.strong.trunc", i.title), h("div.tiny.dim", (i.auto ? "automatic, " : "") + (i.component_names || []).join(", "))),
+              icon("chev", "i-sm"))))
+          : h("div.small.dim", "No incidents yet.")
+      );
+    }).catch((e) => mount(body, errorBox(e, load)));
+
+    function notifyRow(on, onChange) {
+      return h("label.check-row", toggle(on, onChange, "Email people"), h("div", h("div", "Email people"), h("div.tiny.dim", "Status subscribers always. For major and critical incidents and maintenance, also every account owner who hasn't turned status emails off.")));
+    }
+
+    function postDrawer() {
+      const title = input({ placeholder: "Uploads are slow", maxlength: "140" });
+      const impact = select([["minor", "Degraded (minor)"], ["major", "Partial outage (major)"], ["critical", "Major outage (critical)"], ["maintenance", "Planned maintenance"]], "minor");
+      const message = h("textarea.input", { rows: "5", placeholder: "What customers see, what works, what doesn't, and when the next update comes." });
+      const when = input({ type: "datetime-local" });
+      const picked = new Set();
+      const boxes = h("div.row", { style: { flexWrap: "wrap", gap: "8px" } }, comps.map((c) => {
+        const b = h("button.btn.sm", { type: "button", onclick: () => { picked.has(c.id) ? picked.delete(c.id) : picked.add(c.id); b.classList.toggle("primary"); } }, c.name);
+        return b;
+      }));
+      let notify = true;
+      const whenField = field("Planned for (your time)", when, "Leave empty if it starts now.");
+      whenField.hidden = true;
+      impact.addEventListener("change", () => (whenField.hidden = impact.value !== "maintenance"));
+      drawer({
+        title: "Post an incident",
+        sub: "Shows on atberth.com/status and in every console at once.",
+        width: 560,
+        body: h("div.form", field("Title", title), field("Impact", impact), field("Affects", boxes), whenField, field("Message", message), notifyRow(true, (v) => (notify = v))),
+        foot: (close) => [h("span.spacer"), h("button.btn", { type: "button", onclick: close }, "Cancel"), h("button.btn.primary", { type: "button", onclick: (e) => busy(e.currentTarget, async () => {
+          try {
+            const b = { title: title.value.trim(), impact: impact.value, components: [...picked], message: message.value.trim(), notify };
+            if (impact.value === "maintenance" && when.value) b.scheduled_for = new Date(when.value).toISOString();
+            await post("/admin/incidents", b);
+            toast("Posted");
+            close();
+            load();
+          } catch (err) { toastError(err); }
+        }) }, "Post")],
+      });
+    }
+
+    function updateDrawer(i) {
+      const opts = i.impact === "maintenance" ? ["scheduled", "in_progress", "completed"] : ["investigating", "identified", "monitoring", "resolved"];
+      const status = select(opts.map((o) => [o, PH[o]]), i.resolved_at ? opts[opts.length - 1] : i.status);
+      const message = h("textarea.input", { rows: "4", placeholder: "What changed since the last update." });
+      let notify = true;
+      drawer({
+        title: i.title,
+        sub: (i.auto ? "Opened automatically. " : "") + (i.component_names || []).join(", "),
+        width: 560,
+        body: h("div.form",
+          h("div.stack", { style: { gap: "10px" } }, (i.updates || []).map((u) => h("div", h("div.small", h("b", PH[u.status] || u.status), " ", h("span.dim", timeEl(u.at))), h("div.small", { style: { whiteSpace: "pre-wrap" } }, u.message)))),
+          h("div.hr"), field("New status", status), field("Update", message), notifyRow(true, (v) => (notify = v)),
+          h("a.small", { href: i.url, target: "_blank", rel: "noopener" }, "Open on the status page")),
+        foot: (close) => [
+          owner ? h("button.btn.danger", { type: "button", onclick: () => confirmDanger({ title: "Delete this incident", text: "Only for something posted by mistake. Real incidents should stay in the history.", confirm: "Delete", onConfirm: async () => { await del("/admin/incidents/" + i.id); toast("Deleted"); close(); load(); } }) }, icon("trash"), "Delete") : null,
+          h("span.spacer"), h("button.btn", { type: "button", onclick: close }, "Close"),
+          h("button.btn.primary", { type: "button", onclick: (e) => busy(e.currentTarget, async () => {
+            try {
+              await post("/admin/incidents/" + i.id + "/updates", { status: status.value, message: message.value.trim(), notify });
+              toast("Update posted");
+              close();
+              load();
+            } catch (err) { toastError(err); }
+          }) }, "Post update"),
+        ],
+      });
+    }
+
+    load();
+    return h("section.card", h("div.card-h", h("div", h("h2", "Status and incidents"), h("div.sub", "What customers see when something is wrong."))), body);
   }
 
   function codeLookup() {

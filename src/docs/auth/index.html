@@ -262,6 +262,8 @@ berth auth users ban --app "$APP" "$USER_ID" --unban</code></pre>
           <tr><td><code>email.password_require_number</code></td><td>true</td><td></td></tr>
           <tr><td><code>email.password_require_symbol</code></td><td>false</td><td>any character that is not a letter, digit, or space</td></tr>
           <tr><td><code>email.require_verification</code></td><td>false</td><td>when true, password users must verify their email before they can sign in</td></tr>
+          <tr><td><code>email.brand_color</code></td><td>null</td><td>a hex color like <code>#4f46e5</code> for the button and accents in your sign-in, reset and verify emails</td></tr>
+          <tr><td><code>email.logo_url</code></td><td>null</td><td>an https URL to a square PNG or JPG shown at the top of those emails (64 px or larger)</td></tr>
           <tr><td><code>limits.per_email</code></td><td>10</td><td>1 to 10,000</td></tr>
           <tr><td><code>limits.per_ip</code></td><td>300</td><td>1 to 100,000</td></tr>
           <tr><td><code>limits.window_seconds</code></td><td>900</td><td>10 to 86,400</td></tr>
@@ -269,6 +271,7 @@ berth auth users ban --app "$APP" "$USER_ID" --unban</code></pre>
           <tr><td><code>limits.lockout_seconds</code></td><td>600</td><td>10 to 86,400</td></tr>
         </tbody>
       </table></div>
+      <p>Codes go out as your app: the sender name and the heading are the app's name, with its color and logo when you set them. Every email has a plain-text version, works in dark mode, says when the code expires, and says when it was requested, so a person who didn't ask for it knows to ignore it.</p>
       <p>To hear about sign ups, sign ins, failed sign ins, and password changes, add a webhook for <a href="/docs/webhooks/#auth-events">auth events</a>.</p>
 
       <h2 id="from-a-phone">Calling from a phone or browser</h2>

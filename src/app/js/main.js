@@ -398,6 +398,41 @@ function renderShell() {
 }
 
 let statusCache = null;
+
+// Incidents and planned maintenance, shown above every page until they are over, so nobody has to guess.
+function renderStatusBanner(st) {
+  if (!shell) return;
+  let bar = shell.el.querySelector(".status-banner");
+  const now = Date.now();
+  const items = st && Array.isArray(st.active) ? st.active.slice() : [];
+  for (const u of (st && st.upcoming) || []) {
+    if (u.scheduled_for && new Date(u.scheduled_for).getTime() - now < 72 * 3600 * 1000) items.push(u);
+  }
+  if (st && st.ok === false && !items.length && !st.components) {
+    items.push({ id: "down", impact: "critical", status: "investigating", title: "Berth isn't answering right now", updates: [{ message: "We're alerted automatically and will post updates on the status page." }], url: "https://atberth.com/status/" });
+  }
+  const shown = items.filter((i) => {
+    try { return localStorage.getItem("berth.banner." + i.id + "." + (i.updates || []).length) !== "hidden"; } catch (e) { return true; }
+  });
+  if (!shown.length) { if (bar) bar.remove(); return; }
+  const i = shown[0];
+  const latest = (i.updates || [])[0] || {};
+  const kind = i.status === "scheduled" ? "info" : i.impact === "minor" || i.impact === "maintenance" ? "warn" : "bad";
+  const when = i.status === "scheduled" && i.scheduled_for ? " Planned for " + new Date(i.scheduled_for).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }) + "." : "";
+  const next = h(
+    "div.status-banner." + kind,
+    { role: "status" },
+    icon(kind === "info" ? "info" : "alert", "i-sm"),
+    h("div.sb-text", h("b", i.title), h("span", " " + (latest.message || "") + when)),
+    h("a.btn.sm", { href: i.url || "https://atberth.com/status/", target: "_blank", rel: "noopener" }, "Details"),
+    h("button.btn.ghost.icon.sm", { type: "button", "aria-label": "Hide until the next update", title: "Hide until the next update", onclick: () => {
+      try { localStorage.setItem("berth.banner." + i.id + "." + (i.updates || []).length, "hidden"); } catch (e) {}
+      next.remove();
+    } }, icon("x", "i-sm"))
+  );
+  if (bar) bar.replaceWith(next);
+  else shell.content.before(next);
+}
 async function refreshStatus() {
   try {
     statusCache = await get("/status", { token: null, noAuthRedirect: true });
@@ -524,12 +559,14 @@ function renderTop() {
     else crumbs.append(h("span.here", label));
   });
   const st = statusCache;
+  const overall = !st ? "checking" : st.overall || (st.ok ? "operational" : "outage");
   const pill = h(
     "a.status-pill",
-    { href: "https://api.atberth.com/v1/status", target: "_blank", rel: "noopener", title: st && st.version ? "API " + st.version : "" },
-    h("span.status-dot" + (!st ? ".warn" : st.ok ? "" : ".bad")),
-    h("span", !st ? "Checking" : st.ok ? "All systems normal" : "Degraded")
+    { href: "https://atberth.com/status/", target: "_blank", rel: "noopener", title: st && st.version ? "API " + st.version : "" },
+    h("span.status-dot" + (overall === "checking" || overall === "degraded" || overall === "maintenance" ? ".warn" : overall === "outage" ? ".bad" : "")),
+    h("span", overall === "checking" ? "Checking" : overall === "operational" ? "All systems normal" : st.headline || "Degraded")
   );
+  renderStatusBanner(st);
   mount(
     shell.top,
     h(

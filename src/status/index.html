@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Status. Berth</title>
-<meta name="description" content="Live status of the Berth API, database, functions runtime and site hosting.">
+<meta name="description" content="Live status of Berth: the API, databases, file storage, functions, realtime, sign-in email and site hosting, with incidents and planned maintenance.">
 <link rel="canonical" href="https://atberth.com/status/">
 <meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
@@ -13,14 +13,14 @@
 <meta property="og:site_name" content="Berth">
 <meta property="og:url" content="https://atberth.com/status/">
 <meta property="og:title" content="Status. Berth">
-<meta property="og:description" content="Live status of the Berth API, database, functions runtime and site hosting.">
+<meta property="og:description" content="Live status of Berth: the API, databases, file storage, functions, realtime, sign-in email and site hosting, with incidents and planned maintenance.">
 <meta property="og:image" content="https://atberth.com/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Berth. Host your app or your site.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Status. Berth">
-<meta name="twitter:description" content="Live status of the Berth API, database, functions runtime and site hosting.">
+<meta name="twitter:description" content="Live status of Berth: the API, databases, file storage, functions, realtime, sign-in email and site hosting, with incidents and planned maintenance.">
 <meta name="twitter:image" content="https://atberth.com/assets/og.png">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
@@ -67,72 +67,148 @@
     <article class="doc">
       <p class="kicker">Status</p>
       <h1>Berth status</h1>
-      <p class="lede">Live checks, run from your browser right now against the production API, database, functions runtime and site hosting. They refresh every minute.</p>
-
-      <div class="st-sum" id="st-sum" aria-live="polite"><span class="st-dot" data-s="wait"></span><strong>Checking…</strong></div>
-
+      <p class="lede">Live status of everything your apps run on, checked every minute from inside Berth. When something breaks, it shows here within two minutes, with updates until it's fixed.</p>
+      <div class="st-sum" id="st-sum" aria-live="polite"><span class="st-dot" data-s="wait"></span><strong>Checking…</strong><span class="st-when" id="st-when"></span></div>
+      <div id="st-flash" class="st-flash" hidden></div>
+      <section id="st-active" class="st-list" aria-label="Current incidents" hidden></section>
+      <section id="st-upcoming" class="st-list" aria-label="Planned maintenance" hidden></section>
       <div class="tbl"><table class="st-tbl">
-        <thead><tr><th scope="col">Service</th><th scope="col">Status</th><th scope="col">Response</th></tr></thead>
-        <tbody>
-          <tr data-k="api"><th scope="row">API</th><td class="st-s"><span class="st-dot" data-s="wait"></span>Checking</td><td class="st-t">…</td></tr>
-          <tr data-k="db"><th scope="row">Database</th><td class="st-s"><span class="st-dot" data-s="wait"></span>Checking</td><td class="st-t">…</td></tr>
-          <tr data-k="fn"><th scope="row">Functions runtime</th><td class="st-s"><span class="st-dot" data-s="wait"></span>Checking</td><td class="st-t">…</td></tr>
-          <tr data-k="sites"><th scope="row">Site hosting</th><td class="st-s"><span class="st-dot" data-s="wait"></span>Checking</td><td class="st-t">…</td></tr>
-        </tbody>
+        <thead><tr><th scope="col">Service</th><th scope="col">Status</th></tr></thead>
+        <tbody id="st-rows"></tbody>
       </table></div>
-      <p class="cmp-note" id="st-when"></p>
-
+      <h2>Get told when something happens</h2>
+      <p>Get an email when there is an incident or planned maintenance, and when it's resolved. Account owners already get emails about outages that touch their apps (turn them off under Account). There's also an <a href="https://api.atberth.com/v1/status/feed.atom">Atom feed</a>.</p>
+      <form class="st-sub" id="st-sub" novalidate>
+        <label class="sr" for="st-email">Email</label>
+        <input id="st-email" type="email" name="email" autocomplete="email" placeholder="you@example.com" required>
+        <button class="btn btn-sm btn-light" type="submit">Subscribe</button>
+      </form>
+      <p class="st-note" id="st-sub-msg" aria-live="polite"></p>
       <h2>Uptime, last 90 days</h2>
-      <p>Berth checks its public API every minute. A minute with no answer, or no check at all because the server was down, counts as downtime.</p>
+      <p>Berth checks its public API every minute, through TLS like a real client. A minute with no answer, or no check at all because the server was down, counts as downtime.</p>
       <div class="up-head"><strong id="up-pct">…</strong><span id="up-since"></span></div>
       <div class="up-bars" id="up-bars" role="img" aria-label="Daily uptime bars"></div>
       <div class="up-axis"><span>90 days ago</span><span>Today</span></div>
-
+      <h2>Past incidents</h2>
+      <section id="st-past" class="st-list" aria-label="Past incidents"><p class="st-note">Loading…</p></section>
       <h2>Something wrong?</h2>
-      <p>If a check here is red or your app misbehaves, email <a href="mailto:hello@atberth.com?subject=Status">hello@atberth.com</a> with the app name and the request ID from the error. Planned maintenance is announced by email ahead of time when possible.</p>
+      <p>If your app misbehaves and nothing is posted here, email <a href="mailto:hello@atberth.com?subject=Status">hello@atberth.com</a> with the app name and the request ID from the error. We answer outages first.</p>
+      <style>
+        .st-sum{flex-wrap:wrap}.st-when{margin-left:auto;font-size:13px;color:var(--dim)}
+        .st-sum[data-s="degraded"],.st-sum[data-s="maintenance"]{border-color:color-mix(in srgb,#f5a524 45%,transparent)}
+        .st-sum[data-s="outage"]{border-color:color-mix(in srgb,#f25c54 55%,transparent)}
+        .st-dot[data-s="degraded"],.st-dot[data-s="maintenance"]{background:#f5a524;box-shadow:0 0 0 4px rgba(245,165,36,.18)}
+        .st-dot[data-s="outage"]{background:#f25c54;box-shadow:0 0 0 4px rgba(242,92,84,.18)}
+        .st-dot[data-s="operational"]{background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 18%,transparent)}
+        .st-list{margin-top:18px;display:grid;gap:12px}
+        .st-card{border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:18px 20px}
+        .st-card[data-impact="critical"],.st-card[data-impact="major"]{border-color:color-mix(in srgb,#f25c54 45%,transparent)}
+        .st-card[data-impact="minor"]{border-color:color-mix(in srgb,#f5a524 45%,transparent)}
+        .st-card:target{box-shadow:0 0 0 2px var(--accent)}
+        .st-card h3{margin:0 0 6px;font-size:17px;letter-spacing:-.01em}
+        .st-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--dim)}
+        .st-pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;background:var(--panel-2);color:var(--text);border:1px solid var(--line)}
+        .st-pill[data-k="bad"]{color:#f25c54}.st-pill[data-k="warn"]{color:#d98a00}.st-pill[data-k="ok"]{color:var(--accent-ink)}
+        .st-tl{list-style:none;margin:14px 0 0;padding:0;border-left:2px solid var(--line);display:grid;gap:12px}
+        .st-tl li{padding-left:14px;position:relative}
+        .st-tl li::before{content:"";position:absolute;left:-6px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--bg);border:2px solid var(--line-2)}
+        .st-tl b{font-weight:600;color:var(--text)}.st-tl time{font-size:12px;color:var(--dim);margin-left:6px}
+        .st-tl p{margin:4px 0 0;color:var(--muted);font-size:15px;white-space:pre-wrap}
+        .st-sub{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+        .st-sub input{flex:1;min-width:220px;padding:11px 14px;border-radius:12px;border:1px solid var(--line-2);background:var(--panel);color:var(--text);font:inherit}
+        .st-note{color:var(--dim);font-size:14px;margin-top:10px}
+        .st-flash{margin-top:14px;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--panel-2);font-size:15px}
+        .st-row-d{display:block;font-size:13px;color:var(--dim);margin-top:2px}
+        details.st-card summary{cursor:pointer;list-style:none}details.st-card summary::-webkit-details-marker{display:none}
+        .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+      </style>
       <script>
       (function () {
         var API = "https://api.atberth.com/v1";
-        function set(k, ok, text, ms) {
-          var row = document.querySelector('tr[data-k="' + k + '"]');
-          row.querySelector(".st-s").innerHTML = '<span class="st-dot" data-s="' + (ok ? "ok" : "bad") + '"></span>' + text;
-          row.querySelector(".st-t").textContent = ms == null ? "" : ms + " ms";
-          return ok;
+        var WORD = { operational: "Operational", degraded: "Degraded", outage: "Outage", maintenance: "Maintenance" };
+        var PHASE = { scheduled: "Scheduled", investigating: "Investigating", identified: "Identified", monitoring: "Monitoring", resolved: "Resolved", in_progress: "In progress", completed: "Completed" };
+        var IMPACT = { maintenance: "Maintenance", minor: "Degraded", major: "Partial outage", critical: "Major outage" };
+        function el(tag, attrs, kids) {
+          var n = document.createElement(tag);
+          Object.keys(attrs || {}).forEach(function (k) { if (attrs[k] != null) n.setAttribute(k, attrs[k]); });
+          (kids || []).forEach(function (c) { if (c != null) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+          return n;
         }
-        function timed(url, opts) {
-          var t = performance.now();
-          var ctrl = new AbortController();
-          var timer = setTimeout(function () { ctrl.abort(); }, 10000);
-          return fetch(url, Object.assign({ cache: "no-store", signal: ctrl.signal }, opts || {}))
-            .then(function (r) { clearTimeout(timer); return { r: r, ms: Math.round(performance.now() - t) }; });
+        function when(t) {
+          var d = new Date(t);
+          return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+        }
+        function lasted(a, b) {
+          var m = Math.max(1, Math.round((new Date(b) - new Date(a)) / 60000));
+          return m < 120 ? m + " min" : (m / 60).toFixed(1) + " h";
+        }
+        function pillKind(inc) {
+          if (inc.status === "resolved" || inc.status === "completed") return "ok";
+          return inc.impact === "major" || inc.impact === "critical" ? "bad" : "warn";
+        }
+        function card(inc, open) {
+          var meta = el("div", { class: "st-meta" }, [
+            el("span", { class: "st-pill", "data-k": pillKind(inc) }, [PHASE[inc.status] || inc.status]),
+            el("span", null, [IMPACT[inc.impact] || inc.impact]),
+            el("span", null, ["Affects " + (inc.component_names || []).join(", ")]),
+            el("span", null, [inc.scheduled_for ? "Planned for " + when(inc.scheduled_for) : (inc.resolved_at ? when(inc.started_at) + ", lasted " + lasted(inc.started_at, inc.resolved_at) : "Since " + when(inc.started_at))])
+          ]);
+          var tl = el("ol", { class: "st-tl" }, (inc.updates || []).map(function (u) {
+            return el("li", null, [el("b", null, [PHASE[u.status] || u.status]), el("time", { datetime: u.at }, [when(u.at)]), el("p", null, [u.message])]);
+          }));
+          var id = inc.id ? "incident-" + inc.id : null;
+          if (open) return el("div", { class: "st-card", id: id, "data-impact": inc.impact }, [el("h3", null, [inc.title]), meta, tl]);
+          var d = el("details", { class: "st-card", id: id, "data-impact": "none" }, [el("summary", null, [el("h3", null, [inc.title]), meta]), tl]);
+          if (location.hash === "#" + id) d.open = true;
+          return d;
+        }
+        function fill(box, items, open) {
+          box.innerHTML = "";
+          items.forEach(function (i) { box.appendChild(card(i, open)); });
+          box.hidden = !items.length;
+        }
+        function render(s) {
+          var sum = document.getElementById("st-sum");
+          sum.setAttribute("data-s", s.overall);
+          sum.innerHTML = "";
+          sum.appendChild(el("span", { class: "st-dot", "data-s": s.overall }));
+          sum.appendChild(el("strong", null, [s.headline]));
+          sum.appendChild(el("span", { class: "st-when" }, ["Checked " + new Date().toLocaleTimeString()]));
+          fill(document.getElementById("st-active"), s.active || [], true);
+          fill(document.getElementById("st-upcoming"), s.upcoming || [], true);
+          var rows = document.getElementById("st-rows");
+          rows.innerHTML = "";
+          (s.components || []).forEach(function (c) {
+            rows.appendChild(el("tr", null, [
+              el("th", { scope: "row" }, [c.name, c.detail ? el("span", { class: "st-row-d" }, [c.detail]) : null]),
+              el("td", { class: "st-s" }, [el("span", { class: "st-dot", "data-s": c.state }), WORD[c.state] || c.state])
+            ]));
+          });
+        }
+        function down() {
+          var sum = document.getElementById("st-sum");
+          sum.setAttribute("data-s", "outage");
+          sum.innerHTML = '<span class="st-dot" data-s="outage"></span><strong>We can’t reach Berth from your browser.</strong><span class="st-when">This usually means an outage. We’re alerted automatically and will post here as soon as the API answers. Retrying every 30 seconds.</span>';
         }
         function run() {
-          var limited = false;
-          var checks = [
-            timed(API + "/status").then(function (x) {
-              if (x.r.status === 429) { throw new Error("rate limited"); }
-              return x.r.json().then(function (j) {
-                var a = set("api", x.r.ok && j.ok, x.r.ok ? "Operational" : "Error " + x.r.status, x.ms);
-                var d = set("db", j.database === "ok", j.database === "ok" ? "Operational" : "Degraded", null);
-                var f = set("fn", !!j.functions_runtime, j.functions_runtime ? "Operational" : "Unavailable", null);
-                return a && d && f;
-              });
-            }).catch(function (err) {
-              if (err && err.message === "rate limited") { limited = true; return null; }
-              set("api", false, "Unreachable", null); set("db", false, "Unknown", null); set("fn", false, "Unknown", null); return false;
-            }),
-            timed("https://split.atberth.com/", { mode: "no-cors" }).then(function (x) { return set("sites", true, "Operational", x.ms); })
-              .catch(function () { return set("sites", false, "Unreachable", null); }),
-          ];
-          Promise.all(checks).then(function (r) {
-            if (limited) {
-              document.getElementById("st-sum").innerHTML = '<span class="st-dot" data-s="wait"></span><strong>Too many checks from your network right now. Trying again in a minute.</strong>';
-              return;
-            }
-            var ok = r.every(Boolean);
-            document.getElementById("st-sum").innerHTML = '<span class="st-dot" data-s="' + (ok ? "ok" : "bad") + '"></span><strong>' + (ok ? "All systems operational" : "Some systems have problems") + "</strong>";
-            document.getElementById("st-when").textContent = "Last checked " + new Date().toLocaleTimeString() + ".";
-          });
+          var ctrl = new AbortController();
+          var t = setTimeout(function () { ctrl.abort(); }, 10000);
+          fetch(API + "/status", { cache: "no-store", signal: ctrl.signal }).then(function (r) {
+            clearTimeout(t);
+            if (r.status === 429) throw new Error("limited");
+            return r.json();
+          }).then(function (s) { if (s && s.components) render(s); else down(); })
+            .catch(function (e) { if (e && e.message === "limited") return; down(); setTimeout(run, 30000); });
+        }
+        function past() {
+          fetch(API + "/status/incidents?days=90", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
+            var done = (d.incidents || []).filter(function (i) { return i.resolved_at; });
+            var box = document.getElementById("st-past");
+            box.innerHTML = "";
+            if (!done.length) { box.appendChild(el("p", { class: "st-note" }, ["No incidents in the last 90 days."])); return; }
+            done.forEach(function (i) { box.appendChild(card(i, false)); });
+            if (location.hash) { var t = document.querySelector(location.hash); if (t) t.scrollIntoView(); }
+          }).catch(function () {});
         }
         function history() {
           fetch(API + "/status/history?days=90", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (h) {
@@ -152,9 +228,24 @@
             if (h.since) document.getElementById("up-since").textContent = "Tracked since " + new Date(h.since).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
           }).catch(function () {});
         }
-        run();
-        history();
+        var q = new URLSearchParams(location.search), flash = document.getElementById("st-flash");
+        var msg = q.get("subscribed") === "1" ? "You're subscribed. We'll email you when something happens." :
+          q.get("subscribed") === "0" ? "That confirmation link didn't work. It may be old; subscribe again below." :
+          q.get("unsubscribed") === "1" ? "Done. You won't get status emails anymore." :
+          q.get("unsubscribed") === "0" ? "That unsubscribe link didn't match anything. You may already be unsubscribed." : "";
+        if (msg) { flash.textContent = msg; flash.hidden = false; }
+        document.getElementById("st-sub").addEventListener("submit", function (e) {
+          e.preventDefault();
+          var out = document.getElementById("st-sub-msg"), email = document.getElementById("st-email").value.trim();
+          out.textContent = "Sending…";
+          fetch(API + "/status/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email }) })
+            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+            .then(function (x) { out.textContent = x.ok ? x.j.message : (x.j.message || "That didn't work. Try again."); })
+            .catch(function () { out.textContent = "We couldn't reach Berth. Try again in a minute."; });
+        });
+        run(); past(); history();
         setInterval(run, 60000);
+        setInterval(past, 300000);
         setInterval(history, 300000);
       })();
       </script>

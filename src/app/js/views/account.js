@@ -1,5 +1,5 @@
-import { get, post, del, enc, session } from "../api.js";
-import { h, mount, icon, toast, toastError, modal, confirmDanger, field, input, empty, errorBox, loading, badge, timeEl, fmtDate, fmtDateTime, fmtNum, fmtBytes, meter, secretReveal, codeBlock, avatar, seg } from "../ui.js";
+import { get, post, patch, del, enc, session } from "../api.js";
+import { h, mount, icon, toast, toastError, modal, confirmDanger, field, input, empty, errorBox, loading, badge, timeEl, fmtDate, fmtDateTime, fmtNum, fmtBytes, meter, secretReveal, codeBlock, avatar, seg, toggle } from "../ui.js";
 import { state, go } from "../state.js";
 
 const LIMIT_LABELS = {
@@ -129,6 +129,31 @@ export default async function account(ctx) {
       )
     )
   );
+
+  // Status emails: outages and planned maintenance that touch this account's apps.
+  {
+    let on = a.status_emails !== false;
+    const t = toggle(on, async (v) => {
+      try {
+        await patch("/account/notifications", { status_emails: v });
+        toast(v ? "You'll get status emails" : "Status emails are off");
+      } catch (err) {
+        toastError(err);
+      }
+    }, "Status emails");
+    body.append(
+      h(
+        "section.card",
+        h("div.card-h", h("div", h("h2", "Notifications"), h("div.sub", "So you're never left guessing when something happens on Berth."))),
+        h(
+          "div.card-b.stack",
+          { style: { gap: "12px" } },
+          h("label.check-row", t, h("div", h("div", "Outages and planned maintenance"), h("div.tiny.dim", "An email when an incident or maintenance affects your apps, with updates until it's resolved."))),
+          h("div.small.dim", "Live status, past incidents and an Atom feed: ", h("a", { href: "https://atberth.com/status/", target: "_blank", rel: "noopener" }, "atberth.com/status"))
+        )
+      )
+    );
+  }
 
   if (!isAdmin) {
     const returned = takeIntent("berth.billing");
