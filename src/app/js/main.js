@@ -470,6 +470,7 @@ function renderSide() {
       level >= 2 ? item("/platform", "live", "Platform insights", r.name === "platform") : null,
       level >= 1 ? item("/admin", "shield", "Admin", r.name === "admin") : null,
       isAdmin ? item("/team", "account", "Team", r.name === "team") : null,
+      isAdmin ? item("/reports", "overview", "Reports", r.name === "reports") : null,
       level < 3 && teamRole === "marketing" ? item("/growth", "overview", "Growth", r.name === "growth") : null
     ),
   ]);
@@ -552,6 +553,7 @@ function renderTop() {
   if (r.name === "admin") parts.push([null, "Admin"]);
   if (r.name === "growth") parts.push([null, "Growth"]);
   if (r.name === "team") parts.push([null, "Team"]);
+  if (r.name === "reports") parts.push([null, "Reports"]);
   if (r.name === "platform") parts.push([null, "Insights"]);
   parts.forEach(([href, label], i) => {
     if (i) crumbs.append(h("span.sep", "/"));
@@ -606,6 +608,7 @@ const VIEWS = {
   admin: () => import("./views/admin.js"),
   growth: () => import("./views/growth.js"),
   team: () => import("./views/team.js"),
+  reports: () => import("./views/reports.js"),
   platform: () => import("./views/platform-insights.js"),
   insights: () => import("./views/app-insights.js"),
   overview: () => import("./views/overview.js"),
@@ -639,7 +642,7 @@ async function render() {
   const level = staffLevel();
   if (r.name === "admin" && level < 1) return go("/");
   if (r.name === "platform" && level < 2) return go("/");
-  if (r.name === "team" && level < 3) return go("/");
+  if ((r.name === "team" || r.name === "reports") && level < 3) return go("/");
   if (r.name === "growth" && level < 3 && state.me.team_role !== "marketing" && state.me.team_role !== "admin") return go("/");
   const loader = VIEWS[key];
   const content = shell.content;

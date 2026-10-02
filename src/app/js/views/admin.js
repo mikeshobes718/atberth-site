@@ -216,7 +216,7 @@ export default async function admin(ctx) {
       mount(body, loading());
       get("/admin/audit?limit=40&filter=" + filter).then((d) => {
       const e = d.entries || [];
-      const words = { "account.update": "changed", "account.delete": "deleted", "codes.lookup": "looked up a code for", "team.add": "added to the team:", "team.change": "changed the team role of", "team.remove": "removed from the team:", "team.accept": "accepted the invite:", "status.post": "posted an incident", "status.update": "updated an incident", "status.delete": "deleted an incident" };
+      const words = { "account.update": "changed", "account.delete": "deleted", "codes.lookup": "looked up a code for", "team.add": "added to the team:", "team.change": "changed the team role of", "team.remove": "removed from the team:", "team.accept": "accepted the invite:", "status.post": "posted an incident", "status.update": "updated an incident", "status.delete": "deleted an incident", "reports.update": "changed a report setting" };
       const detail = (x) => {
         const o = x.detail || {};
         const bits = [];
