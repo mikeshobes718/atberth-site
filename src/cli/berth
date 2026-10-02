@@ -20,7 +20,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-VERSION = "2.6.0"
+VERSION = "2.7.0"
 DEFAULT_API = "https://api.atberth.com/v1"
 FILTER_OPS = ("eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "in", "is", "cs")
 INT_TYPES = {"integer", "bigint", "int", "int2", "int4", "int8", "smallint"}
@@ -692,6 +692,24 @@ def cmd_logout(args) -> None:
     emit({"logged_out": True}, msg)
 
 
+def cmd_status(_args) -> None:
+    payload = api("GET", "/status", None)
+
+    def human() -> None:
+        print(payload.get("headline") or ("All systems operational" if payload.get("ok") else "Degraded"))
+        rows = [{"service": c["name"], "status": c["state"], "detail": c.get("detail") or ""} for c in payload.get("components") or []]
+        if rows:
+            print()
+            print_table(rows)
+        for label, items in (("Now", payload.get("active") or []), ("Planned", payload.get("upcoming") or [])):
+            for i in items:
+                last = (i.get("updates") or [{}])[0]
+                when = (i.get("scheduled_for") or i.get("started_at") or "")[:16].replace("T", " ")
+                print(f"\n{label}: {i['title']} ({i['status']}, since {when} UTC)\n  {last.get('message', '')}")
+        print(f"\nAPI {api_base()}, version {payload.get('version', '?')}. Details and history: https://atberth.com/status/")
+    emit(payload, human)
+
+
 def cmd_whoami(_args) -> None:
     payload = api("GET", "/me", account_token())
 
@@ -704,11 +722,6 @@ def cmd_whoami(_args) -> None:
                 print(f"{part}: {label}")
         print(f"api: {api_base()}")
     emit(payload, human)
-
-
-def cmd_status(_args) -> None:
-    payload = api("GET", "/status", None)
-    emit(payload, lambda: (print_kv(payload), print(f"api: {api_base()}")))
 
 
 def cmd_account_show(_args) -> None:
@@ -2351,6 +2364,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = cmd(sub, "logout", cmd_logout, "Forget the saved account key.", "berth logout --all")
     p.add_argument("--all", action="store_true", help="Also forget every saved app key.")
+    cmd(sub, "status", cmd_status, "Is Berth up? Live status, incidents and planned maintenance.", "berth status")
     cmd(sub, "whoami", cmd_whoami, "Show who the saved credential belongs to.", "berth whoami")
     cmd(sub, "templates", cmd_templates, "List starter templates for berth init.", "berth templates")
     p = cmd(sub, "init", cmd_init, "Start from a template: creates the app, tables and functions, and deploys the site.",
@@ -2359,7 +2373,6 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("dir", nargs="?", help="Folder to create. Default: the template name.")
     p.add_argument("--app", help="App name. Default: the folder name.")
     p.add_argument("--site", help="Site name for NAME.atberth.com. Default: the app name.")
-    cmd(sub, "status", cmd_status, "Show API health and version.", "berth status")
 
     acc = group(sub, "account", "Show or delete your account and manage account keys.", "berth account show")
     cmd(acc, "show", cmd_account_show, "Show the account, limits, and usage.", "berth account show")
