@@ -234,6 +234,22 @@
           q.get("unsubscribed") === "1" ? "Done. You won't get status emails anymore." :
           q.get("unsubscribed") === "0" ? "That unsubscribe link didn't match anything. You may already be unsubscribed." : "";
         if (msg) { flash.textContent = msg; flash.hidden = false; }
+        var unsubToken = q.get("unsubscribe");
+        if (unsubToken) {
+          // The email link only lands here; nothing changes until this button is pressed (link scanners never press it).
+          flash.innerHTML = "";
+          var btn = el("button", { class: "btn btn-sm btn-light", type: "button" }, ["Stop status emails"]);
+          flash.appendChild(el("span", null, ["Stop getting Berth status emails at this address? "]));
+          flash.appendChild(btn);
+          flash.hidden = false;
+          btn.addEventListener("click", function () {
+            btn.disabled = true;
+            fetch(API + "/status/unsubscribe?t=" + encodeURIComponent(unsubToken), { method: "POST" })
+              .then(function (r) { return r.json(); })
+              .then(function (j) { flash.textContent = j.unsubscribed ? "Done. You won't get status emails anymore. You can subscribe again below any time." : "That link didn't match anything. You may already be unsubscribed."; })
+              .catch(function () { flash.textContent = "We couldn't reach Berth. Try again in a minute."; btn.disabled = false; });
+          });
+        }
         document.getElementById("st-sub").addEventListener("submit", function (e) {
           e.preventDefault();
           var out = document.getElementById("st-sub-msg"), email = document.getElementById("st-email").value.trim();
