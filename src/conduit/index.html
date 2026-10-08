@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Conduit admin</title>
+<meta name="description" content="Sign-in for the owner of Conduit.">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src https://api.atberth.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="/conduit/conduit.css">
+<script type="module" src="/conduit/conduit.js"></script>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <h1>Conduit admin</h1>
+    <div class="who">
+      <span id="who"></span>
+      <button id="signout" class="ghost" type="button" hidden>Sign out</button>
+    </div>
+  </header>
+
+  <section id="gate" class="card">
+    <h2>Sign in</h2>
+    <p class="muted">Use the email that owns Conduit. Berth sends a 6 digit code to it.</p>
+    <form id="emailForm" class="stack">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="email" required>
+      <button id="sendCode" type="submit">Send code</button>
+    </form>
+    <form id="codeForm" class="stack" hidden>
+      <label for="code">Code</label>
+      <input id="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required>
+      <button type="submit">Sign in</button>
+    </form>
+    <p id="gateMsg" class="error" role="alert"></p>
+  </section>
+
+  <section id="admin" hidden>
+    <section class="card">
+      <h2>Assistant access</h2>
+      <p class="muted">Gives an assistant its own token. It can read the thread and the contact list, and log lines as sent or as hers. Nothing else in Conduit is open to it. You can revoke a token at any time, and it stops on its next call.</p>
+      <form id="createForm" class="stack">
+        <label for="label">Name for this token</label>
+        <input id="label" maxlength="60" value="Linux assistant" required>
+        <fieldset>
+          <legend>Allowed</legend>
+          <label class="check"><input type="checkbox" name="scope" value="read" checked> Read threads and contacts</label>
+          <label class="check"><input type="checkbox" name="scope" value="write" checked> Log lines as sent or hers</label>
+        </fieldset>
+        <button type="submit">Create token</button>
+      </form>
+      <div id="tokenBox" class="token" hidden>
+        <p><strong>Copy this now. It is shown once and cannot be shown again.</strong></p>
+        <code id="tokenValue"></code>
+        <div class="row">
+          <button id="copyToken" type="button" class="ghost">Copy</button>
+          <button id="hideToken" type="button" class="ghost">I have copied it</button>
+        </div>
+      </div>
+      <p id="createMsg" class="error" role="alert"></p>
+    </section>
+
+    <section class="card">
+      <h2>Tokens</h2>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Name</th><th>Allowed</th><th>Created</th><th>Last used</th><th>Status</th><th></th></tr></thead>
+          <tbody id="tokens"></tbody>
+        </table>
+      </div>
+      <p id="tokensEmpty" class="muted" hidden>No tokens yet.</p>
+    </section>
+
+    <section class="card">
+      <h2>Recent calls</h2>
+      <p class="muted">The last 200 calls made with an assistant token. Message text is never logged, only the action and the contact.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>When</th><th>Token</th><th>Action</th><th>Contact</th><th>Result</th></tr></thead>
+          <tbody id="audit"></tbody>
+        </table>
+      </div>
+      <p id="auditEmpty" class="muted" hidden>No calls yet.</p>
+    </section>
+  </section>
+</main>
+</body>
+</html>
