@@ -260,37 +260,6 @@
   }).catch(function () {});
 })();
 
-// "We build it" request form: posts to the Berth API, which emails the request to hello@atberth.com.
-(function () {
-  var form = document.getElementById("build-form");
-  if (!form) return;
-  var msg = form.querySelector(".bf-msg"), btn = form.querySelector("button[type=submit]");
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
-    var f = form.elements;
-    var body = { name: f.name.value.trim(), email: f.email.value.trim(), kind: f.kind.value, budget: f.budget.value || null,
-                 details: f.details.value.trim(), website_url: f.website_url.value };
-    msg.className = "bf-msg";
-    if (!body.name || !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(body.email) || body.details.length < 10) {
-      msg.className = "bf-msg bad";
-      msg.textContent = "Add your name, a valid email and a sentence or two about what you need.";
-      return;
-    }
-    btn.disabled = true;
-    msg.textContent = "Sending…";
-    fetch("https://api.atberth.com/v1/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
-      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
-      .then(function (x) {
-        if (!x.ok) throw new Error(x.d.message || "Could not send. Email hello@atberth.com instead.");
-        msg.className = "bf-msg ok";
-        msg.textContent = "Thanks. We got it and will reply to " + body.email + " soon.";
-        form.reset();
-      })
-      .catch(function (err) { msg.className = "bf-msg bad"; msg.textContent = err.message; })
-      .then(function () { btn.disabled = false; });
-  });
-})();
-
 // Testimonials: the section stays hidden until testimonials.json has real, approved quotes.
 // Each entry: {"quote": "...", "name": "...", "role": "...", "url": "https://..." (optional)}.
 (function () {
