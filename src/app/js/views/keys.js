@@ -54,8 +54,8 @@ export default async function keys(ctx) {
               h(
                 "tr",
                 { style: k.revoked_at ? { opacity: ".5" } : null },
-                h("td.strong", k.name),
-                h("td", k.type === "secret" ? badge("secret", "bad") : badge("publishable", "ok")),
+                h("td.strong", k.name, k.expires_at ? h("div.tiny.dim", (new Date(k.expires_at) < new Date() ? "expired " : "expires ") + fmtDate(k.expires_at)) : null),
+                h("td", k.type === "secret" ? (k.scope ? badge((k.scope.access === "read" ? "read only" : "rows only") + (k.scope.tables ? ": " + k.scope.tables.join(", ") : ""), "info") : badge("secret", "bad")) : badge("publishable", "ok")),
                 h("td.mono.small", k.prefix + "…"),
                 h("td.dim", fmtDate(k.created_at)),
                 h("td.dim", k.revoked_at ? "revoked " + fmtDate(k.revoked_at) : timeEl(k.last_used_at)),
@@ -95,13 +95,20 @@ export default async function keys(ctx) {
     const type = options(
       [
         { value: "secret", label: "Secret", hint: "Full access, server only" },
+        { value: "scoped", label: "Scoped secret", hint: "For an agent or a tool: rows only" },
         { value: "publishable", label: "Publishable", hint: "Safe in apps, policies apply" },
       ],
-      "secret"
+      "secret",
+      (v) => (scopeBox.hidden = v !== "scoped")
     );
+    const access = options([{ value: "read", label: "Read rows", hint: "Can't change anything" }, { value: "write", label: "Read and write rows", hint: "No schema, SQL or settings" }], "read");
+    const tables = input({ placeholder: "orders, customers (empty means every table)", mono: true });
+    const expires = options([{ value: "", label: "Never" }, { value: "86400", label: "1 day" }, { value: "2592000", label: "30 days" }, { value: "7776000", label: "90 days" }], "");
+    const scopeBox = h("div.stack", { style: { gap: "12px" } }, field("Can", access), field("Tables", tables, "Comma separated. Leave empty for every table."), field("Expires", expires));
+    scopeBox.hidden = true;
     modal({
       title: "Create an API key for " + slug,
-      body: h("div.form", field("Name", name, "So you can tell keys apart later."), field("Type", type)),
+      body: h("div.form", field("Name", name, "So you can tell keys apart later."), field("Type", type), scopeBox),
       actions: [
         { label: "Cancel" },
         {
@@ -109,8 +116,15 @@ export default async function keys(ctx) {
           kind: "primary",
           submit: true,
           onClick: async () => {
-            const t = type.get();
-            const out = await post(base, { name: name.value.trim() || t, type: t });
+            const kind = type.get();
+            const t = kind === "scoped" ? "secret" : kind;
+            const body = { name: name.value.trim() || kind, type: t };
+            if (kind === "scoped") {
+              const list = tables.value.split(",").map((x) => x.trim()).filter(Boolean);
+              body.scope = { access: access.get(), ...(list.length ? { tables: list } : {}) };
+              if (expires.get()) body.expires_in = Number(expires.get());
+            }
+            const out = await post(base, body);
             load();
             modal({
               title: "Key created",

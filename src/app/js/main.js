@@ -621,6 +621,8 @@ const VIEWS = {
   sites: () => import("./views/sites.js"),
   keys: () => import("./views/keys.js"),
   logs: () => import("./views/logs.js"),
+  jobs: () => import("./views/jobs.js"),
+  activity: () => import("./views/activity.js"),
   settings: () => import("./views/settings.js"),
 };
 

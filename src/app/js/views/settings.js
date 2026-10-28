@@ -1,10 +1,41 @@
 import { api, patch, del, enc } from "../api.js";
-import { h, mount, icon, toast, toastError, confirmDanger, input, busy, copyBtn, download, fmtDateTime, fmtBytes, spinner } from "../ui.js";
+import { h, mount, icon, toast, toastError, confirmDanger, input, busy, copyBtn, download, fmtDateTime, fmtBytes, spinner, field, toggle } from "../ui.js";
 import { state, go, loadApps } from "../state.js";
 
 export default async function settings(ctx) {
   const { slug, app } = ctx;
   const base = "/apps/" + enc(slug);
+
+  // This app's own limits, so one app or one bot can't use the whole account's quota.
+  function trafficCard() {
+    const t = { rpm: null, ip_rpm: null, daily_requests: null, block_bots: false, ...(app.traffic || {}) };
+    const num = (v, ph) => input({ type: "number", min: "1", mono: true, value: v == null ? "" : String(v), placeholder: ph });
+    const rpm = num(t.rpm, "no app limit"), ipRpm = num(t.ip_rpm, "no limit"), daily = num(t.daily_requests, "no limit");
+    let bots = !!t.block_bots;
+    const botToggle = toggle(bots, (v) => (bots = v), "Block bots");
+    return h(
+      "section.card",
+      h("div.card-h", h("div", h("h2", "Traffic and bots"), h("div.sub", "Limits for this app on its own, inside your plan's limits. Empty means no extra limit."))),
+      h(
+        "div.card-b.stack",
+        { style: { gap: "12px" } },
+        h("div.grid.g3", field("Requests per minute", rpm, "From every key."), field("Per visitor, per minute", ipRpm, "Publishable key or user token, per IP."), field("Requests per day", daily, "Resets at midnight UTC.")),
+        h("label.check-row", botToggle, h("div", h("div", "Block bots and scrapers"), h("div.tiny.dim", "Turns away crawlers, scrapers and scripted clients using your publishable key. Your server's secret key is never blocked.")))
+      ),
+      h(
+        "div.card-f",
+        h("button.btn.primary", { type: "button", onclick: (e) => busy(e.currentTarget, async () => {
+          try {
+            const val = (el) => (el.value.trim() === "" ? null : Number(el.value));
+            const out = await patch(base, { traffic: { rpm: val(rpm), ip_rpm: val(ipRpm), daily_requests: val(daily), block_bots: bots } });
+            Object.assign(app, { traffic: out.app.traffic });
+            await loadApps();
+            toast("Traffic settings saved");
+          } catch (err) { toastError(err); }
+        }) }, "Save traffic settings")
+      )
+    );
+  }
   const page = h("div.page");
   ctx.root.append(page);
   let origins = [...(app.cors_origins || ["*"])];
@@ -96,6 +127,7 @@ export default async function settings(ctx) {
           )
         )
       ),
+      trafficCard(),
       h(
         "section.card",
         h("div.card-h", h("div", h("h2", "Backup"), h("div.sub", "Download the whole database as a pg_dump custom format file. Restore it into a new app from the apps page, or with pg_restore."))),
