@@ -7,6 +7,8 @@ import argparse
 import getpass
 from http import client as httpclient
 import json
+import tempfile
+import subprocess
 import mimetypes
 import os
 import re
@@ -20,7 +22,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-VERSION = "2.7.0"
+VERSION = "2.8.0"
 DEFAULT_API = "https://api.atberth.com/v1"
 FILTER_OPS = ("eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "in", "is", "cs")
 INT_TYPES = {"integer", "bigint", "int", "int2", "int4", "int8", "smallint"}
@@ -972,6 +974,159 @@ def cmd_apps_config(args) -> None:
     emit(payload, lambda: print_kv(payload.get("app") or payload))
 
 
+def cmd_apps_audit(args) -> None:
+    app = args.name or resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "audit") + f"?limit={args.limit}")
+    rows = [{"when": (e["at"] or "")[:19].replace("T", " "), "who": e["actor"], "did": f"{e['method']} {e['route'].replace('/v1/apps/{app}', '')}",
+             "status": e["status"]} for e in payload.get("entries") or []]
+    emit(payload, lambda: print_table(rows, empty="No changes recorded yet."))
+
+
+def cmd_apps_traffic(args) -> None:
+    app = args.name or resolve_app(args)
+    body: dict = {}
+    for key, val in (("rpm", args.rpm), ("ip_rpm", args.ip_rpm), ("daily_requests", args.daily)):
+        if val is not None:
+            body[key] = None if val == "off" else int(val)
+    if args.block_bots is not None:
+        body["block_bots"] = args.block_bots
+    if body:
+        payload = app_api(app, "PATCH", app_path(app), body={"traffic": body})
+    else:
+        payload = app_api(app, "GET", app_path(app))
+    t = (payload.get("app") or {}).get("traffic") or {}
+    emit(payload, "\n".join(f"{k}: {'off' if v is None else v}" for k, v in t.items()))
+
+
+def cmd_jobs_add(args) -> None:
+    app = resolve_app(args)
+    body: dict = {"function": args.function, "payload": json_input(args.payload, None) if args.payload else None,
+                  "max_attempts": args.attempts}
+    if args.timeout:
+        body["timeout_seconds"] = parse_duration(args.timeout)
+    if args.delay:
+        body["delay_seconds"] = parse_duration(args.delay)
+    if args.key:
+        body["idempotency_key"] = args.key
+    payload = app_api(app, "POST", app_path(app, "jobs"), body=body)
+    j = payload.get("job") or {}
+    emit(payload, f"{'Already queued' if payload.get('duplicate') else 'Queued'} job {j.get('id')} ({j.get('status')}) for {args.function}.")
+
+
+def cmd_jobs_list(args) -> None:
+    app = resolve_app(args)
+    q = f"?limit={args.limit}" + (f"&status={args.status}" if args.status else "")
+    payload = app_api(app, "GET", app_path(app, "jobs") + q)
+    rows = [{"id": j["id"], "function": j["function"], "status": j["status"], "attempts": f"{j['attempts']}/{j['max_attempts']}",
+             "created": (j["created_at"] or "")[:19].replace("T", " "), "error": (j.get("error") or "")[:60]} for j in payload.get("jobs") or []]
+    emit(payload, lambda: (print_table(rows, empty="No jobs."), print("\n" + "  ".join(f"{k}: {v}" for k, v in (payload.get("counts") or {}).items()))))
+
+
+def cmd_jobs_show(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "jobs", args.job_id))
+    emit(payload, lambda: print_kv(payload.get("job") or payload))
+
+
+def cmd_jobs_cancel(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "DELETE", app_path(app, "jobs", args.job_id))
+    emit(payload, f"Cancelled job {args.job_id}.")
+
+
+def _pg_dump(db_url: str, out: Path) -> None:
+    exe = shutil.which("pg_dump")
+    if not exe:
+        usage("berth migrate needs pg_dump (PostgreSQL client tools 15 or newer). On a Mac: brew install libpq.")
+    proc = subprocess.run([exe, "--dbname", db_url, "-n", "public", "-Fc", "--no-owner", "--no-privileges", "-f", str(out)],
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        die("pg_dump failed: " + (proc.stderr.strip().splitlines() or ["unknown error"])[-1])
+
+
+def _restore(name: str, dump: Path, compat: str | None) -> str:
+    path = app_path(name, "restore") + (f"?compat={compat}" if compat else "")
+    payload = api("POST", path, account_token(), data=dump, ctype="application/octet-stream", timeout=900)
+    slug = remember_created(payload, name)
+    print_new_keys(slug, payload.get("keys") or {})
+    return slug
+
+
+def _import_users(app: str, source: str, users: list) -> dict:
+    total = {"created": 0, "skipped_existing": 0, "invalid": 0, "with_password": 0}
+    for i in range(0, len(users), 5000):
+        r = app_api(app, "POST", auth_path(app, "users", "import"), body={"source": source, "users": users[i:i + 5000]})
+        for k in total:
+            total[k] += r.get(k, 0)
+    return total
+
+
+def cmd_migrate_postgres(args) -> None:
+    with tempfile.TemporaryDirectory() as d:
+        dump = Path(d) / "public.dump"
+        print("Dumping the public schema with pg_dump...", file=sys.stderr)
+        _pg_dump(args.db_url, dump)
+        print(f"Restoring {dump.stat().st_size // 1024} KB into {args.app}...", file=sys.stderr)
+        slug = _restore(args.app, dump, None)
+    print(f"Done. {slug} has your tables, all secret-key only until you set policies (berth tables policy).")
+
+
+def cmd_migrate_supabase(args) -> None:
+    with tempfile.TemporaryDirectory() as d:
+        dump = Path(d) / "public.dump"
+        print("Dumping the public schema with pg_dump...", file=sys.stderr)
+        _pg_dump(args.db_url, dump)
+        print("Restoring with Supabase compatibility...", file=sys.stderr)
+        slug = _restore(args.app, dump, "supabase")
+    if args.skip_users:
+        return
+    psql = shutil.which("psql")
+    if not psql:
+        usage("Moving users needs psql (PostgreSQL client tools). Data was restored; run again with --skip-users to skip users.")
+    q = ("select coalesce(json_agg(json_build_object('id', id, 'email', email, 'encrypted_password', encrypted_password, "
+         "'email_confirmed_at', email_confirmed_at, 'raw_user_meta_data', raw_user_meta_data, "
+         "'raw_app_meta_data', raw_app_meta_data, 'created_at', created_at)), '[]') from auth.users where email is not null")
+    proc = subprocess.run([psql, "--dbname", args.db_url, "-At", "-c", q], capture_output=True, text=True)
+    if proc.returncode != 0:
+        die("Reading auth.users failed: " + (proc.stderr.strip().splitlines() or ["unknown"])[-1])
+    users = json.loads(proc.stdout or "[]")
+    total = _import_users(slug, "supabase", users) if users else {"created": 0}
+    print(f"Moved {total.get('created', 0)} users ({total.get('with_password', 0)} keep their password). "
+          "Recreate your RLS rules with berth tables policy --read-sql / --write-sql.")
+
+
+def cmd_migrate_firebase_auth(args) -> None:
+    app = resolve_app(args)
+    data = json.loads(file_arg(args.file).read_text(encoding="utf-8"))
+    users = data.get("users") if isinstance(data, dict) else data
+    if not isinstance(users, list):
+        usage("Expected the JSON from firebase auth:export --format=json.")
+    total = _import_users(app, "firebase", users)
+    emit(total, f"Imported {total['created']} users, skipped {total['skipped_existing']} that already exist. "
+                "Firebase passwords cannot move: users sign in with an email code, Google or Apple, or reset their password.")
+
+
+def cmd_migrate_firestore(args) -> None:
+    app = resolve_app(args)
+    data = json.loads(file_arg(args.file).read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        usage('Expected {"collection": {"docId": {...}}}.')
+    for coll, docs in data.items():
+        table = re.sub(r"[^a-z0-9_]", "_", coll.lower()).strip("_")[:63] or "collection"
+        if table[0].isdigit():
+            table = "c_" + table
+        if isinstance(docs, list):
+            docs = {str(d.get("id") or i): d for i, d in enumerate(docs)}
+        existing = app_http(app, "GET", app_path(app, "tables", table))
+        if existing.status == 404:
+            app_api(app, "POST", app_path(app, "tables"),
+                    body={"name": table, "columns": [{"name": "doc_id", "type": "text", "unique": True}, {"name": "data", "type": "jsonb"}]})
+        rows = [{"doc_id": str(k), "data": v} for k, v in docs.items()]
+        for i in range(0, len(rows), 500):
+            app_api(app, "POST", app_path(app, "tables", table, "rows") + "?upsert=true&on_conflict=doc_id", body=rows[i:i + 500])
+        print(f"{coll} -> {table}: {len(rows)} documents")
+
+
 def cmd_use(args) -> None:
     data = cfg()
     if args.clear:
@@ -998,18 +1153,36 @@ def cmd_keys_list(args) -> None:
     emit(payload, lambda: print_table(first_list(payload, "keys"), cols, empty="No keys."))
 
 
+def parse_duration(text: str) -> int:
+    m = re.fullmatch(r"(\d+)\s*([smhd]?)", text.strip())
+    if not m:
+        usage("Durations look like 90s, 30m, 12h or 30d.")
+    return int(m.group(1)) * {"": 1, "s": 1, "m": 60, "h": 3600, "d": 86400}[m.group(2)]
+
+
 def cmd_keys_create(args) -> None:
     app = resolve_app(args)
     name = args.name or f"{args.type} key"
-    payload = app_api(app, "POST", app_path(app, "keys"), body={"name": name, "type": args.type})
+    body = {"name": name, "type": args.type}
+    if args.scope:
+        if args.type != "secret":
+            usage("Only secret keys can be scoped.")
+        body["scope"] = {"access": args.scope, **({"tables": [t.strip() for t in args.tables.split(",") if t.strip()]} if args.tables else {})}
+    elif args.tables:
+        usage("Pass --scope read or --scope write with --tables.")
+    if args.expires:
+        body["expires_in"] = parse_duration(args.expires)
+    payload = app_api(app, "POST", app_path(app, "keys"), body=body)
     secret = payload.get("secret")
     key = payload.get("key") or {}
-    if secret:
+    if secret and not args.scope and not args.expires:
         save_app_keys(app, **{args.type: secret, f"{args.type}_id": key.get("id")})
 
     def human():
-        print(f"Created {args.type} key {key.get('name', name)} ({key.get('id', '')}) for {app}.")
-        print(f"Saved to {config_path()}. Shown once:")
+        print(f"Created {args.type} key {key.get('name', name)} ({key.get('id', '')}) for {app}."
+              + (f" Scope: {args.scope}" + (f" on {args.tables}" if args.tables else "") + "." if args.scope else "")
+              + (f" Expires {key.get('expires_at')}." if key.get("expires_at") else ""))
+        print("Shown once:" if (args.scope or args.expires) else f"Saved to {config_path()}. Shown once:")
         print(secret or "")
         if args.type == "secret":
             print("Keep secret keys on servers only. Ship publishable keys in apps.")
@@ -1153,14 +1326,26 @@ def cmd_tables_policy(args) -> None:
     app = resolve_app(args)
     current = app_api(app, "GET", app_path(app, "tables", args.table))
     info = current.get("table") or current
-    if not args.read and not args.write:
+    if not (args.read or args.write or args.read_sql or args.write_sql):
         policy = info.get("policy") or {}
-        emit({"policy": policy}, f"read: {policy.get('read')}\nwrite: {policy.get('write')}")
+        lines = [f"read: {policy.get('read')}" + (f"  ({policy['read_sql']})" if policy.get("read_sql") else ""),
+                 f"write: {policy.get('write')}" + (f"  ({policy['write_sql']})" if policy.get("write_sql") else "")]
+        emit({"policy": policy}, "\n".join(lines))
         return
-    body = {"policy": policy_body(args.read, args.write, info.get("policy"))}
-    payload = app_api(app, "PATCH", app_path(app, "tables", args.table), body=body)
-    p = body["policy"]
-    emit(payload, f"Policy for {args.table}: read={p['read']} write={p['write']}.")
+    if (args.read and args.read_sql) or (args.write and args.write_sql):
+        usage("Pass --read or --read-sql (and --write or --write-sql), not both.")
+    pol: dict = {}
+    if args.read:
+        pol["read"] = args.read
+    if args.write:
+        pol["write"] = args.write
+    if args.read_sql:
+        pol["read"] = {"sql": args.read_sql}
+    if args.write_sql:
+        pol["write"] = {"sql": args.write_sql}
+    payload = app_api(app, "PATCH", app_path(app, "tables", args.table), body={"policy": pol})
+    p = (payload.get("table") or {}).get("policy") or {}
+    emit(payload, f"Policy for {args.table}: read={p.get('read')} write={p.get('write')}.")
 
 
 def cmd_columns_add(args) -> None:
@@ -1588,8 +1773,10 @@ def cmd_auth_users_update(args) -> None:
         body["password"] = args.password
     if args.data:
         body["data"] = json_input(args.data, None)
+    if args.claims:
+        body["claims"] = json_input(args.claims, None)
     if not body:
-        usage("Pass --password or --data.")
+        usage("Pass --password, --data or --claims.")
     payload = app_api(app, "PATCH", auth_path(app, "users", args.user_id), body=body)
     emit(payload, lambda: print_kv(payload.get("user") or payload))
 
@@ -2179,6 +2366,19 @@ def cmd_sql(args) -> None:
 
 def cmd_rpc(args) -> None:
     app = resolve_app(args)
+    if args.list:
+        listing = app_api(app, "GET", app_path(app, "rpc"))
+        rows = [{"function": f["name"], "arguments": f["arguments"], "returns": f["returns"], "who can call": f["allow"]}
+                for f in listing.get("functions") or []]
+        emit(listing, lambda: print_table(rows, empty="No functions yet. Create one with berth sql."))
+        return
+    if not args.function:
+        usage("Pass a function name, or --list.")
+    if args.allow:
+        payload = app_api(app, "PUT", app_path(app, "rpc", args.function, "access"), body={"allow": args.allow})
+        words = {"secret": "only with a secret key", "user": "by any signed-in user", "anon": "by anyone with the publishable key"}
+        emit(payload, f"{args.function} can now be called {words[args.allow]}.")
+        return
     body: dict = {}
     if args.data:
         try:
@@ -2446,6 +2646,60 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("name", nargs="?", help="App slug. Defaults to the current app.")
     p.add_argument("--cors", action="append", metavar="ORIGIN", help="Allowed origin. Repeatable.")
 
+    p = cmd(apps, "audit", cmd_apps_audit, "Who changed what in an app: schema, policies, keys, settings, SQL, functions.",
+            "berth apps audit demo --limit 50")
+    p.add_argument("name", nargs="?", help="App slug. Defaults to the current app.")
+    p.add_argument("--limit", type=int, default=50)
+    p = cmd(apps, "traffic", cmd_apps_traffic, "Show or set an app's own limits and bot blocking.",
+            ["berth apps traffic demo", "berth apps traffic demo --rpm 600 --ip-rpm 60 --block-bots", "berth apps traffic demo --daily off"])
+    p.add_argument("name", nargs="?", help="App slug. Defaults to the current app.")
+    p.add_argument("--rpm", metavar="N|off", help="Requests per minute for the app, from every key.")
+    p.add_argument("--ip-rpm", metavar="N|off", help="Requests per minute from one visitor (publishable key or user token).")
+    p.add_argument("--daily", metavar="N|off", help="Requests per UTC day.")
+    b = p.add_mutually_exclusive_group()
+    b.add_argument("--block-bots", dest="block_bots", action="store_const", const=True, default=None, help="Refuse crawlers and scripted clients.")
+    b.add_argument("--allow-bots", dest="block_bots", action="store_const", const=False)
+
+    jobs = group(sub, "jobs", "Queue and watch background jobs (a function run for up to 15 minutes, with retries).", "berth jobs list --app demo")
+    p = cmd(jobs, "add", cmd_jobs_add, "Queue a job.", ["berth jobs add --app demo send-digest --payload '{\"user\": 42}'",
+                                                         "berth jobs add --app demo cleanup --delay 1h --attempts 5 --timeout 10m"])
+    app_opt(p)
+    p.add_argument("function", metavar="FUNCTION")
+    p.add_argument("--payload", metavar="JSON")
+    p.add_argument("--attempts", type=int, default=3)
+    p.add_argument("--timeout", metavar="DURATION", help="Up to 15m on Pro, 2m on Free.")
+    p.add_argument("--delay", metavar="DURATION", help="Start later: 90s, 10m, 2h, 1d.")
+    p.add_argument("--key", metavar="KEY", help="Idempotency key: queueing the same key twice gives one job.")
+    p = cmd(jobs, "list", cmd_jobs_list, "List jobs.", ["berth jobs list --app demo", "berth jobs list --app demo --status failed"])
+    app_opt(p)
+    p.add_argument("--status", choices=("queued", "running", "succeeded", "failed", "cancelled"))
+    p.add_argument("--limit", type=int, default=50)
+    p = cmd(jobs, "show", cmd_jobs_show, "Show a job, its result and last error.", "berth jobs show --app demo JOB_ID")
+    app_opt(p)
+    p.add_argument("job_id", metavar="JOB_ID")
+    p = cmd(jobs, "cancel", cmd_jobs_cancel, "Cancel a job that has not started.", "berth jobs cancel --app demo JOB_ID")
+    app_opt(p)
+    p.add_argument("job_id", metavar="JOB_ID")
+
+    mig = group(sub, "migrate", "Move to Berth from Postgres hosts, Supabase or Firebase.", "berth migrate postgres --db-url URL --app new_app")
+    p = cmd(mig, "postgres", cmd_migrate_postgres, "Copy a Postgres database (Railway, Neon, Render, Heroku) into a new app.",
+            "berth migrate postgres --db-url postgres://user:pass@host/db --app new_app")
+    p.add_argument("--db-url", required=True, metavar="URL")
+    p.add_argument("--app", required=True, metavar="NEW_APP", help="Name for the new app.")
+    p = cmd(mig, "supabase", cmd_migrate_supabase, "Copy a Supabase project's public schema and users (ids and passwords) into a new app.",
+            "berth migrate supabase --db-url postgresql://postgres:PW@db.PROJECT.supabase.co:5432/postgres --app new_app")
+    p.add_argument("--db-url", required=True, metavar="URL")
+    p.add_argument("--app", required=True, metavar="NEW_APP", help="Name for the new app.")
+    p.add_argument("--skip-users", action="store_true", help="Copy data only.")
+    p = cmd(mig, "firebase-auth", cmd_migrate_firebase_auth, "Import users from firebase auth:export.",
+            "berth migrate firebase-auth users.json --app demo")
+    app_opt(p)
+    p.add_argument("file", metavar="FILE")
+    p = cmd(mig, "firestore", cmd_migrate_firestore, "Import Firestore collections as tables (doc_id + data jsonb).",
+            "berth migrate firestore export.json --app demo")
+    app_opt(p)
+    p.add_argument("file", metavar="FILE")
+
     p = cmd(sub, "use", cmd_use, "Set the default app so --app can be left out.", ["berth use demo", "berth use --clear"])
     p.add_argument("app_name", nargs="?", metavar="APP")
     p.add_argument("--clear", action="store_true", help="Clear the default app.")
@@ -2458,6 +2712,9 @@ def build_parser() -> argparse.ArgumentParser:
     app_opt(p)
     p.add_argument("--type", required=True, choices=("publishable", "secret"))
     p.add_argument("--name", help="A label for the key.")
+    p.add_argument("--scope", choices=("read", "write"), help="Limit a secret key to reading rows, or reading and writing rows.")
+    p.add_argument("--tables", metavar="A,B", help="With --scope: only these tables.")
+    p.add_argument("--expires", metavar="DURATION", help="Expire the key after 30m, 12h, 30d...")
     p = cmd(keys, "revoke", cmd_keys_revoke, "Revoke an app key.", "berth keys revoke --app demo key_123")
     app_opt(p)
     p.add_argument("key_id", metavar="KEY_ID")
@@ -2488,12 +2745,15 @@ def build_parser() -> argparse.ArgumentParser:
     app_opt(p)
     p.add_argument("table", metavar="TABLE")
     yes_opt(p, "drop the table")
-    p = cmd(tables, "policy", cmd_tables_policy, "Show or set who can read and write rows.",
-            ["berth tables policy --app demo notes", "berth tables policy --app demo notes --read public --write authenticated"])
+    p = cmd(tables, "policy", cmd_tables_policy, "Show or set who can read and write rows, with a level or a custom SQL rule.",
+            ["berth tables policy --app demo notes", "berth tables policy --app demo notes --read public --write authenticated",
+             "berth tables policy --app demo docs --read-sql \"org_id = _berth.claim('org_id')\""])
     app_opt(p)
     p.add_argument("table", metavar="TABLE")
     p.add_argument("--read", choices=READS)
     p.add_argument("--write", choices=WRITES)
+    p.add_argument("--read-sql", metavar="EXPR", help="A custom read rule: one SQL boolean expression.")
+    p.add_argument("--write-sql", metavar="EXPR", help="A custom write rule: one SQL boolean expression.")
 
     cols = group(sub, "columns", "Add, rename, change, and drop columns.", "berth columns add --app demo notes due:date")
     p = cmd(cols, "add", cmd_columns_add, "Add a column.",
@@ -2670,12 +2930,14 @@ def build_parser() -> argparse.ArgumentParser:
     p = cmd(users, "show", cmd_auth_users_show, "Show an end user.", "berth auth users show --app demo usr_123")
     app_opt(p)
     p.add_argument("user_id", metavar="ID")
-    p = cmd(users, "update", cmd_auth_users_update, "Set an end user's password or profile data.",
-            "berth auth users update --app demo usr_123 --password 'new passphrase'")
+    p = cmd(users, "update", cmd_auth_users_update, "Set an end user's password, profile data or claims.",
+            ["berth auth users update --app demo usr_123 --password 'new passphrase'",
+             "berth auth users update --app demo usr_123 --claims '{\"org_id\": \"acme\", \"roles\": [\"editor\"]}'"])
     app_opt(p)
     p.add_argument("user_id", metavar="ID")
     p.add_argument("--password")
     p.add_argument("--data", metavar="JSON")
+    p.add_argument("--claims", metavar="JSON", help="Server-set roles and facts that policies read with _berth.claim().")
     p = cmd(users, "ban", cmd_auth_users_ban, "Ban an end user, or lift a ban.",
             ["berth auth users ban --app demo usr_123", "berth auth users ban --app demo usr_123 --unban"])
     app_opt(p)
@@ -2911,9 +3173,11 @@ def build_parser() -> argparse.ArgumentParser:
             ["berth rpc --app demo add_nums a=2 b=3",
              "berth rpc --app demo claim_job --data '{\"worker\": \"w1\", \"tags\": [\"a\"]}'"])
     app_opt(p)
-    p.add_argument("function", metavar="FUNCTION")
+    p.add_argument("function", metavar="FUNCTION", nargs="?")
     p.add_argument("arg", nargs="*", metavar="NAME=VALUE", help="Named arguments. Values are read as JSON when they parse, else as text.")
     p.add_argument("--data", metavar="JSON", help="All arguments as one JSON object.")
+    p.add_argument("--list", action="store_true", help="List the app's functions and who may call each.")
+    p.add_argument("--allow", choices=("secret", "user", "anon"), help="Set who may call FUNCTION: secret (default), user or anon.")
 
     p = cmd(sub, "logs", cmd_logs, "Show recent API requests to an app.", ["berth logs --app demo --limit 50", "berth logs --app demo --status 4xx"])
     app_opt(p)

@@ -116,7 +116,7 @@ berth migrate firestore firestore.json --app my-app</code></pre>
       <ul>
         <li>Each Firebase user gets a stable Berth id made from their Firebase uid, and the uid is kept in their claims as <code>firebase_uid</code>. Custom claims come along too.</li>
         <li>Firebase's password hashes use a Google-only scrypt variant, so passwords cannot move. Users sign in with an email code, Google or Apple, or reset their password once.</li>
-        <li>Each Firestore collection becomes a table with an <code>id</code> text column and a <code>data</code> jsonb column holding the document. Query fields with SQL (<code>data-&gt;&gt;'name'</code>), or add real columns later.</li>
+        <li>Each Firestore collection becomes a table with a <code>doc_id</code> text column (the Firestore document id) and a <code>data</code> jsonb column holding the document. Query fields with SQL (<code>data-&gt;&gt;'name'</code>), or add real columns later.</li>
       </ul>
       <p>The Firestore file is <code>{"collection": {"docId": {...fields}}}</code>, the shape most export tools produce.</p>
 

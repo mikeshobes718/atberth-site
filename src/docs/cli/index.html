@@ -298,6 +298,35 @@ berth completion zsh &gt; _berth</code></pre>
 
       <h2 id="cleanup">Delete the app</h2>
       <pre class="code" data-lang="bash" data-check><code>berth apps delete "$APP" --yes</code></pre>
+      <h2 id="access-and-scopes">Policies, claims, functions and scoped keys</h2>
+      <pre class="code" data-lang="bash"><code>berth tables policy --app demo docs --read-sql "org_id = _berth.claim('org_id')" --write-sql "_berth.has_role('editor')"
+berth auth users update --app demo USER_ID --claims '{"org_id":"acme","roles":["editor"]}'
+berth rpc --app demo --list                       # every function and who may call it
+berth rpc --app demo my_open_tasks --allow user   # secret, user or anon
+berth keys create --app demo --type secret --scope read --tables orders,customers --expires 30d --name "support agent"
+berth apps audit demo --limit 50                  # who changed what</code></pre>
+      <p>See <a href="/docs/policies/#custom">custom rules</a>, <a href="/docs/policies/#claims">claims</a> and <a href="/docs/keys/#scoped">scoped keys</a>.</p>
+
+      <h2 id="jobs-cli">Background jobs</h2>
+      <pre class="code" data-lang="bash"><code>berth jobs add --app demo send-digest --payload '{"user":42}' --attempts 5 --timeout 10m --key digest-42
+berth jobs add --app demo cleanup --delay 2h
+berth jobs list --app demo --status failed
+berth jobs show --app demo JOB_ID
+berth jobs cancel --app demo JOB_ID</code></pre>
+      <p>See <a href="/docs/jobs/">Background jobs</a>.</p>
+
+      <h2 id="traffic-cli">Per-app limits and bots</h2>
+      <pre class="code" data-lang="bash"><code>berth apps traffic demo                                   # show
+berth apps traffic demo --rpm 600 --ip-rpm 60 --block-bots
+berth apps traffic demo --daily off --allow-bots</code></pre>
+
+      <h2 id="migrate-cli">Migrate</h2>
+      <pre class="code" data-lang="bash"><code>berth migrate postgres --db-url "postgres://user:pass@host:5432/db" --app new_app
+berth migrate supabase --db-url "postgresql://postgres:PW@db.PROJECT.supabase.co:5432/postgres" --app new_app
+berth migrate firebase-auth users.json --app demo
+berth migrate firestore export.json --app demo</code></pre>
+      <p>The first two need <code>pg_dump</code> (and <code>psql</code> for Supabase users) from PostgreSQL 15 or newer. See <a href="/docs/migrate/">Moving to Berth</a>.</p>
+
       <nav class="pager" aria-label="Pages">
         <a href="/docs/sql/"><span>Previous</span>SQL, export, restore</a>
         <a class="nx" href="/docs/api/"><span>Next</span>HTTP API reference</a>
@@ -324,6 +353,10 @@ berth completion zsh &gt; _berth</code></pre>
         <li><a href="#sql">SQL, rpc, and logs</a></li>
         <li><a href="#completion">Shell completion</a></li>
         <li><a href="#cleanup">Delete the app</a></li>
+        <li><a href="#access-and-scopes">Policies, claims, functions and scoped keys</a></li>
+        <li><a href="#jobs-cli">Background jobs</a></li>
+        <li><a href="#traffic-cli">Per-app limits and bots</a></li>
+        <li><a href="#migrate-cli">Migrate</a></li>
       </ul>
     </aside>
   </div>
