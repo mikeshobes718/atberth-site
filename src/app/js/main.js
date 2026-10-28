@@ -739,7 +739,7 @@ function captureBillingIntent() {
     const r = route();
     const ref = sp.get("ref") || (r.query && r.query.ref);
     if (ref && /^[a-z0-9]{4,16}$/i.test(ref)) localStorage.setItem("berth-ref", JSON.stringify({ code: ref.toLowerCase(), at: Date.now() }));
-    if (r.query && (r.query.plan === "pro" || r.query.plan === "agency")) {
+    if (r.query && ["pro", "agency", "business"].includes(r.query.plan)) {
       sessionStorage.setItem("berth.upgrade", JSON.stringify({ plan: r.query.plan, interval: r.query.interval === "year" ? "year" : "month" }));
     }
   } catch {}

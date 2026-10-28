@@ -48,14 +48,14 @@ async function openPortal(btn) {
 }
 
 function planCard(b) {
-  const pro = b.plan === "pro" || b.plan === "agency";
-  const title = b.plan === "agency" ? "Agency" : b.plan === "pro" ? "Pro" : b.plan === "scale" ? "Scale" : "Free";
+  const pro = b.plan === "pro" || b.plan === "agency" || b.plan === "business";
+  const title = b.plan === "agency" ? "Agency" : b.plan === "business" ? "Business" : b.plan === "pro" ? "Pro" : b.plan === "scale" ? "Scale" : "Free";
   let line;
   if (pro && b.cancel_at_period_end && b.renews_at) line = title + " ends on " + fmtDate(b.renews_at) + ". You go back to Free then, and nothing is deleted.";
   else if (pro && b.status === "past_due") line = "The last payment failed. Stripe will try again. Update your card in Manage billing to keep " + title + ".";
   else if (pro && b.renews_at) line = "Renews " + (b.interval === "year" ? "yearly" : "monthly") + " on " + fmtDate(b.renews_at) + ".";
   else if (b.plan === "scale") line = "A custom plan. Email hello@atberth.com to change it.";
-  else line = "Pro raises every limit below: 10 apps, 1,000,000 rows and 5 GB per app, 25 GB storage, 50,000 end users per app. Agency is for client work: 30 apps with Pro limits and 30 sites."
+  else line = "Pro raises every limit below: 10 apps, 1,000,000 rows and 5 GB per app, 25 GB storage, 50,000 end users per app. Agency is for client work: 30 apps with Pro limits and 30 sites. Business is for one big app: 250,000 end users and 10,000,000 rows per app."
       + (b.referral_discount ? " You joined through a referral, so your first month is $12 off." : "");
   const actions = h("div.row", { style: { gap: "10px", flexWrap: "wrap" } });
   if (!pro && b.plan !== "scale") {
@@ -67,6 +67,11 @@ function planCard(b) {
       y.onclick = () => startCheckout("year", y);
       ag.onclick = () => startCheckout("month", ag, "agency");
       actions.append(m, y, ag);
+      if (b.business_prices) {
+        const bz = h("button.btn", { type: "button" }, "Business, $" + b.business_prices.month + " a month");
+        bz.onclick = () => startCheckout("month", bz, "business");
+        actions.append(bz);
+      }
     } else {
       actions.append(h("a.btn", { href: "mailto:hello@atberth.com?subject=Berth%20Pro" }, "Email to upgrade"));
     }
@@ -166,10 +171,10 @@ export default async function account(ctx) {
       billing = null;
     }
     if (!ctx.alive()) return;
-    if (returned && returned.status === "success") toast(billing && (billing.plan === "pro" || billing.plan === "agency") ? "You're on " + (billing.plan === "agency" ? "Agency" : "Pro") + ". Your new limits apply now." : "Payment received. Your plan turns on in a moment.");
+    if (returned && returned.status === "success") toast(billing && ["pro", "agency", "business"].includes(billing.plan) ? "You're on " + ({ agency: "Agency", business: "Business" }[billing.plan] || "Pro") + ". Your new limits apply now." : "Payment received. Your plan turns on in a moment.");
     if (returned && returned.status === "cancel") toast("Checkout canceled. You're still on Free.");
     if (wanted && billing && billing.self_service && billing.plan === "free") {
-      startCheckout(wanted.interval === "year" ? "year" : "month", null, wanted.plan === "agency" ? "agency" : "pro");
+      startCheckout(wanted.interval === "year" ? "year" : "month", null, ["agency", "business"].includes(wanted.plan) ? wanted.plan : "pro");
     }
     let lim = a.limits || {};
     if (returned) {
