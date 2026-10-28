@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Direct database connections. Berth docs</title>
+<meta name="description" content="Connect psql, a GUI, an ORM or Terraform straight to your Berth app&#x27;s Postgres database over TLS.">
+<link rel="canonical" href="https://atberth.com/docs/database/">
+<meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Berth">
+<meta property="og:url" content="https://atberth.com/docs/database/">
+<meta property="og:title" content="Direct database connections. Berth docs">
+<meta property="og:description" content="Connect psql, a GUI, an ORM or Terraform straight to your Berth app&#x27;s Postgres database over TLS.">
+<meta property="og:image" content="https://atberth.com/assets/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+<script>
+(function(){var d=document.documentElement,t;try{t=localStorage.getItem("berth-theme")}catch(e){}if(t!=="light"&&t!=="dark")t=window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";d.setAttribute("data-theme",t);d.classList.add("js")})();
+</script>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/" aria-label="Berth home">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>Berth</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/#platform">Platform</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/compare/">Compare</a>
+      <a href="/docs/" aria-current="page">Docs</a>
+      <a href="/docs/cli/">CLI</a>
+      <a href="/docs/sdk/">Client SDKs</a>
+      <a href="/docs/sdk/">Client SDKs</a>
+      <a href="/docs/sdk/">Client SDKs</a>
+      <a href="/docs/api/">API</a>
+      <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="nav-signin" href="/app/">Sign in</a>
+      <button class="theme" type="button" aria-label="Switch to light theme" data-theme-toggle>
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+      </button>
+      <a class="btn btn-sm btn-light" href="/docs/#quickstart">Quickstart</a>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="doc-main">
+  <div class="wrap doc-layout">
+    <nav class="doc-side" aria-label="Docs">
+      <p class="group">Get started</p>
+      <a href="/docs/">Overview and quickstart</a>
+      <a href="/docs/keys/">Keys and security</a>
+      <a href="/docs/templates/">Templates</a>
+      <p class="group">Build</p>
+      <a href="/docs/auth/">End-user auth</a>
+      <a href="/docs/policies/">Row policies</a>
+      <a href="/docs/queries/">Queries</a>
+      <a href="/docs/realtime/">Realtime</a>
+      <a href="/docs/storage/">Storage</a>
+      <a href="/docs/functions/">Functions</a>
+      <a href="/docs/jobs/">Background jobs</a>
+      <a href="/docs/sites/">Sites</a>
+      <a href="/docs/webhooks/">Webhooks</a>
+      <a href="/docs/sql/">SQL, export, restore</a>
+      <a href="/docs/database/" aria-current="page">Direct connections</a>
+      <p class="group">Reference</p>
+      <a href="/docs/cli/">CLI reference</a>
+      <a href="/docs/api/">HTTP API reference</a>
+      <a href="/docs/limits/">Limits and errors</a>
+      <p class="group">Guides</p>
+      <a href="/docs/supabase/">Migrating from Supabase</a>
+      <a href="/dpa/">Data processing (DPA)</a>
+      <a href="/docs/migrate/">Moving from Firebase, Railway and others</a>
+    </nav>
+
+    <article class="doc">
+      <p class="crumb">Build</p>
+      <h1>Direct database connections</h1>
+      <p class="lede">Point any Postgres tool at your app's database: <code>db.atberth.com</code>, port 5432, TLS, a login that only reaches your app. On Pro and up.</p>
+
+      <h2 id="what">What it is</h2>
+      <p>Every app is its own Postgres 17 database. On Pro, Agency and Business you can connect to it directly, with any tool that speaks Postgres: <code>psql</code>, TablePlus, DBeaver, Postico, Prisma, Drizzle, SQLAlchemy, Metabase, or Terraform's postgresql provider. Free apps use the <a href="/docs/sql/">SQL endpoint</a> and the API instead.</p>
+      <p>The direct login has the same power as the app's secret key. Treat the connection string like that key: keep it on your machine or your server, never in a phone or browser app.</p>
+
+      <h2 id="connect">Turn it on and connect</h2>
+      <pre class="code" data-lang="bash"><code>berth db on --app "$APP"
+# postgresql://app_demo_direct:…@db.atberth.com:5432/app_demo?sslmode=require
+
+psql "postgresql://app_demo_direct:…@db.atberth.com:5432/app_demo?sslmode=require"
+berth db psql --app "$APP"     # or let the CLI open psql for you (this makes a new password)</code></pre>
+      <p>The password is shown once. Run <code>berth db rotate</code> to get a new one: the old one stops working and anyone connected with it is disconnected. <code>berth db off</code> removes the login. The same thing over HTTP, with the app's secret key:</p>
+      <pre class="code" data-lang="bash"><code>curl -X POST   https://api.atberth.com/v1/apps/$APP/database/connection -H "apikey: $SECRET"   # on, or rotate
+curl           https://api.atberth.com/v1/apps/$APP/database/connection -H "apikey: $SECRET"   # host, user, on or off
+curl -X DELETE https://api.atberth.com/v1/apps/$APP/database/connection -H "apikey: $SECRET"   # off</code></pre>
+      <div class="tbl"><table>
+        <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Host and port</td><td><code>db.atberth.com:5432</code></td></tr>
+          <tr><td>Database</td><td><code>app_&lt;your app&gt;</code></td></tr>
+          <tr><td>User</td><td><code>app_&lt;your app&gt;_direct</code></td></tr>
+          <tr><td>TLS</td><td>required. The certificate is a public Let's Encrypt one, so <code>sslmode=verify-full</code> works too.</td></tr>
+          <tr><td>Connections</td><td>5 at a time per app. Use a pool in your server.</td></tr>
+          <tr><td>Statement time</td><td>2 minutes. An open transaction that sits idle for 1 minute is closed.</td></tr>
+        </tbody>
+      </table></div>
+
+      <h2 id="rules">How it fits with the rest of Berth</h2>
+      <ul>
+        <li>You connect as the app's owner, so tables you create in <code>psql</code> show up in the API, the console and backups like any other.</li>
+        <li><a href="/docs/policies/">Row policies</a> apply to end users calling the API. A direct connection is a server-side login, like the secret key, and sees every row.</li>
+        <li>Leave the <code>_berth</code> schema alone. It holds your app's users, sessions and settings.</li>
+        <li>Writes made here skip the API's per-request row checks, so Berth checks the database size every hour. If the app is over its plan's size limit, or the server is short of disk, the login pauses (existing data stays and the API keeps working) and comes back on its own once that's fixed.</li>
+        <li>If the account goes back to Free, the direct login is removed within the hour.</li>
+      </ul>
+
+      <h2 id="security">Security</h2>
+      <p>Only logins named <code>*_direct</code> may connect from outside, only over TLS, only with SCRAM passwords, and only to their own app's database. Postgres's own accounts and Berth's internal ones cannot log in from the internet at all. Passwords are 32 random bytes. An address that fails to log in 10 times in 10 minutes is blocked for an hour, and longer if it keeps trying.</p>
+
+      <h2 id="terraform">Terraform</h2>
+      <p>Manage tables, extensions, roles and grants inside your app's database with the community <code>cyrilgdn/postgresql</code> provider pointed at the direct connection. The app itself, keys and settings stay in the API and CLI.</p>
+      <pre class="code" data-lang="hcl"><code>terraform {
+  required_providers {
+    postgresql = { source = "cyrilgdn/postgresql", version = "~&gt; 1.25" }
+  }
+}
+
+variable "berth_db_password" { sensitive = true }
+
+provider "postgresql" {
+  host      = "db.atberth.com"
+  port      = 5432
+  database  = "app_demo"
+  username  = "app_demo_direct"
+  password  = var.berth_db_password
+  sslmode   = "require"
+  superuser = false
+}
+
+resource "postgresql_extension" "trgm" {
+  name = "pg_trgm"
+}
+
+resource "postgresql_schema" "reporting" {
+  name  = "reporting"
+  owner = "app_demo"
+}</code></pre>
+      <p>For table definitions, most teams prefer a migration tool (Prisma Migrate, Drizzle Kit, Atlas, Flyway, sqitch) over Terraform. Any of them works with the same connection string.</p>
+
+      <nav class="pager" aria-label="Pages">
+        <a href="/docs/sql/"><span>Previous</span>SQL, export, restore</a>
+        <a class="nx" href="/docs/cli/"><span>Next</span>CLI reference</a>
+      </nav>
+    </article>
+
+    <aside class="doc-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#what">What it is</a></li>
+        <li><a href="#connect">Turn it on and connect</a></li>
+        <li><a href="#rules">How it fits with the rest of Berth</a></li>
+        <li><a href="#security">Security</a></li>
+        <li><a href="#terraform">Terraform</a></li>
+      </ul>
+    </aside>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="/" aria-label="Berth home">
+          <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Berth</span>
+        </a>
+      </div>
+      <div>
+        <p class="foot-h">Start</p>
+        <ul>
+          <li><a href="/docs/">Quickstart</a></li>
+          <li><a href="/docs/keys/">Keys and security</a></li>
+          <li><a href="/docs/supabase/">From Supabase</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Build</p>
+        <ul>
+          <li><a href="/docs/auth/">End-user auth</a></li>
+          <li><a href="/docs/queries/">Queries</a></li>
+          <li><a href="/docs/storage/">Storage</a></li>
+          <li><a href="/docs/functions/">Functions</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Reference</p>
+        <ul>
+          <li><a href="/docs/cli/">CLI</a></li>
+          <li><a href="/docs/api/">HTTP API</a></li>
+          <li><a href="/docs/limits/">Limits and errors</a></li>
+          <li><a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Connect</p>
+        <ul>
+          <li><a href="mailto:hello@atberth.com?subject=Berth">Email</a></li>
+          <li><a href="/privacy/">Privacy</a></li>
+          <li><a href="/terms/">Terms</a></li>
+          <li><a href="/compare/">Compare</a></li>
+          <li><a href="/alternatives/">Alternatives</a></li>
+          <li><a href="/status/">Status</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-base">
+      <p>&copy; 2026 Berth.</p>
+      <p>API base: https://api.atberth.com/v1</p>
+    </div>
+  </div>
+</footer>
+<script src="/main.js" defer></script>
+</body>
+</html>

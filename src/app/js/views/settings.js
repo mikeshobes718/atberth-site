@@ -1,4 +1,4 @@
-import { api, patch, del, enc } from "../api.js";
+import { api, get, post, patch, del, enc } from "../api.js";
 import { h, mount, icon, toast, toastError, confirmDanger, input, busy, copyBtn, download, fmtDateTime, fmtBytes, spinner, field, toggle } from "../ui.js";
 import { state, go, loadApps } from "../state.js";
 
@@ -35,6 +35,32 @@ export default async function settings(ctx) {
         }) }, "Save traffic settings")
       )
     );
+  }
+  // Direct Postgres for psql, GUIs, ORMs and Terraform. Paid plans; the password is shown once.
+  function directCard() {
+    const body = h("div.card-b.stack", { style: { gap: "12px" } }, spinner());
+    const foot = h("div.card-f");
+    const draw = (c, fresh) => {
+      const rows = [
+        h("div.grid.g3", field("Host", h("code.mono", c.host + ":" + c.port)), field("Database", h("code.mono", c.database)), field("User", h("code.mono", c.user))),
+      ];
+      if (fresh) rows.push(h("div.stack", { style: { gap: "6px" } }, h("div.small", "Connection string. The password is shown only now, so copy it somewhere safe:"),
+        h("div.row", { style: { gap: "8px", alignItems: "center" } }, h("code.mono.small", { style: { wordBreak: "break-all" } }, c.uri), copyBtn(c.uri))));
+      if (c.enabled && c.active === false) rows.push(h("div.small", "Paused: " + (c.paused_reason || "over a limit")));
+      if (!c.enabled) rows.push(h("div.small.dim", "Off. Turn it on to connect psql, TablePlus, Prisma, Metabase or Terraform. Pro, Agency and Business only."));
+      mount(body, ...rows);
+      const on = h("button.btn" + (c.enabled ? "" : ".primary"), { type: "button", onclick: (e) => busy(e.currentTarget, async () => {
+        try { const out = await post(base + "/database/connection"); draw(out.connection, true); toast(out.rotated ? "New password made; the old one stopped working" : "Direct connections are on"); }
+        catch (err) { toastError(err); }
+      }) }, c.enabled ? "Make a new password" : "Turn on");
+      const off = c.enabled ? h("button.btn.danger", { type: "button", onclick: (e) => busy(e.currentTarget, async () => {
+        try { const out = await del(base + "/database/connection"); draw(out.connection, false); toast("Direct connections are off"); }
+        catch (err) { toastError(err); }
+      }) }, "Turn off") : null;
+      mount(foot, on, off, h("a.btn.ghost", { href: "/docs/database/", target: "_blank", rel: "noopener" }, "How to connect"));
+    };
+    get(base + "/database/connection").then((r) => draw(r.connection, false)).catch((err) => mount(body, h("div.small.dim", err.message || "Could not load.")));
+    return h("section.card", h("div.card-h", h("div", h("h2", "Direct database connection"), h("div.sub", "Postgres over TLS at db.atberth.com, with a login that only reaches this app. Same power as the secret key."))), body, foot);
   }
   const page = h("div.page");
   ctx.root.append(page);
@@ -128,6 +154,7 @@ export default async function settings(ctx) {
         )
       ),
       trafficCard(),
+      directCard(),
       h(
         "section.card",
         h("div.card-h", h("div", h("h2", "Backup"), h("div.sub", "Download the whole database as a pg_dump custom format file. Restore it into a new app from the apps page, or with pg_restore."))),

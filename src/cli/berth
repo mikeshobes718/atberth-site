@@ -22,7 +22,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-VERSION = "2.8.0"
+VERSION = "2.9.0"
 DEFAULT_API = "https://api.atberth.com/v1"
 FILTER_OPS = ("eq", "neq", "gt", "gte", "lt", "lte", "like", "ilike", "in", "is", "cs")
 INT_TYPES = {"integer", "bigint", "int", "int2", "int4", "int8", "smallint"}
@@ -1032,6 +1032,51 @@ def cmd_jobs_cancel(args) -> None:
     app = resolve_app(args)
     payload = app_api(app, "DELETE", app_path(app, "jobs", args.job_id))
     emit(payload, f"Cancelled job {args.job_id}.")
+
+
+def cmd_db_info(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "GET", app_path(app, "database", "connection"))
+    c = payload.get("connection") or {}
+    def human():
+        if not c.get("enabled"):
+            print("Direct connections are off. Turn them on with: berth db on --app " + app)
+            return
+        print_kv({k: c[k] for k in ("host", "port", "database", "user", "sslmode", "max_connections") if k in c})
+        if c.get("active") is False:
+            print("\nPaused: " + (c.get("paused_reason") or "over a limit"))
+        print("\nThe password was shown once when you turned it on. Get a new one with: berth db rotate --app " + app)
+    emit(payload, human)
+
+
+def cmd_db_on(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "POST", app_path(app, "database", "connection"))
+    c = payload.get("connection") or {}
+    def human():
+        print(("New password for " if payload.get("rotated") else "Direct connections are on for ") + app + ". Save it now, it is not shown again:\n")
+        print("  " + c.get("uri", ""))
+        print("\n  psql \"" + c.get("uri", "") + "\"")
+        if c.get("active") is False:
+            print("\nPaused for now: " + (c.get("paused_reason") or ""))
+    emit(payload, human)
+
+
+def cmd_db_off(args) -> None:
+    app = resolve_app(args)
+    payload = app_api(app, "DELETE", app_path(app, "database", "connection"))
+    emit(payload, f"Direct connections are off for {app}. Anyone connected was disconnected.")
+
+
+def cmd_db_psql(args) -> None:
+    app = resolve_app(args)
+    exe = shutil.which("psql")
+    if not exe:
+        usage("berth db psql needs psql. On a Mac: brew install libpq.")
+    payload = app_api(app, "POST", app_path(app, "database", "connection"))
+    uri = (payload.get("connection") or {}).get("uri")
+    print(f"Connecting to {app} with a fresh password (the previous one stopped working).", file=sys.stderr)
+    os.execv(exe, [exe, uri])
 
 
 def _pg_dump(db_url: str, out: Path) -> None:
@@ -2680,6 +2725,18 @@ def build_parser() -> argparse.ArgumentParser:
     p = cmd(jobs, "cancel", cmd_jobs_cancel, "Cancel a job that has not started.", "berth jobs cancel --app demo JOB_ID")
     app_opt(p)
     p.add_argument("job_id", metavar="JOB_ID")
+
+    db = group(sub, "db", "Connect psql, a GUI, an ORM or Terraform straight to an app's Postgres (Pro and up).", "berth db on --app demo")
+    p = cmd(db, "info", cmd_db_info, "Show host, port, database and user, and whether it is on.", "berth db info --app demo")
+    app_opt(p)
+    p = cmd(db, "on", cmd_db_on, "Turn direct connections on and print the connection URI (the password is shown once).", "berth db on --app demo")
+    app_opt(p)
+    p = cmd(db, "rotate", cmd_db_on, "Make a new password; the old one stops working and open sessions are closed.", "berth db rotate --app demo")
+    app_opt(p)
+    p = cmd(db, "off", cmd_db_off, "Turn direct connections off and disconnect everyone.", "berth db off --app demo")
+    app_opt(p)
+    p = cmd(db, "psql", cmd_db_psql, "Open psql on the app's database (rotates the password).", "berth db psql --app demo")
+    app_opt(p)
 
     mig = group(sub, "migrate", "Move to Berth from Postgres hosts, Supabase or Firebase.", "berth migrate postgres --db-url URL --app new_app")
     p = cmd(mig, "postgres", cmd_migrate_postgres, "Copy a Postgres database (Railway, Neon, Render, Heroku) into a new app.",

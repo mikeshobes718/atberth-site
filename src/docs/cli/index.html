@@ -42,6 +42,7 @@
       <a href="/docs/" aria-current="page">Docs</a>
       <a href="/docs/cli/">CLI</a>
       <a href="/docs/sdk/">Client SDKs</a>
+      <a href="/docs/sdk/">Client SDKs</a>
       <a href="/docs/api/">API</a>
       <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
     </nav>
@@ -74,6 +75,7 @@
       <a href="/docs/sites/">Sites</a>
       <a href="/docs/webhooks/">Webhooks</a>
       <a href="/docs/sql/">SQL, export, restore</a>
+      <a href="/docs/database/">Direct connections</a>
       <p class="group">Reference</p>
       <a href="/docs/cli/" aria-current="page">CLI reference</a>
       <a href="/docs/api/">HTTP API reference</a>
@@ -315,6 +317,14 @@ berth jobs show --app demo JOB_ID
 berth jobs cancel --app demo JOB_ID</code></pre>
       <p>See <a href="/docs/jobs/">Background jobs</a>.</p>
 
+      <h2 id="db-cli">Direct database connections</h2>
+      <pre class="code" data-lang="bash"><code>berth db on --app demo        # prints postgresql://…@db.atberth.com:5432/app_demo?sslmode=require (password shown once)
+berth db info --app demo      # host, database, user, on or paused
+berth db rotate --app demo    # new password; the old one stops working
+berth db psql --app demo      # open psql (makes a new password)
+berth db off --app demo</code></pre>
+      <p>Pro, Agency and Business. See <a href="/docs/database/">Direct connections</a>.</p>
+
       <h2 id="traffic-cli">Per-app limits and bots</h2>
       <pre class="code" data-lang="bash"><code>berth apps traffic demo                                   # show
 berth apps traffic demo --rpm 600 --ip-rpm 60 --block-bots
@@ -355,6 +365,7 @@ berth migrate firestore export.json --app demo</code></pre>
         <li><a href="#cleanup">Delete the app</a></li>
         <li><a href="#access-and-scopes">Policies, claims, functions and scoped keys</a></li>
         <li><a href="#jobs-cli">Background jobs</a></li>
+        <li><a href="#db-cli">Direct database</a></li>
         <li><a href="#traffic-cli">Per-app limits and bots</a></li>
         <li><a href="#migrate-cli">Migrate</a></li>
       </ul>
