@@ -221,7 +221,7 @@ async function restoreApp(ctx) {
   });
   modal({
     title: "Restore from a dump",
-    text: "Creates a new app from a pg_dump custom format file, like the one Export gives you. Up to 200 MB.",
+    text: "Creates a new app from a pg_dump custom format file, like the one Export gives you, or one from Railway, Neon or Supabase. Up to 2 GB.",
     body: h("div.form", field("New app name", name), h("div.row", pick, fileLabel)),
     actions: [
       { label: "Cancel" },

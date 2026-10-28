@@ -41,6 +41,7 @@
       <a href="/compare/">Compare</a>
       <a href="/docs/" aria-current="page">Docs</a>
       <a href="/docs/cli/">CLI</a>
+      <a href="/docs/sdk/">Client SDKs</a>
       <a href="/docs/api/">API</a>
       <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
     </nav>
@@ -69,6 +70,7 @@
       <a href="/docs/realtime/">Realtime</a>
       <a href="/docs/storage/">Storage</a>
       <a href="/docs/functions/">Functions</a>
+      <a href="/docs/jobs/">Background jobs</a>
       <a href="/docs/sites/">Sites</a>
       <a href="/docs/webhooks/">Webhooks</a>
       <a href="/docs/sql/">SQL, export, restore</a>
@@ -78,6 +80,8 @@
       <a href="/docs/limits/">Limits and errors</a>
       <p class="group">Guides</p>
       <a href="/docs/supabase/">Migrating from Supabase</a>
+      <a href="/dpa/">Data processing (DPA)</a>
+      <a href="/docs/migrate/">Moving from Firebase, Railway and others</a>
     </nav>
 
     <article class="doc">
@@ -149,6 +153,26 @@ echo "$KEY_ID"</code></pre>
   -H "Authorization: Bearer $SECRET_KEY" \
   -H "Content-Type: application/json" \
   -d '{"cors_origins":["*"]}'</code></pre>
+      <h2 id="scoped">Scoped keys for agents and tools</h2>
+      <p>A full secret key can do anything, so don't give one to an AI agent, a reporting tool or a contractor's script. Give it a scoped key instead: it can only read rows, or read and write rows, optionally only in named tables. Scoped keys can also expire.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/keys \
+  -H "Authorization: Bearer $SECRET_KEY" -H "Content-Type: application/json" \
+  -d '{"name":"support agent","scope":{"access":"read","tables":["orders","customers"]},"expires_in":2592000}'</code></pre>
+      <div class="tbl"><table>
+        <thead><tr><th>Scope</th><th>Can</th><th>Cannot</th></tr></thead>
+        <tbody>
+          <tr><td><code>{"access":"read"}</code></td><td>list tables, read rows, stream changes</td><td>write anything</td></tr>
+          <tr><td><code>{"access":"write"}</code></td><td>the above, plus insert, update and delete rows</td><td>change schema</td></tr>
+          <tr><td>add <code>"tables":[...]</code></td><td>only those tables</td><td>see any other table</td></tr>
+        </tbody>
+      </table></div>
+      <p>No scoped key can run SQL, change schema or policies, deploy functions, manage keys, touch storage, or change settings. Those answer <code>403 scope_denied</code>. <code>expires_in</code> is 60 seconds to 366 days.</p>
+
+      <h2 id="audit">Audit log</h2>
+      <p>Every change made to an app with an account key or a secret key is recorded: schema and policy changes, keys created and revoked, settings, SQL runs, function deploys, user changes and claims, and imports. Each entry says who did it (the account email or the key's name), when, the route and the source IP. Row traffic from your users is left out; it is in the request logs.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS "https://api.atberth.com/v1/apps/$APP/audit?limit=50" -H "Authorization: Bearer $SECRET_KEY"</code></pre>
+      <p>Pass <code>before</code> with the last entry's id for older entries. Entries are kept for 400 days.</p>
+
       <nav class="pager" aria-label="Pages">
         <a href="/docs/"><span>Previous</span>Overview and quickstart</a>
         <a class="nx" href="/docs/auth/"><span>Next</span>End-user auth</a>
@@ -165,6 +189,8 @@ echo "$KEY_ID"</code></pre>
         <li><a href="#publishable">Publishable keys and policies</a></li>
         <li><a href="#isolation">Tenant isolation</a></li>
         <li><a href="#cors">Browser origins</a></li>
+        <li><a href="#scoped">Scoped keys for agents and tools</a></li>
+        <li><a href="#audit">Audit log</a></li>
       </ul>
     </aside>
   </div>

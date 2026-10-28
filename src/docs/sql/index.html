@@ -41,6 +41,7 @@
       <a href="/compare/">Compare</a>
       <a href="/docs/" aria-current="page">Docs</a>
       <a href="/docs/cli/">CLI</a>
+      <a href="/docs/sdk/">Client SDKs</a>
       <a href="/docs/api/">API</a>
       <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
     </nav>
@@ -69,6 +70,7 @@
       <a href="/docs/realtime/">Realtime</a>
       <a href="/docs/storage/">Storage</a>
       <a href="/docs/functions/">Functions</a>
+      <a href="/docs/jobs/">Background jobs</a>
       <a href="/docs/sites/">Sites</a>
       <a href="/docs/webhooks/">Webhooks</a>
       <a href="/docs/sql/" aria-current="page">SQL, export, restore</a>
@@ -78,6 +80,8 @@
       <a href="/docs/limits/">Limits and errors</a>
       <p class="group">Guides</p>
       <a href="/docs/supabase/">Migrating from Supabase</a>
+      <a href="/dpa/">Data processing (DPA)</a>
+      <a href="/docs/migrate/">Moving from Firebase, Railway and others</a>
     </nav>
 
     <article class="doc">
@@ -153,7 +157,7 @@ curl -sS -o backup-curl.dump https://api.atberth.com/v1/apps/$APP/export \
 ls -l backup.dump backup-curl.dump</code></pre>
 
       <h2 id="restore">Restore</h2>
-      <p>Restore always creates a new app from a dump, so it can never overwrite a live one. It needs the account key and answers like app creation, with fresh keys. Up to 200 MB.</p>
+      <p>Restore always creates a new app from a dump, so it can never overwrite a live one. It needs the account key and answers like app creation, with fresh keys. Up to 2 GB. Dumps made with <code>-n public</code> restore as they are; for a Supabase dump add <code>?compat=supabase</code> (see <a href="/docs/migrate/">Moving to Berth</a>).</p>
       <pre class="code" data-lang="bash" data-check><code>berth apps restore "${APP}_copy" backup.dump
 berth sql --app "${APP}_copy" 'select count(*) from notes'</code></pre>
       <pre class="code" data-lang="bash" data-check><code>curl -sS -X POST https://api.atberth.com/v1/apps/${APP}_curl/restore \

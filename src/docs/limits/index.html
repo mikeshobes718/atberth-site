@@ -41,6 +41,7 @@
       <a href="/compare/">Compare</a>
       <a href="/docs/" aria-current="page">Docs</a>
       <a href="/docs/cli/">CLI</a>
+      <a href="/docs/sdk/">Client SDKs</a>
       <a href="/docs/api/">API</a>
       <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
     </nav>
@@ -69,6 +70,7 @@
       <a href="/docs/realtime/">Realtime</a>
       <a href="/docs/storage/">Storage</a>
       <a href="/docs/functions/">Functions</a>
+      <a href="/docs/jobs/">Background jobs</a>
       <a href="/docs/sites/">Sites</a>
       <a href="/docs/webhooks/">Webhooks</a>
       <a href="/docs/sql/">SQL, export, restore</a>
@@ -78,6 +80,8 @@
       <a href="/docs/limits/" aria-current="page">Limits and errors</a>
       <p class="group">Guides</p>
       <a href="/docs/supabase/">Migrating from Supabase</a>
+      <a href="/dpa/">Data processing (DPA)</a>
+      <a href="/docs/migrate/">Moving from Firebase, Railway and others</a>
     </nav>
 
     <article class="doc">
@@ -98,7 +102,7 @@
           <tr><td>requests per minute</td><td>1,200 across the account's apps</td></tr>
           <tr><td>JSON body</td><td>1 MB, 1,000 rows per insert</td></tr>
           <tr><td>import body</td><td>20 MB</td></tr>
-          <tr><td>restore body</td><td>200 MB</td></tr>
+          <tr><td>restore body</td><td>2 GB (and only while the server has room)</td></tr>
           <tr><td>functions per app</td><td>20, source 1 MB</td></tr>
           <tr><td>function timeout</td><td>default 10 s, max 30 s</td></tr>
           <tr><td>function heap</td><td>default 128 MB, max 256 MB</td></tr>
@@ -174,6 +178,25 @@ curl -sS https://api.atberth.com/v1/apps/$APP/usage \
         <li>Send an <code>Idempotency-Key</code> on writes you might retry, so a retry never inserts twice. See <a href="/docs/queries/#idempotency">Queries</a>.</li>
         <li>Do not retry 4xx errors other than 429 without changing the request.</li>
       </ul>
+      <h2 id="traffic">Per-app limits and bot blocking</h2>
+      <p>Your plan's limits apply to the whole account. To stop one app, or one bot, from using it all, give an app its own limits:</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP \
+  -H "Authorization: Bearer $SECRET_KEY" -H "Content-Type: application/json" \
+  -d '{"traffic":{"rpm":600,"ip_rpm":60,"daily_requests":200000,"block_bots":true}}'</code></pre>
+      <div class="tbl"><table>
+        <thead><tr><th>Setting</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>rpm</code></td><td>requests per minute for this app, from every key (10 to 100,000)</td></tr>
+          <tr><td><code>ip_rpm</code></td><td>requests per minute from one visitor's IP, with the publishable key or a user token (5 to 100,000)</td></tr>
+          <tr><td><code>daily_requests</code></td><td>a hard cap per UTC day; past it, requests get <code>429 daily_limit</code></td></tr>
+          <tr><td><code>block_bots</code></td><td>refuses crawlers, scrapers and scripted clients (no User-Agent, curl, python-requests, GPTBot and others) with <code>403 bot_blocked</code>. Your server's secret key is never blocked.</td></tr>
+        </tbody>
+      </table></div>
+      <p>Set a field to <code>null</code> to remove it.</p>
+
+      <h2 id="alerts">Usage alerts</h2>
+      <p>Berth plans have hard limits and no overage charges, so there is never a surprise bill. The surprise to avoid is an app that stops accepting writes. Berth emails the account owner when usage reaches 80%, and again at 100%, of: apps, rows and database size per app, users per app, and file storage. It also emails if your apps were rate limited more than 100 times in an hour. Each alert is sent once and re-arms when usage drops back under 70%. Turn alerts off with <code>PATCH /v1/account/notifications {"usage_alerts": false}</code>.</p>
+
       <nav class="pager" aria-label="Pages">
         <a href="/docs/api/"><span>Previous</span>HTTP API reference</a>
         <a class="nx" href="/docs/supabase/"><span>Next</span>Migrating from Supabase</a>
@@ -188,6 +211,8 @@ curl -sS https://api.atberth.com/v1/apps/$APP/usage \
         <li><a href="#format">Error format</a></li>
         <li><a href="#codes">Error codes</a></li>
         <li><a href="#retrying">What to retry</a></li>
+        <li><a href="#traffic">Per-app limits and bot blocking</a></li>
+        <li><a href="#alerts">Usage alerts</a></li>
       </ul>
     </aside>
   </div>

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Moving to Berth. Berth docs</title>
+<meta name="description" content="Move to Berth from Railway, Neon, Supabase or Firebase: one command for Postgres data, users keep their ids and bcrypt passwords.">
+<link rel="canonical" href="https://atberth.com/docs/migrate/">
+<meta name="theme-color" content="#08090b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f6f6f3" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="light dark">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Berth">
+<meta property="og:url" content="https://atberth.com/docs/migrate/">
+<meta property="og:title" content="Moving to Berth. Berth docs">
+<meta property="og:description" content="Move to Berth from Railway, Neon, Supabase or Firebase: one command for Postgres data, users keep their ids and bcrypt passwords.">
+<meta property="og:image" content="https://atberth.com/assets/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+<script>
+(function(){var d=document.documentElement,t;try{t=localStorage.getItem("berth-theme")}catch(e){}if(t!=="light"&&t!=="dark")t=window.matchMedia&&matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";d.setAttribute("data-theme",t);d.classList.add("js")})();
+</script>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="grain" aria-hidden="true"></div>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="/" aria-label="Berth home">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <span>Berth</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/#platform">Platform</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/compare/">Compare</a>
+      <a href="/docs/" aria-current="page">Docs</a>
+      <a href="/docs/cli/">CLI</a>
+      <a href="/docs/sdk/">Client SDKs</a>
+      <a href="/docs/sdk/">Client SDKs</a>
+      <a href="/docs/api/">API</a>
+      <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="nav-signin" href="/app/">Sign in</a>
+      <button class="theme" type="button" aria-label="Switch to light theme" data-theme-toggle>
+        <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+      </button>
+      <a class="btn btn-sm btn-light" href="/docs/#quickstart">Quickstart</a>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="doc-main">
+  <div class="wrap doc-layout">
+    <nav class="doc-side" aria-label="Docs">
+      <p class="group">Get started</p>
+      <a href="/docs/">Overview and quickstart</a>
+      <a href="/docs/keys/">Keys and security</a>
+      <a href="/docs/templates/">Templates</a>
+      <p class="group">Build</p>
+      <a href="/docs/auth/">End-user auth</a>
+      <a href="/docs/policies/">Row policies</a>
+      <a href="/docs/queries/">Queries</a>
+      <a href="/docs/realtime/">Realtime</a>
+      <a href="/docs/storage/">Storage</a>
+      <a href="/docs/functions/">Functions</a>
+      <a href="/docs/jobs/">Background jobs</a>
+      <a href="/docs/sites/">Sites</a>
+      <a href="/docs/webhooks/">Webhooks</a>
+      <a href="/docs/sql/">SQL, export, restore</a>
+      <p class="group">Reference</p>
+      <a href="/docs/cli/">CLI reference</a>
+      <a href="/docs/api/">HTTP API reference</a>
+      <a href="/docs/limits/">Limits and errors</a>
+      <p class="group">Guides</p>
+      <a href="/docs/supabase/">Migrating from Supabase</a>
+      <a href="/dpa/">Data processing (DPA)</a>
+      <a href="/docs/migrate/" aria-current="page">Moving from Firebase, Railway and others</a>
+    </nav>
+
+    <article class="doc">
+      <p class="crumb">Guides</p>
+      <h1>Moving to Berth</h1>
+      <p class="lede">Bring your database and your users over from Railway, Neon, Supabase or Firebase. Users keep their ids, and bcrypt passwords keep working.</p>
+
+      <h2 id="postgres">Any Postgres: Railway, Neon, Render, Heroku</h2>
+      <p>If your data is in Postgres, one command copies it into a new Berth app. It runs <code>pg_dump</code> on your computer (install PostgreSQL client tools 15 or newer), keeps only the <code>public</code> schema, and restores it. Dumps up to 2 GB.</p>
+      <pre class="code" data-lang="bash"><code>berth migrate postgres --db-url "postgres://user:pass@host:5432/db" --app my-new-app</code></pre>
+      <p>Every table arrives secret-key only. Then set each table's <a href="/docs/policies/">policy</a>, create keys, and point your app at Berth. Already have a dump? <code>berth apps restore my-new-app backup.dump</code> does the same with a file.</p>
+
+      <h2 id="supabase">Supabase, with users and passwords</h2>
+      <pre class="code" data-lang="bash"><code>berth migrate supabase --db-url "postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres" --app my-new-app</code></pre>
+      <p>This copies the <code>public</code> schema and your users. It also makes Supabase's own pieces work, so the dump restores as is: <code>extensions.uuid_generate_v4()</code>, <code>auth.uid()</code>, <code>auth.role()</code> and <code>auth.jwt()</code>, and the <code>anon</code> and <code>authenticated</code> roles. Then it moves <code>auth.users</code> over:</p>
+      <ul>
+        <li>User ids stay the same, so your <code>user_id</code> columns still point at the right people.</li>
+        <li>Passwords keep working: Supabase's bcrypt hashes are accepted, and each one is upgraded to Berth's own on that user's next sign-in.</li>
+        <li><code>raw_user_meta_data</code> becomes the user's <code>data</code>, and <code>raw_app_meta_data</code> becomes their <a href="/docs/policies/#claims">claims</a>.</li>
+      </ul>
+      <p>Supabase's RLS policies come along, but Berth's table policies decide access, so recreate each rule as a <a href="/docs/policies/#custom">custom policy</a>. Most translate directly: <code>auth.uid() = user_id</code> works as written. The longer walk-through is in <a href="/docs/supabase/">Migrating from Supabase</a>.</p>
+
+      <h2 id="firebase">Firebase</h2>
+      <p>Firebase has two parts to move: users and Firestore data.</p>
+      <pre class="code" data-lang="bash"><code># 1. Users: export with the Firebase CLI, then import.
+firebase auth:export users.json --format=json --project my-project
+berth migrate firebase-auth users.json --app my-app
+
+# 2. Firestore: export each collection to JSON (one object per document, keyed by id), then import.
+berth migrate firestore firestore.json --app my-app</code></pre>
+      <ul>
+        <li>Each Firebase user gets a stable Berth id made from their Firebase uid, and the uid is kept in their claims as <code>firebase_uid</code>. Custom claims come along too.</li>
+        <li>Firebase's password hashes use a Google-only scrypt variant, so passwords cannot move. Users sign in with an email code, Google or Apple, or reset their password once.</li>
+        <li>Each Firestore collection becomes a table with an <code>id</code> text column and a <code>data</code> jsonb column holding the document. Query fields with SQL (<code>data-&gt;&gt;'name'</code>), or add real columns later.</li>
+      </ul>
+      <p>The Firestore file is <code>{"collection": {"docId": {...fields}}}</code>, the shape most export tools produce.</p>
+
+      <h2 id="users-api">Users from anywhere else</h2>
+      <p>The import endpoint takes up to 5,000 users per call, from <code>supabase</code>, <code>firebase</code> or plain <code>berth</code> format, and skips emails that already exist.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X POST https://api.atberth.com/v1/apps/$APP/auth/users/import \
+  -H "Authorization: Bearer $SECRET_KEY" -H "Content-Type: application/json" \
+  -d '{"source":"berth","users":[{"email":"ana@example.com","password_hash":"$2b$10$...","email_verified":true,
+       "data":{"name":"Ana"},"claims":{"roles":["admin"]}}]}'</code></pre>
+      <p>bcrypt hashes (<code>$2a$</code>, <code>$2b$</code>, <code>$2y$</code>), from Auth0, Clerk exports or your own database, keep working. Other hash formats are dropped and those users sign in with a code.</p>
+
+      <h2 id="after">After the move</h2>
+      <ol>
+        <li>Set each table's policy, and allow the functions your app calls from the client (<code>PUT /rpc/{fn}/access</code>).</li>
+        <li>Swap your client library for a <a href="/docs/sdk/">Berth SDK</a>, or call the HTTP API.</li>
+        <li>Move files with <code>berth storage upload</code>, and cron or worker code to <a href="/docs/functions/">functions</a> and <a href="/docs/jobs/">jobs</a>.</li>
+        <li>Turn on <a href="/docs/limits/#traffic">bot blocking and per-app limits</a> if your old host had a bot problem.</li>
+      </ol>
+
+      <nav class="pager" aria-label="Pages">
+        <a href="/docs/supabase/"><span>Previous</span>Migrating from Supabase</a>
+        <a class="nx" href="/docs/"><span>Next</span>Overview</a>
+      </nav>
+    </article>
+
+    <aside class="doc-toc" aria-label="On this page">
+      <p>On this page</p>
+      <ul>
+        <li><a href="#postgres">Any Postgres</a></li>
+        <li><a href="#supabase">Supabase</a></li>
+        <li><a href="#firebase">Firebase</a></li>
+        <li><a href="#users-api">Users from anywhere else</a></li>
+        <li><a href="#after">After the move</a></li>
+      </ul>
+    </aside>
+  </div>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a class="brand" href="/" aria-label="Berth home">
+          <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="1.5" y="1.5" width="21" height="21" rx="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M6 14.5h12M8.5 14.5v3.5M12 14.5v3.5M15.5 14.5v3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M8 11.2c1.2-2.4 2.5-3.6 4-3.6s2.8 1.2 4 3.6" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span>Berth</span>
+        </a>
+      </div>
+      <div>
+        <p class="foot-h">Start</p>
+        <ul>
+          <li><a href="/docs/">Quickstart</a></li>
+          <li><a href="/docs/keys/">Keys and security</a></li>
+          <li><a href="/docs/supabase/">From Supabase</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Build</p>
+        <ul>
+          <li><a href="/docs/auth/">End-user auth</a></li>
+          <li><a href="/docs/queries/">Queries</a></li>
+          <li><a href="/docs/storage/">Storage</a></li>
+          <li><a href="/docs/functions/">Functions</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Reference</p>
+        <ul>
+          <li><a href="/docs/cli/">CLI</a></li>
+          <li><a href="/docs/api/">HTTP API</a></li>
+          <li><a href="/docs/limits/">Limits and errors</a></li>
+          <li><a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="foot-h">Connect</p>
+        <ul>
+          <li><a href="mailto:hello@atberth.com?subject=Berth">Email</a></li>
+          <li><a href="/privacy/">Privacy</a></li>
+          <li><a href="/terms/">Terms</a></li>
+          <li><a href="/compare/">Compare</a></li>
+          <li><a href="/alternatives/">Alternatives</a></li>
+          <li><a href="/status/">Status</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-base">
+      <p>&copy; 2026 Berth.</p>
+      <p>API base: https://api.atberth.com/v1</p>
+    </div>
+  </div>
+</footer>
+<script src="/main.js" defer></script>
+</body>
+</html>

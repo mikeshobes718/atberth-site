@@ -41,6 +41,7 @@
       <a href="/compare/">Compare</a>
       <a href="/docs/" aria-current="page">Docs</a>
       <a href="/docs/cli/">CLI</a>
+      <a href="/docs/sdk/">Client SDKs</a>
       <a href="/docs/api/">API</a>
       <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
     </nav>
@@ -69,6 +70,7 @@
       <a href="/docs/realtime/">Realtime</a>
       <a href="/docs/storage/">Storage</a>
       <a href="/docs/functions/">Functions</a>
+      <a href="/docs/jobs/">Background jobs</a>
       <a href="/docs/sites/">Sites</a>
       <a href="/docs/webhooks/">Webhooks</a>
       <a href="/docs/sql/">SQL, export, restore</a>
@@ -78,12 +80,14 @@
       <a href="/docs/limits/">Limits and errors</a>
       <p class="group">Guides</p>
       <a href="/docs/supabase/" aria-current="page">Migrating from Supabase</a>
+      <a href="/dpa/">Data processing (DPA)</a>
+      <a href="/docs/migrate/">Moving from Firebase, Railway and others</a>
     </nav>
 
     <article class="doc">
       <p class="crumb">Guides</p>
       <h1>Migrating from Supabase</h1>
-      <p class="lede">Berth follows many of the same ideas as Supabase: Postgres per project, PostgREST style filters, a publishable key plus user JWT, row level security. There is no client SDK, so each supabase-js call becomes one <code>fetch</code>. This page maps them, and lists what Berth does not do.</p>
+      <p class="lede">Berth follows many of the same ideas as Supabase: Postgres per project, PostgREST style filters, a publishable key plus user JWT, row level security. You can use the <a href="/docs/sdk/">Berth JavaScript SDK</a>, or plain <code>fetch</code>: this page maps each supabase-js call to one request, and lists what Berth does not do.</p>
 
       <h2 id="client">Client setup</h2>
       <div class="tbl"><table>
@@ -243,10 +247,13 @@ berth apps export "$APP" -o notes_app.dump</code></pre>
         <li><strong>Social login is Google and Apple only.</strong> Email and password, email codes, Sign in with Google and Sign in with Apple are built in (see <a href="/docs/auth/">Auth</a>). There is no GitHub, Facebook or generic OAuth provider yet.</li>
         <li><strong>No <code>or=</code> filters.</strong> Filters are ANDed. Use <code>in.(...)</code> or SQL.</li>
         <li><strong>No phone or SMS auth.</strong></li>
-        <li><strong>No presence or broadcast channels.</strong> Realtime is row changes only.</li>
-        <li><strong>No client SDK.</strong> Plain HTTPS and the CLI.</li>
-        <li><strong>No custom policy expressions in the API.</strong> The four policy levels, plus functions for anything else.</li>
+        <li><strong>Realtime channels are Server-Sent Events.</strong> Broadcast and presence work (see <a href="/docs/realtime/#channels">channels</a>), over SSE instead of a websocket.</li>
+        <li><strong>Lighter SDKs.</strong> One-file <a href="/docs/sdk/">JavaScript, Swift and Kotlin clients</a>, not supabase-js. The query builder covers filters, order and paging, not embedded joins.</li>
+        <li><strong>Policies are set through the API.</strong> <a href="/docs/policies/#custom">Custom SQL rules</a> with <code>_berth.uid()</code> and claims replace hand-written <code>CREATE POLICY</code> statements.</li>
       </ul>
+      <h2 id="migrate-command">The one-command version</h2>
+      <p><code>berth migrate supabase --db-url "postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres" --app my-new-app</code> copies your <code>public</code> schema and your users, with their ids and passwords. Details are in <a href="/docs/migrate/#supabase">Moving to Berth</a>.</p>
+
       <nav class="pager" aria-label="Pages">
         <a href="/docs/limits/"><span>Previous</span>Limits and errors</a>
       </nav>
@@ -266,6 +273,7 @@ berth apps export "$APP" -o notes_app.dump</code></pre>
         <li><a href="#webhooks">Database webhooks</a></li>
         <li><a href="#data">Moving the data</a></li>
         <li><a href="#gaps">What Berth does not have</a></li>
+        <li><a href="#migrate-command">The one-command version</a></li>
       </ul>
     </aside>
   </div>

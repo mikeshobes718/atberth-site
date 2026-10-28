@@ -41,6 +41,7 @@
       <a href="/compare/">Compare</a>
       <a href="/docs/" aria-current="page">Docs</a>
       <a href="/docs/cli/">CLI</a>
+      <a href="/docs/sdk/">Client SDKs</a>
       <a href="/docs/api/">API</a>
       <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
     </nav>
@@ -69,6 +70,7 @@
       <a href="/docs/realtime/">Realtime</a>
       <a href="/docs/storage/">Storage</a>
       <a href="/docs/functions/">Functions</a>
+      <a href="/docs/jobs/">Background jobs</a>
       <a href="/docs/sites/">Sites</a>
       <a href="/docs/webhooks/">Webhooks</a>
       <a href="/docs/sql/">SQL, export, restore</a>
@@ -78,6 +80,8 @@
       <a href="/docs/limits/">Limits and errors</a>
       <p class="group">Guides</p>
       <a href="/docs/supabase/">Migrating from Supabase</a>
+      <a href="/dpa/">Data processing (DPA)</a>
+      <a href="/docs/migrate/">Moving from Firebase, Railway and others</a>
     </nav>
 
     <article class="doc">
@@ -155,6 +159,42 @@ curl -sS https://api.atberth.com/v1/apps/$APP/tables/notes/rows \
   -H "Content-Type: application/json" \
   -d '{"policy":{"read":"owner","write":"owner"}}'</code></pre>
       <p>Buckets use the same levels. See <a href="/docs/storage/">Storage</a>.</p>
+      <h2 id="custom">Custom rules</h2>
+      <p>When the four levels are not enough, give read or write a SQL rule. The rule is one boolean expression over the row, and Postgres checks it for every row, just like the built-in levels. This is how you build teams, organizations and shared workspaces.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP/tables/documents \
+  -H "Authorization: Bearer $SECRET_KEY" -H "Content-Type: application/json" \
+  -d '{"policy":{
+        "read":  {"sql": "org_id = _berth.claim('"'"'org_id'"'"')"},
+        "write": {"sql": "org_id = _berth.claim('"'"'org_id'"'"') AND _berth.has_role('"'"'editor'"'"')"}}}'</code></pre>
+      <p>A rule can use the row's columns, subqueries on other tables, and these helpers:</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Helper</th><th>Returns</th></tr></thead>
+        <tbody>
+          <tr><td><code>_berth.uid()</code></td><td>the signed-in user's id, or null</td></tr>
+          <tr><td><code>_berth.role()</code></td><td><code>user</code>, <code>anon</code> (publishable key only) or <code>service</code></td></tr>
+          <tr><td><code>_berth.claim('key')</code></td><td>one of the user's claims, as text</td></tr>
+          <tr><td><code>_berth.has_role('name')</code></td><td>true if the claims list that role in <code>roles</code> (or <code>role</code>)</td></tr>
+          <tr><td><code>_berth.claims()</code></td><td>all of the user's claims, as jsonb</td></tr>
+        </tbody>
+      </table></div>
+      <p>A membership table works too: <code>{"sql": "EXISTS (SELECT 1 FROM members m WHERE m.org_id = documents.org_id AND m.user_id = _berth.uid())"}</code>. If <code>members</code> has its own policy, give it one that lets a user see their own memberships. A rule is checked when you save it, and a bad column or a typo is refused. Rules can't contain semicolons or comments. The secret key still sees and changes everything, and realtime streams only send a user the rows their rule allows.</p>
+
+      <h2 id="claims">Claims: roles and organizations</h2>
+      <p>Claims are facts about a user that only your server can set: their roles, organization, plan or team. Policies and functions read them with <code>_berth.claim()</code>. A user can see their own claims (<code>GET /auth/me</code>) but never change them.</p>
+      <pre class="code" data-lang="bash"><code>curl -sS -X PATCH https://api.atberth.com/v1/apps/$APP/auth/users/$USER_ID \
+  -H "Authorization: Bearer $SECRET_KEY" -H "Content-Type: application/json" \
+  -d '{"claims":{"org_id":"acme","roles":["editor"]}}'</code></pre>
+      <p>Changes apply on the user's next request, with no new sign-in. Claims can also be set when you create or import a user. Up to 8 KB per user.</p>
+
+      <h2 id="functions">Functions users can call</h2>
+      <p>Postgres functions are callable with the secret key by default. To let your app's users call one, allow it. Their call then runs as them: <code>_berth.uid()</code> and <code>_berth.claim()</code> work inside it, and every table's policy still applies.</p>
+      <pre class="code" data-lang="bash"><code>berth sql --app "$APP" "create function my_open_tasks() returns bigint language sql stable as \$\$ select count(*) from tasks where not done \$\$"
+curl -sS -X PUT https://api.atberth.com/v1/apps/$APP/rpc/my_open_tasks/access \
+  -H "Authorization: Bearer $SECRET_KEY" -H "Content-Type: application/json" -d '{"allow":"user"}'
+curl -sS -X POST https://api.atberth.com/v1/apps/$APP/rpc/my_open_tasks \
+  -H "apikey: $PUBLISHABLE_KEY" -H "Authorization: Bearer $USER_TOKEN" -d '{}'</code></pre>
+      <p><code>allow</code> is <code>secret</code> (the default), <code>user</code> (any signed-in user) or <code>anon</code> (anyone with the publishable key). <code>GET /v1/apps/$APP/rpc</code> lists every function and who may call it. A <code>security definer</code> function runs with the app's own rights, so only allow those if they check <code>_berth.uid()</code> themselves.</p>
+
       <nav class="pager" aria-label="Pages">
         <a href="/docs/auth/"><span>Previous</span>End-user auth</a>
         <a class="nx" href="/docs/queries/"><span>Next</span>Queries</a>
@@ -169,6 +209,9 @@ curl -sS https://api.atberth.com/v1/apps/$APP/tables/notes/rows \
         <li><a href="#try-it">Try it with two users</a></li>
         <li><a href="#rls">How it is enforced</a></li>
         <li><a href="#change">Changing a policy</a></li>
+        <li><a href="#custom">Custom rules</a></li>
+        <li><a href="#claims">Claims: roles and organizations</a></li>
+        <li><a href="#functions">Functions users can call</a></li>
       </ul>
     </aside>
   </div>

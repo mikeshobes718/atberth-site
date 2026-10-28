@@ -41,6 +41,7 @@
       <a href="/compare/">Compare</a>
       <a href="/docs/" aria-current="page">Docs</a>
       <a href="/docs/cli/">CLI</a>
+      <a href="/docs/sdk/">Client SDKs</a>
       <a href="/docs/api/">API</a>
       <a href="https://api.atberth.com/v1/openapi.json">OpenAPI</a>
     </nav>
@@ -69,6 +70,7 @@
       <a href="/docs/realtime/" aria-current="page">Realtime</a>
       <a href="/docs/storage/">Storage</a>
       <a href="/docs/functions/">Functions</a>
+      <a href="/docs/jobs/">Background jobs</a>
       <a href="/docs/sites/">Sites</a>
       <a href="/docs/webhooks/">Webhooks</a>
       <a href="/docs/sql/">SQL, export, restore</a>
@@ -78,6 +80,8 @@
       <a href="/docs/limits/">Limits and errors</a>
       <p class="group">Guides</p>
       <a href="/docs/supabase/">Migrating from Supabase</a>
+      <a href="/dpa/">Data processing (DPA)</a>
+      <a href="/docs/migrate/">Moving from Firebase, Railway and others</a>
     </nav>
 
     <article class="doc">
@@ -152,6 +156,26 @@ grep 'sent while you were away' replay.txt</code></pre>
 
       <h2 id="not-included">What is not included</h2>
       <p>Streams carry row changes only. There are no presence or broadcast channels. For chat style fan out, insert a row and let every client stream the table.</p>
+      <h2 id="channels">Broadcast and presence channels</h2>
+      <p>Channels pass messages between clients without touching the database: typing indicators, cursors, game moves, "who's online". A channel needs no setup and lives as long as someone is on it.</p>
+      <pre class="code" data-lang="bash"><code># Join (Server-Sent Events). presence= is optional: it shows you in the member list.
+curl -sN "https://api.atberth.com/v1/apps/$APP/channels/room:42/stream?apikey=$PUBLISHABLE_KEY&presence=%7B%22name%22%3A%22Ana%22%7D"
+# Send to everyone on it
+curl -sS -X POST https://api.atberth.com/v1/apps/$APP/channels/room:42/broadcast \
+  -H "apikey: $PUBLISHABLE_KEY" -H "Content-Type: application/json" -d '{"event":"typing","payload":{"on":true}}'
+# Who is here
+curl -sS https://api.atberth.com/v1/apps/$APP/channels/room:42/presence -H "apikey: $PUBLISHABLE_KEY"</code></pre>
+      <p>The stream starts with a <code>hello</code> event holding your <code>client_id</code>, then sends <code>broadcast</code>, <code>presence_sync</code>, <code>presence_join</code>, <code>presence_leave</code> and <code>presence_update</code>. Pass your <code>client_id</code> when you broadcast so it isn't echoed back to you, and to change your state with <code>POST .../presence</code>. A signed-in user appears once however many tabs they have open.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Channel name</th><th>Who may join and send</th></tr></thead>
+        <tbody>
+          <tr><td><code>anything</code></td><td>any client of the app (publishable key)</td></tr>
+          <tr><td><code>user:anything</code></td><td>signed-in users</td></tr>
+          <tr><td><code>private:name</code></td><td>signed-in users whose claims list it in <code>channels</code>, and the secret key</td></tr>
+        </tbody>
+      </table></div>
+      <p>Payloads are up to 32 KB, presence state up to 4 KB, and a channel holds 500 clients at once. The <a href="/docs/sdk/">SDKs</a> wrap all of this.</p>
+
       <nav class="pager" aria-label="Pages">
         <a href="/docs/queries/"><span>Previous</span>Queries</a>
         <a class="nx" href="/docs/storage/"><span>Next</span>Storage</a>
@@ -167,6 +191,7 @@ grep 'sent while you were away' replay.txt</code></pre>
         <li><a href="#resume">Resume with Last-Event-ID</a></li>
         <li><a href="#cli">From the CLI</a></li>
         <li><a href="#not-included">What is not included</a></li>
+        <li><a href="#channels">Broadcast and presence channels</a></li>
       </ul>
     </aside>
   </div>
