@@ -240,7 +240,7 @@ berth apps export "$APP" -o notes_app.dump</code></pre>
       <h2 id="gaps">What Berth does not have</h2>
       <ul>
         <li><strong>No embedded joins.</strong> <code>select("*, profiles(*)")</code> has no equivalent. Make two requests, or join in <a href="/docs/sql/">SQL</a> or a view from your server.</li>
-        <li><strong>No OAuth or social login.</strong> Email and password, and email codes, only.</li>
+        <li><strong>Social login is Google and Apple only.</strong> Email and password, email codes, Sign in with Google and Sign in with Apple are built in (see <a href="/docs/auth/">Auth</a>). There is no GitHub, Facebook or generic OAuth provider yet.</li>
         <li><strong>No <code>or=</code> filters.</strong> Filters are ANDed. Use <code>in.(...)</code> or SQL.</li>
         <li><strong>No phone or SMS auth.</strong></li>
         <li><strong>No presence or broadcast channels.</strong> Realtime is row changes only.</li>
